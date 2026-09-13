@@ -1679,6 +1679,93 @@ function AppliedCpapMask3D({
   );
 }
 
+function AppliedBvmMask3D({
+  position,
+  rotation,
+  scale,
+  width,
+  height,
+}: {
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: number;
+  width: number;
+  height: number;
+}) {
+  // A bag-valve-mask is held on the face by a two-handed C–E grip, not
+  // strapped. The seal cuff is a soft silicone skirt; a one-way patient
+  // valve sits at the chin, and the self-inflating bag hangs below it.
+  const sealPoints: Array<[number, number, number]> = [
+    [0, height * 0.44, 0.004],
+    [-width * 0.42, height * 0.16, 0.004],
+    [-width * 0.36, -height * 0.30, 0.004],
+    [0, -height * 0.46, 0.004],
+    [width * 0.36, -height * 0.30, 0.004],
+    [width * 0.42, height * 0.16, 0.004],
+    [0, height * 0.44, 0.004],
+  ];
+
+  return (
+    <group
+      name="applied-bvm-mask"
+      position={position}
+      rotation={rotation}
+      scale={scale}
+      raycast={() => null}
+    >
+      {/* Silicone seal skirt hugging the nose-to-chin contour. */}
+      <SceneCable
+        points={sealPoints}
+        color="#8fb7cf"
+        opacity={0.9}
+        radius={0.0036}
+      />
+      {/* Soft cuff dome over nose + mouth. */}
+      <mesh
+        position={[0, height * 0.02, 0.034]}
+        rotation={[Math.PI / 2, 0, 0]}
+        scale={[width * 0.44, 0.055, height * 0.44]}
+        renderOrder={17}
+      >
+        <cylinderGeometry args={[0.48, 1, 1, 28, 1, true]} />
+        <meshPhysicalMaterial
+          color="#a9c7dd"
+          transparent
+          opacity={0.42}
+          roughness={0.2}
+          metalness={0}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      {/* Patient valve housing at the chin, protruding toward the camera. */}
+      <mesh position={[0, -height * 0.34, 0.10]} rotation={[Math.PI / 2, 0, 0]} renderOrder={19}>
+        <cylinderGeometry args={[0.016, 0.019, 0.045, 20]} />
+        <meshStandardMaterial color="#d5e4ee" roughness={0.32} metalness={0.08} />
+      </mesh>
+      {/* O₂ reservoir / filter port on the valve. */}
+      <mesh position={[0.028, -height * 0.34, 0.085]} rotation={[0, 0, Math.PI / 2]} renderOrder={19}>
+        <cylinderGeometry args={[0.006, 0.006, 0.03, 12]} />
+        <meshStandardMaterial color="#cbd5e1" roughness={0.34} metalness={0.04} />
+      </mesh>
+      {/* Self-inflating bag, hanging below the valve toward the chin/chest. */}
+      <group position={[0, -height * 0.52, 0.09]} rotation={[0.28, 0, 0]} renderOrder={18}>
+        <mesh scale={[0.052, 0.085, 0.052]}>
+          <sphereGeometry args={[1, 24, 18]} />
+          <meshStandardMaterial color="#3b82c4" roughness={0.42} metalness={0.02} />
+        </mesh>
+        {/* Bag ribs — a real self-inflating bag has circumferential pleats. */}
+        {[0.55, 0.72, 0.89].map((y, index) => (
+          <mesh key={`bvm-bag-rib-${y}`} position={[0, 0.085 * (y - 0.5), 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.052 * (1 - index * 0.04), 0.004, 6, 20]} />
+            <meshStandardMaterial color="#2563a8" roughness={0.5} metalness={0.02} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
+
 function AppliedTextureFaceEquipment3D({
   mode,
   position,
@@ -1767,6 +1854,9 @@ function AppliedFittedFaceEquipment3D(props: {
 }) {
   if (props.pilotVolumetricMasks && (props.mode === 'nonrebreather' || props.mode === 'nebulizer')) {
     return <PilotRespiratoryMask3D {...props} mode={props.mode} />;
+  }
+  if (props.mode === 'bvm') {
+    return <AppliedBvmMask3D {...props} />;
   }
   return props.mode === 'cpap'
     ? <AppliedCpapMask3D {...props} />
@@ -2323,7 +2413,8 @@ function TreatmentEquipmentOverlay({
     faceAttachment ? [x, y, z] : faceAnchor(x, y, z);
   // Texture silhouettes alone collapse edge-on. A patient-space harness keeps
   // every fitted mask visibly wrapped around the head from oblique views.
-  const oxygenMaskNeedsHarness = fittedFaceSpec != null;
+  // BVM is held by a two-handed C–E grip, never strapped, so it is excluded.
+  const oxygenMaskNeedsHarness = fittedFaceSpec != null && fittedFaceSpec.mode !== 'bvm';
   const pilotHarnessAnchors = pilotVolumetricMasks && fittedFaceSpec
     && (fittedFaceSpec.mode === 'nonrebreather' || fittedFaceSpec.mode === 'nebulizer')
     ? pilotRespiratoryMaskGeometry(fittedFaceSpec.mode, fittedFaceSpec.width, fittedFaceSpec.height, [0, 0, 0])
@@ -2394,7 +2485,7 @@ function TreatmentEquipmentOverlay({
         </>
       )}
 
-      {equipment.oxygen && fittedFaceSpec && !equipment.hasSurgicalAirway && (
+      {equipment.oxygen && fittedFaceSpec && !equipment.hasSurgicalAirway && !(equipment.hasEtTube && fittedFaceSpec.mode === 'bvm') && (
         <>
           <AppliedFittedFaceEquipment3D
             mode={fittedFaceSpec.mode}
@@ -2419,7 +2510,9 @@ function TreatmentEquipmentOverlay({
             <span
               className="sr-only"
             >
-              {equipment.oxygen.label} fitted over the nose and mouth
+              {fittedFaceSpec.mode === 'bvm'
+                ? 'Bag-valve-mask held with a two-handed face seal'
+                : `${equipment.oxygen.label} fitted over the nose and mouth`}
             </span>
           </MarkerHtml>
         </>
@@ -2430,7 +2523,7 @@ function TreatmentEquipmentOverlay({
   return (
     <>
       <FaceEquipmentFrame frame={faceAttachment}>{fittedEquipment}</FaceEquipmentFrame>
-      {equipment.oxygen && !fittedFaceSpec && !equipment.hasSurgicalAirway && (
+      {equipment.oxygen && (!fittedFaceSpec || (equipment.hasEtTube && fittedFaceSpec.mode === 'bvm')) && !equipment.hasSurgicalAirway && (
         <MarkerHtml
           position={faceAnchor(0.01, 1.66, 0.24)}
           distanceFactor={1.5}

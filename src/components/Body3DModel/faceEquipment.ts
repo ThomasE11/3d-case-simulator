@@ -3,6 +3,7 @@ export type FittedFaceEquipmentMode =
   | 'venturi'
   | 'nonrebreather'
   | 'nebulizer'
+  | 'bvm'
   | 'cpap';
 
 export interface FittedFaceEquipmentSpec {
@@ -58,6 +59,18 @@ const FITTED_FACE_EQUIPMENT: Record<FittedFaceEquipmentMode, FittedFaceEquipment
     width: 0.148,
     height: 0.185,
     connectsToCylinder: false,
+  },
+  bvm: {
+    mode: 'bvm',
+    // BVM mask sits slightly higher and broader than the NRB; its dome + valve
+    // housing protrudes forward (+z) more than a passive oxygen mask. The
+    // reservoir port (tubeExit) sits on the valve at the chin and connects to
+    // an O₂ source at 15 L/min — hence connectsToCylinder is true.
+    centre: [0.004, 1.585, 0.045],
+    tubeExit: [0.062, 1.50, 0.085],
+    width: 0.152,
+    height: 0.165,
+    connectsToCylinder: true,
   },
 };
 

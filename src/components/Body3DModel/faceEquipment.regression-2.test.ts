@@ -6,7 +6,7 @@ import { getFittedFaceEquipmentSpec } from './faceEquipment';
 // other fitted masks remained camera-facing HTML billboards.
 // Found by the continuing /qa realism audit on 2026-09-04.
 describe('fitted respiratory face equipment', () => {
-  it.each(['simple-mask', 'venturi', 'nonrebreather', 'nebulizer', 'cpap'])(
+  it.each(['simple-mask', 'venturi', 'nonrebreather', 'nebulizer', 'cpap', 'bvm'])(
     'defines patient-space geometry for %s',
     mode => {
       const spec = getFittedFaceEquipmentSpec(mode);
@@ -20,9 +20,15 @@ describe('fitted respiratory face equipment', () => {
   );
 
   it('does not classify held or invasive circuits as fitted mask planes', () => {
-    expect(getFittedFaceEquipmentSpec('bvm')).toBeNull();
     expect(getFittedFaceEquipmentSpec('ventilator')).toBeNull();
     expect(getFittedFaceEquipmentSpec('nasal')).toBeNull();
+  });
+
+  it('classifies BVM as a fitted face plane that connects to oxygen', () => {
+    const bvm = getFittedFaceEquipmentSpec('bvm');
+    expect(bvm).not.toBeNull();
+    // A BVM reservoir is driven from an O₂ source at 15 L/min.
+    expect(bvm?.connectsToCylinder).toBe(true);
   });
 
   it('routes low/high-flow masks to oxygen while CPAP remains a pressure circuit', () => {
