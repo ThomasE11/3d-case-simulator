@@ -6654,6 +6654,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 hideOverhead={treatmentBayOverviewEnabled}
                 patientSupportSurface={treatmentBayOverviewEnabled ? patientSupportSurface : 'stretcher'}
                 showPatientSeat={treatmentBayOverviewEnabled && patientSupportSurface === 'seat'}
+                patientSeated={patientMobility === 'seated'}
                 shadowsEnabled={quality.contactShadows}
                 variant={bayVariant}
                 sceneProfile={caseData.id === 'resp-001' ? 'resp-001-villa' : undefined}

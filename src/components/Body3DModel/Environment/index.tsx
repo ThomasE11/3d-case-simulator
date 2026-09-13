@@ -271,31 +271,59 @@ function ClinicalPatientSeat() {
 function ScenePatientSupport({ kind, seated = false }: { kind: 'bed' | 'sofa'; seated?: boolean }) {
   if (kind === 'sofa' && seated) {
     return (
-      <group name="scene-patient-support-sofa-seated" position={[0, 0, 0.32]}>
-        <mesh position={[0, 0.43, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
-          <boxGeometry args={[1.72, 0.20, 0.78]} />
+      <group name="scene-patient-support-sofa-seated" position={[0, 0, 0.62]}>
+        <mesh position={[0, 0.44, 0.02]} castShadow receiveShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[1.72, 0.18, 0.18]} />
           <meshStandardMaterial color="#647052" roughness={0.96} />
         </mesh>
-        <mesh position={[0, 0.78, -0.31]} castShadow raycast={NO_RAYCAST}>
-          <boxGeometry args={[1.72, 0.62, 0.16]} />
+        <mesh position={[0, 0.80, -0.08]} rotation={[-0.18, 0, 0]} castShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[1.72, 0.60, 0.15]} />
           <meshStandardMaterial color="#566247" roughness={0.98} />
         </mesh>
-        {[-0.82, 0.82].map(x => (
-          <mesh key={`seated-sofa-arm-${x}`} position={[x, 0.61, 0]} castShadow raycast={NO_RAYCAST}>
-            <boxGeometry args={[0.16, 0.38, 0.78]} />
+        {[-0.86, 0.86].map(x => (
+          <mesh key={`seated-sofa-arm-${x}`} position={[x, 0.62, 0.02]} castShadow raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.15, 0.38, 0.18]} />
             <meshStandardMaterial color="#566247" roughness={0.98} />
           </mesh>
         ))}
         {[-0.41, 0.41].map(x => (
-          <mesh key={`seated-sofa-cushion-${x}`} position={[x, 0.525, 0.03]} castShadow receiveShadow raycast={NO_RAYCAST}>
-            <boxGeometry args={[0.72, 0.05, 0.66]} />
+          <mesh key={`seated-sofa-cushion-${x}`} position={[x, 0.53, 0.03]} castShadow receiveShadow raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.72, 0.02, 0.16]} />
             <meshStandardMaterial color="#7a8568" roughness={0.98} />
           </mesh>
         ))}
-        {[-0.68, 0.68].flatMap(x => [-0.24, 0.24].map(z => (
+        {[-0.68, 0.68].flatMap(x => [-0.08, 0.10].map(z => (
           <mesh key={`seated-sofa-leg-${x}-${z}`} position={[x, 0.16, z]} castShadow raycast={NO_RAYCAST}>
             <boxGeometry args={[0.055, 0.32, 0.055]} />
             <meshStandardMaterial color="#3f2f22" roughness={0.55} metalness={0.08} />
+          </mesh>
+        )))}
+      </group>
+    );
+  }
+
+  if (kind === 'bed' && seated) {
+    return (
+      <group name="scene-patient-support-bed-seated" position={[0, 0, 0.62]}>
+        {/* Mattress seat — the seated patient's buttocks rest on this plane. */}
+        <mesh position={[0, 0.44, 0.02]} castShadow receiveShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[1.38, 0.18, 0.18]} />
+          <meshStandardMaterial color="#d9e2e8" roughness={0.96} />
+        </mesh>
+        {/* Raised backrest the patient leans against. */}
+        <mesh position={[0, 0.82, -0.08]} rotation={[-0.30, 0, 0]} castShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[1.38, 1.0, 0.10]} />
+          <meshStandardMaterial color="#6b4f38" roughness={0.7} />
+        </mesh>
+        {/* Headboard behind the backrest. */}
+        <mesh position={[0, 0.90, -0.18]} castShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[1.48, 0.62, 0.08]} />
+          <meshStandardMaterial color="#6b4f38" roughness={0.66} />
+        </mesh>
+        {[-0.58, 0.58].flatMap(x => [-0.08, 0.10].map(z => (
+          <mesh key={`seated-bed-leg-${x}-${z}`} position={[x, 0.18, z]} castShadow raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.07, 0.36, 0.07]} />
+            <meshStandardMaterial color="#3e2f25" roughness={0.58} />
           </mesh>
         )))}
       </group>
@@ -687,6 +715,7 @@ export function TreatmentBayEnvironment({
   hideOverhead = false,
   patientSupportSurface = 'stretcher',
   showPatientSeat = false,
+  patientSeated = false,
   shadowsEnabled = true,
   variant = 'clinic',
   sceneProfile,
@@ -694,6 +723,7 @@ export function TreatmentBayEnvironment({
   hideOverhead?: boolean;
   patientSupportSurface?: PatientSupportSurface;
   showPatientSeat?: boolean;
+  patientSeated?: boolean;
   shadowsEnabled?: boolean;
   variant?: EnvironmentVariant;
   sceneProfile?: SceneProfile;
@@ -725,7 +755,7 @@ export function TreatmentBayEnvironment({
           locations still need a support under a seated patient's pelvis. */}
       {showPatientSeat && (isClinic || variant === 'industrial' || variant === 'fire' || variant === 'water') && <ClinicalPatientSeat />}
       {(patientSupportSurface === 'bed' || patientSupportSurface === 'sofa') && (
-        <ScenePatientSupport kind={patientSupportSurface} seated={showPatientSeat} />
+        <ScenePatientSupport kind={patientSupportSurface} seated={patientSeated} />
       )}
       {/* Medical equipment is brought by the paramedic in every scene, but the
           red crash cart and O2 tank belong inside a bay — hide them for
