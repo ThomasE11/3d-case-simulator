@@ -35,9 +35,45 @@ export function phaseTransitionKey(phase: CinematicPhase): string {
 /** Standing start just outside the villa front wall (SceneVariant ROOM.frontZ = 2.0). */
 export const VILLA_DOORWAY: [number, number, number] = [0, 1.8, 2.8];
 
-/** Doorway origin for the scene-entry dolly. Non-home variants keep the short pull-back. */
+/**
+ * Doorway origin for the scene-entry dolly. Every variant gets a real
+ * "arriving from outside the scene" start — pulling back toward the patient
+ * and settling on the resting preset — instead of a generic 30% pull-back.
+ *
+ * Origins are matched to each environment's geometry so the approach reads
+ * as walking in through the open camera-facing side (all scenes keep their
+ * near side open for the student):
+ *   - home      → through the villa front doorway
+ *   - public    → in from the office floor / storefront front edge
+ *   - roadside  → wide approach, wreck + patient come into frame together
+ *   - industrial → in past the scaffold / worksite gate
+ *   - outdoor variants (fire/water/heat/agricultural) → a long low approach
+ *     across the open ground plane
+ */
 export function sceneEntryOrigin(variant: string | undefined): [number, number, number] | undefined {
-  return variant === 'home' ? VILLA_DOORWAY : undefined;
+  switch (variant) {
+    case 'home':
+      return VILLA_DOORWAY;
+    case 'public':
+      return [0, 1.9, 3.6];
+    case 'roadside':
+      return [0.4, 2.4, 4.2];
+    case 'industrial':
+      return [1.4, 2.4, 3.6];
+    case 'fire':
+      return [1.2, 2.2, 4.0];
+    case 'water':
+      return [0.6, 2.6, 4.6];
+    case 'heat':
+      return [0.8, 2.8, 4.8];
+    case 'agricultural':
+      return [1.0, 2.5, 4.4];
+    case 'clinic':
+    default:
+      // Clinical bay keeps the short pull-back: the student is already in the
+      // room, so a full doorway dolly would read as wrong.
+      return undefined;
+  }
 }
 
 // ---------------------------------------------------------------------------

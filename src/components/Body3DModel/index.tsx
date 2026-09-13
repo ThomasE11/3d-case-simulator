@@ -39,6 +39,7 @@ import {
   type PatientSupportSurface,
 } from '@/lib/patientStaging';
 import { deriveSceneEnvironment } from '@/lib/sceneEnvironment';
+import { sceneEntryOrigin } from '@/lib/cinematicPhase';
 import { cameraOrbitSafetyForEnvironment } from '@/lib/cameraOrbitSafety';
 import type { LimbSide, SurfaceSampler } from './BodyMesh';
 import { AdaptiveQuality, qualityForTier } from './AdaptiveQuality';
@@ -6775,13 +6776,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 once={caseData.id === 'resp-001'}
                 focus={overviewCameraFocus}
                 controlsRef={controlsRef}
-                origin={
-                  bayVariant === 'home'
-                    ? [0, 1.8, 2.8]
-                    : bayVariant === 'roadside'
-                      ? [0.4, 2.4, 4.2]
-                      : undefined
-                }
+                origin={sceneEntryOrigin(bayVariant)}
               />
 
               <AmbientAudioLayer
