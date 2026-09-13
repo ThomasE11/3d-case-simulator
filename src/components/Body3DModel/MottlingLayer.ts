@@ -143,24 +143,137 @@ export function buildMottledTextures(body: THREE.Mesh): MottleTwin | null {
   }
 }
 
-/** Vertex test helpers for local cyanosis (lips + nailbeds).
- *  Coordinates are geometry-local (the GLB attribute), not world /
- *  presentation-rotated. Y=0 feet, Y≈1.73 crown, +Z faces camera. */
-export function isCyanoticLipVertex(x: number, y: number, z: number): boolean {
-  // Measured against the rendered patient-male.glb rather than the face's
-  // overall Y band: 1.535–1.555 projects onto the vermilion border. The old
-  // 1.56–1.59 range sits across the philtrum, nostrils and upper cheeks, which
-  // made any clinically legible tint look like facial bruising.
-  return y >= 1.535 && y <= 1.555 && Math.abs(x) < 0.055 && z >= 0.12;
+/**
+ * Local-cyanosis vertex test helpers. Coordinates are geometry-local (the GLB
+ * position attribute), not world / presentation-rotated. Y=0 feet, +Z faces
+ * camera, and the crown Y varies by mesh (adult male ≈1.726 m, infant ≈0.66 m).
+ *
+ * The original band constants were measured against patient-male.glb and were
+ * applied class-wide, so a female patient (mouth at Y≈1.40, not 1.54) tinted
+ * her nose/forehead while pediatric patients tinted nothing. The band is now
+ * derived from each mesh's own crown height so lip/nail cyanosis tracks the
+ * actual mouth and fingertips regardless of which GLB is loaded.
+ */
+
+/** Adult-male reference dimensions (patient-male.glb, geometry-local). */
+export const CYANOSIS_REFERENCE_CROWN = 1.7261;
+const MALE_LIP_BAND_MIN = 1.535;
+const MALE_LIP_BAND_MAX = 1.555;
+const MALE_LIP_X_MAX = 0.055;
+const MALE_LIP_Z_MIN = 0.12;
+// Male-reference mouth seam (measured): the cyanosis band widens/advances from
+// these by fixed offsets that scale with the mesh's own mouth size.
+const MALE_LIP_SEAM_X_HALF = 0.0233;
+const MALE_LIP_SEAM_Z_MIN = 0.1387;
+const MALE_LIP_Y_HALF = (MALE_LIP_BAND_MAX - MALE_LIP_BAND_MIN) / 2; // 0.010
+const MALE_LIP_Z_OFFSET = MALE_LIP_SEAM_Z_MIN - MALE_LIP_Z_MIN; // 0.0187
+
+export interface CyanosisLipBand {
+  /** Lower vermilion-border Y. */
+  min: number;
+  /** Upper vermilion-border Y. */
+  max: number;
+  /** Horizontal half-width of the mouth region (|x| < xMax). */
+  xMax: number;
+  /** Anterior threshold (z >= zMin) so the tint skips the neck/throat. */
+  zMin: number;
+}
+
+interface LipSeam {
+  yCenter: number;
+  xHalf: number;
+  zMin: number;
+}
+
+/**
+ * Measured mouth seam for every shipped patient GLB: [crown, yCenter, xHalf,
+ * zMin]. The mouth is the pair of unwelded lip boundary loops, located by
+ * decoding each mesh's Draco position buffer and clustering the face-region
+ * boundary edges (scripts/anatomy-models/measure-lip-seam.mjs). The centre-to-crown ratio is
+ * NOT constant — children carry a proportionally larger head, so the mouth
+ * sits at a lower fraction of body height (0.826 infant → 0.895 adult). xHalf
+ * and zMin likewise do not scale linearly with body height, so they are stored
+ * per mesh rather than derived from crown.
+ */
+const LIP_SEAM_SAMPLES: ReadonlyArray<readonly [crown: number, yCenter: number, xHalf: number, zMin: number]> = [
+  [0.6554, 0.5414, 0.0129, 0.0651], // infant-female
+  [0.6601, 0.5454, 0.0129, 0.0665], // infant-male
+  [0.9173, 0.7883, 0.0148, 0.0813], // toddler-female
+  [0.9600, 0.8244, 0.0152, 0.0938], // toddler-male
+  [1.2450, 1.0970, 0.0171, 0.1011], // child-female
+  [1.3353, 1.1731, 0.0181, 0.1274], // child-male
+  [1.5088, 1.3474, 0.0204, 0.1207], // adolescent-female
+  [1.5637, 1.3996, 0.0215, 0.1287], // adult-female
+  [1.6355, 1.4592, 0.0220, 0.1374], // adolescent-male
+  [1.7261, 1.5452, 0.0233, 0.1387], // adult-male
+];
+
+function interpolateLipSeam(crown: number): LipSeam {
+  const last = LIP_SEAM_SAMPLES[LIP_SEAM_SAMPLES.length - 1];
+  if (!Number.isFinite(crown) || crown <= 0) return { yCenter: last[1], xHalf: last[2], zMin: last[3] };
+  const first = LIP_SEAM_SAMPLES[0];
+  if (crown <= first[0]) return { yCenter: first[1], xHalf: first[2], zMin: first[3] };
+  if (crown >= last[0]) return { yCenter: last[1], xHalf: last[2], zMin: last[3] };
+  for (let i = 1; i < LIP_SEAM_SAMPLES.length; i++) {
+    const sample = LIP_SEAM_SAMPLES[i];
+    if (crown <= sample[0]) {
+      const prev = LIP_SEAM_SAMPLES[i - 1];
+      const t = (crown - prev[0]) / (sample[0] - prev[0]);
+      return {
+        yCenter: prev[1] + t * (sample[1] - prev[1]),
+        xHalf: prev[2] + t * (sample[2] - prev[2]),
+        zMin: prev[3] + t * (sample[3] - prev[3]),
+      };
+    }
+  }
+  return { yCenter: last[1], xHalf: last[2], zMin: last[3] };
+}
+
+/**
+ * Lip band for a mesh of the given crown height. All four thresholds derive
+ * from the mesh's own measured mouth seam, so the tint lands on THIS mesh's
+ * lips instead of the adult-male band (which sat on the female nose/forehead
+ * and missed pediatric mouths entirely). The band half-width and the anterior
+ * offset scale with the mouth size, not body height.
+ */
+export function cyanosisLipBand(crown: number): CyanosisLipBand {
+  const seam = interpolateLipSeam(crown);
+  const mouthScale = seam.xHalf / MALE_LIP_SEAM_X_HALF;
+  const yHalf = MALE_LIP_Y_HALF * mouthScale;
+  const xMax = seam.xHalf * (MALE_LIP_X_MAX / MALE_LIP_SEAM_X_HALF);
+  const zMin = seam.zMin - MALE_LIP_Z_OFFSET * mouthScale;
+  return { min: seam.yCenter - yHalf, max: seam.yCenter + yHalf, xMax, zMin };
+}
+
+/** Default lip band (adult-male reference), used by the 3-arg predicate form. */
+const DEFAULT_LIP_BAND: CyanosisLipBand = {
+  min: MALE_LIP_BAND_MIN,
+  max: MALE_LIP_BAND_MAX,
+  xMax: MALE_LIP_X_MAX,
+  zMin: MALE_LIP_Z_MIN,
+};
+
+export function isCyanoticLipVertex(
+  x: number,
+  y: number,
+  z: number,
+  band: CyanosisLipBand = DEFAULT_LIP_BAND,
+): boolean {
+  // The band projects onto the vermilion border of the current mesh. The old
+  // absolute 1.535–1.555 range only matched patient-male.glb; on the female
+  // mesh it sat across the philtrum/nostrils and read as facial bruising.
+  return y >= band.min && y <= band.max && Math.abs(x) < band.xMax && z >= band.zMin;
 }
 
 export function isCyanoticNailVertex(x: number, y: number, z: number): boolean {
   // Distal finger tips / nailbeds on patient-male.glb (geometry-local).
+  // NOTE: still male-calibrated — the hand is a smaller fraction of body
+  // height than the head and the female/pediatric hand positions have not yet
+  // been measured, so nail cyanosis currently only lands on the adult male.
   // All five digits: pinky at |x|≈0.55, index/middle nearer |x|≈0.50,
   // forward tips at z≈0.34–0.37. buildCyanosisLocalTwin further gates by
   // nail-plate UV+normal (isCyanoticNailPlateSample) and UV-cell dedupe so
   // fingertip pads / mid-phalanx stay clear.
-  // Legacy groin band (|x|≤0.22, y≤0.85) never reached the hand atlas.
   const lateralTip = Math.abs(x) >= 0.53 && y >= 0.915 && y <= 0.96 && z >= 0.30;
   const forwardTip = Math.abs(x) >= 0.49 && y >= 0.95 && y <= 0.985 && z >= 0.34;
   return lateralTip || forwardTip;
@@ -202,9 +315,17 @@ export function buildCyanosisLocalTwin(
 
     // Geometry-local: presentation rotation lives on the group, not the
     // position attribute, so these gates must stay in the source mesh frame.
+    // Crown (maxY) drives the mesh-aware lip/nail bands below so the tint
+    // lands on THIS mesh's mouth and fingertips, not the adult-male band.
     // NAILS: full-resolution scan (no stride). Distal fingertip islands are
     // dense on the atlas; stride sampling thinned them and made gameplay
     // nailbed cyanosis unreadable at exam zoom.
+    let crownY = 0;
+    for (let i = 0; i < pos.count; i++) {
+      const py = pos.getY(i);
+      if (py > crownY) crownY = py;
+    }
+    const lipBand = cyanosisLipBand(crownY);
     const v = new THREE.Vector3();
     const blotches: Blotch[] = [];
     const nailKeys = new Set<string>();
@@ -216,7 +337,7 @@ export function buildCyanosisLocalTwin(
       v.fromBufferAttribute(pos, i);
       const inLipStride = i % step === 0;
       if (!inLipStride && !isCyanoticNailVertex(v.x, v.y, v.z)) continue;
-      const isLip = isCyanoticLipVertex(v.x, v.y, v.z);
+      const isLip = isCyanoticLipVertex(v.x, v.y, v.z, lipBand);
       const isNail = !isLip && isCyanoticNailVertex(v.x, v.y, v.z);
       if (!isLip && !isNail) continue;
       if (isLip && continuousLipMask) continue;
