@@ -1693,16 +1693,21 @@ function AppliedBvmMask3D({
   height: number;
 }) {
   // A bag-valve-mask is held on the face by a two-handed C–E grip, not
-  // strapped. The seal cuff is a soft silicone skirt; a one-way patient
-  // valve sits at the chin, and the self-inflating bag hangs below it.
+  // strapped. Correct anatomy (verified against reference photos): the
+  // one-way patient valve sits at the mask's APEX (over the nasal bridge),
+  // and the self-inflating bag extends OUTWARD from that apex toward the
+  // clinician — never down toward the chest. The seal cuff is a soft
+  // silicone skirt tracing the nose-to-chin contour.
   const sealPoints: Array<[number, number, number]> = [
-    [0, height * 0.44, 0.004],
-    [-width * 0.42, height * 0.16, 0.004],
-    [-width * 0.36, -height * 0.30, 0.004],
-    [0, -height * 0.46, 0.004],
-    [width * 0.36, -height * 0.30, 0.004],
-    [width * 0.42, height * 0.16, 0.004],
-    [0, height * 0.44, 0.004],
+    [0, height * 0.42, 0.004],
+    [-width * 0.30, height * 0.10, 0.004],
+    [-width * 0.44, -height * 0.16, 0.004],
+    [-width * 0.32, -height * 0.42, 0.004],
+    [0, -height * 0.50, 0.004],
+    [width * 0.32, -height * 0.42, 0.004],
+    [width * 0.44, -height * 0.16, 0.004],
+    [width * 0.30, height * 0.10, 0.004],
+    [0, height * 0.42, 0.004],
   ];
 
   return (
@@ -1738,26 +1743,27 @@ function AppliedBvmMask3D({
           side={THREE.DoubleSide}
         />
       </mesh>
-      {/* Patient valve housing at the chin, protruding toward the camera. */}
-      <mesh position={[0, -height * 0.34, 0.10]} rotation={[Math.PI / 2, 0, 0]} renderOrder={19}>
+      {/* Patient valve housing at the mask APEX (nasal bridge), protruding toward the camera. */}
+      <mesh position={[0, height * 0.18, 0.10]} rotation={[Math.PI / 2, 0, 0]} renderOrder={19}>
         <cylinderGeometry args={[0.016, 0.019, 0.045, 20]} />
         <meshStandardMaterial color="#d5e4ee" roughness={0.32} metalness={0.08} />
       </mesh>
-      {/* O₂ reservoir / filter port on the valve. */}
-      <mesh position={[0.028, -height * 0.34, 0.085]} rotation={[0, 0, Math.PI / 2]} renderOrder={19}>
+      {/* O₂ reservoir / expiratory port on the apex valve. */}
+      <mesh position={[0.028, height * 0.18, 0.085]} rotation={[0, 0, Math.PI / 2]} renderOrder={19}>
         <cylinderGeometry args={[0.006, 0.006, 0.03, 12]} />
         <meshStandardMaterial color="#cbd5e1" roughness={0.34} metalness={0.04} />
       </mesh>
-      {/* Self-inflating bag, hanging below the valve toward the chin/chest. */}
-      <group position={[0, -height * 0.52, 0.09]} rotation={[0.28, 0, 0]} renderOrder={18}>
-        <mesh scale={[0.052, 0.085, 0.052]}>
+      {/* Self-inflating bag, extending outward from the apex valve (held toward the clinician). */}
+      <group position={[0, height * 0.10, 0.24]} rotation={[0, 0, 0]} renderOrder={18}>
+        {/* Long axis along +z: an ellipsoid pointing at the clinician. */}
+        <mesh scale={[0.052, 0.052, 0.085]}>
           <sphereGeometry args={[1, 24, 18]} />
           <meshStandardMaterial color="#3b82c4" roughness={0.42} metalness={0.02} />
         </mesh>
-        {/* Bag ribs — a real self-inflating bag has circumferential pleats. */}
-        {[0.55, 0.72, 0.89].map((y, index) => (
-          <mesh key={`bvm-bag-rib-${y}`} position={[0, 0.085 * (y - 0.5), 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.052 * (1 - index * 0.04), 0.004, 6, 20]} />
+        {/* Bag ribs — circumferential pleats perpendicular to the +z long axis. */}
+        {[0.0, 0.35, 0.7].map((t) => (
+          <mesh key={`bvm-bag-rib-${t}`} position={[0, 0, 0.085 * (t - 0.35)]}>
+            <torusGeometry args={[0.052, 0.004, 6, 20]} />
             <meshStandardMaterial color="#2563a8" roughness={0.5} metalness={0.02} />
           </mesh>
         ))}
