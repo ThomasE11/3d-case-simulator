@@ -499,3 +499,35 @@ export function inferSceneImage(caseData: CaseScenario): string {
 
   return selectTemplateSceneImage(haystack, age, gender);
 }
+
+// ---------------------------------------------------------------------------
+// Animated arrival clips (opt-in, sparse). A case may carry an optional
+// `sceneInfo.sceneVideoPath`; when it does AND the clip is registered, the
+// Scene Brief card renders a muted looping <video> instead of the static
+// image. Falls back to null → existing image path everywhere else.
+// ---------------------------------------------------------------------------
+
+/** Case-id → arrival clip path. Deliberately tiny: video is expensive to
+ *  generate, so this is the sparse high-value layer, not blanket coverage. */
+const SCENE_VIDEO_OVERRIDES: Record<string, string> = {};
+
+const KNOWN_SCENE_VIDEOS = new Set<string>([]);
+
+export function hasSceneVideoAsset(src: string): boolean {
+  return KNOWN_SCENE_VIDEOS.has(src);
+}
+
+/**
+ * Resolve the animated arrival clip for a case, or null. Mirrors
+ * `inferSceneImage` but for the (optional, sparse) video layer.
+ */
+export function inferSceneVideo(caseData: CaseScenario): string | null {
+  const caseId = caseData.id;
+  if (!caseId) return null;
+  const override = SCENE_VIDEO_OVERRIDES[caseId];
+  if (override && hasSceneVideoAsset(override)) return override;
+  const authored = caseData.sceneInfo?.sceneVideoPath;
+  if (authored && hasSceneVideoAsset(authored)) return authored;
+  return null;
+}
+

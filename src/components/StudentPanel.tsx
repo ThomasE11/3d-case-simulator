@@ -159,7 +159,7 @@ import { generateNarrativeReport } from '@/lib/narrativeReport';
 import { generateEDOutcome } from '@/lib/edOutcome';
 import { exportSessionToPDF } from '@/lib/pdf-export';
 import { getResourcesForDebriefing } from '@/data/diversifiedResources';
-import { inferSceneImage } from '@/lib/sceneImageSelection';
+import { inferSceneImage, inferSceneVideo } from '@/lib/sceneImageSelection';
 import { patientAgeShortLabel } from '@/lib/patientAgePresentation';
 import {
   estimatedBvmTidalVolumeLitres,
@@ -1331,6 +1331,12 @@ export function StudentPanel({
   // female image contradict a male patient before the next phase corrected it.
   const prebriefSceneImage = useMemo(
     () => currentCase ? inferSceneImage(currentCase) : null,
+    [currentCase],
+  );
+  // Animated arrival clip (opt-in). Null unless this case has a registered
+  // video, in which case it replaces the static image in the Scene Brief.
+  const prebriefSceneVideo = useMemo(
+    () => currentCase ? inferSceneVideo(currentCase) : null,
     [currentCase],
   );
   // Case bundle streams in lazily (see caseLibrary.loadAllCases). Until it
@@ -5310,14 +5316,24 @@ export function StudentPanel({
                 </div>
               </CardHeader>
               <CardContent className="p-3 sm:p-4">
-                <div className={`grid gap-4 ${prebriefSceneImage ? 'lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.9fr)]' : ''}`}>
-                  {prebriefSceneImage && (
+                <div className={`grid gap-4 ${(prebriefSceneImage || prebriefSceneVideo) ? 'lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.9fr)]' : ''}`}>
+                  {prebriefSceneVideo ? (
+                    <video
+                      src={prebriefSceneVideo}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      aria-label={currentCase.sceneInfo?.sceneImageCaption || 'Scene overview'}
+                      className="h-full max-h-[23rem] min-h-[15rem] w-full rounded-xl border border-border/40 object-cover"
+                    />
+                  ) : prebriefSceneImage ? (
                     <img
                       src={prebriefSceneImage}
                       alt={currentCase.sceneInfo?.sceneImageCaption || 'Scene overview'}
                       className="h-full max-h-[23rem] min-h-[15rem] w-full rounded-xl border border-border/40 object-cover"
                     />
-                  )}
+                  ) : null}
 
                   <div className="flex flex-col gap-4 rounded-xl bg-muted/25 p-4">
                     {currentCase.initialPresentation && (

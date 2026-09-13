@@ -408,6 +408,12 @@ export interface CaseScenario {
      */
     sceneImagePath?: string;
     sceneImageCaption?: string;
+    /**
+     * Optional animated arrival clip (muted/looping) shown in place of the
+     * static scene image. When absent, the static image renders. Optional so
+     * existing cases stay valid.
+     */
+    sceneVideoPath?: string;
     /** Explicit environment override so the 3D scene matches the authored incident. */
     environmentVariant?:
       | 'clinic'
