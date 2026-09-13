@@ -12,20 +12,24 @@ export const RESP001_LIP_ARTICULATION_MORPH = 'viseme_open';
 export type Resp001LipSide = -1 | 0 | 1;
 
 /**
- * The corrected amplitude-reactive articulation is calibrated to the male
- * patient mesh (`patient-male.glb`) — its vermilion band, seam topology and
- * measured 5.8 mm excursion. Apply it to every male case, not only the
- * resp-001 pilot, so a speaking male patient never falls back to the shipped
- * malformed 50 mm lower-face viseme with its axis-bugged normal delta.
- * Female and legacy meshes keep their shipped morph until a female-calibrated
- * delta exists (their lip coordinates differ, so reusing the male band would
- * land the movement on the wrong part of the face).
+ * The corrected amplitude-reactive articulation is calibrated to the adult
+ * male patient mesh (`patient-male.glb`, crown ~1.726 m) — its vermilion band,
+ * seam topology and measured 5.8 mm excursion. Apply it only to that mesh.
+ *
+ * Pediatric male meshes (`patient-adolescent/child/infant/toddler-male.glb`,
+ * crown 0.66–1.64 m) have proportionally lower mouths whose seam loops fall
+ * entirely outside the calibrated band, so classifyResp001LipSeamSides finds
+ * no boundary and the articulation would crash the patient at clone time.
+ * They keep their shipped morph until each band is calibrated. Female and
+ * legacy meshes likewise keep their shipped morph (their lip coordinates
+ * differ, so reusing the male band would land the movement on the wrong part
+ * of the face).
  */
 export function shouldApplyCorrectedLipArticulation(
   modelPath: string,
   meshName: string,
 ): boolean {
-  return modelPath.includes('-male.glb') && meshName === 'Patient';
+  return modelPath === '/models/patient-male.glb' && meshName === 'Patient';
 }
 
 const LIP_X_FULL = 0.020;
@@ -315,7 +319,16 @@ export function withResp001LipArticulationMorph(
     throw new Error('resp-001 lip articulation requires a valid viseme_open morph index');
   }
 
-  const seamSides = classifyResp001LipSeamSides(geometry);
+  let seamSides: Int8Array;
+  try {
+    seamSides = classifyResp001LipSeamSides(geometry);
+  } catch {
+    // The mouth seam was not found in the calibrated band (for example a
+    // pediatric or otherwise uncalibrated mesh slipped past the caller's gate).
+    // Return the clone unchanged so the patient keeps its shipped morph rather
+    // than crashing the whole render. Articulation is cosmetic; the exam wins.
+    return geometry;
+  }
   const deltas = new Float32Array(position.count * 3);
   for (let index = 0; index < position.count; index++) {
     const [dx, dy, dz] = resp001LipArticulationDelta(

@@ -9,11 +9,15 @@ import {
 
 describe('resp-001 amplitude-reactive lip articulation', () => {
   describe('shouldApplyCorrectedLipArticulation', () => {
-    it('applies the corrected male articulation to every male case', () => {
+    it('applies the corrected articulation to the adult male mesh only', () => {
       expect(shouldApplyCorrectedLipArticulation('/models/patient-male.glb', 'Patient')).toBe(true);
     });
 
-    it('leaves female, legacy and non-Patient meshes on their shipped morph', () => {
+    it('leaves pediatric male, female, legacy and non-Patient meshes on their shipped morph', () => {
+      expect(shouldApplyCorrectedLipArticulation('/models/patient-adolescent-male.glb', 'Patient')).toBe(false);
+      expect(shouldApplyCorrectedLipArticulation('/models/patient-child-male.glb', 'Patient')).toBe(false);
+      expect(shouldApplyCorrectedLipArticulation('/models/patient-infant-male.glb', 'Patient')).toBe(false);
+      expect(shouldApplyCorrectedLipArticulation('/models/patient-toddler-male.glb', 'Patient')).toBe(false);
       expect(shouldApplyCorrectedLipArticulation('/models/patient-female.glb', 'Patient')).toBe(false);
       expect(shouldApplyCorrectedLipArticulation('/models/patient.glb', 'Patient')).toBe(false);
       expect(shouldApplyCorrectedLipArticulation('/models/patient-male.glb', 'Eyes')).toBe(false);
@@ -172,5 +176,32 @@ describe('resp-001 amplitude-reactive lip articulation', () => {
 
     expect(() => withResp001LipArticulationMorph(geometry)).toThrow(/viseme_open/);
     expect(() => withResp001LipArticulationMorph(geometry, 2)).toThrow(/viseme_open/);
+  });
+
+  it('keeps the shipped morph when no mouth seam sits in the calibrated band', () => {
+    // A pediatric-scale geometry has a viseme_open morph but its vertices sit
+    // well below the adult lip band, so classifyResp001LipSeamSides would find
+    // no boundary. The articulation must degrade to the unchanged clone rather
+    // than crash the patient render.
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+      -0.010, 0.900, 0.100,
+      0.010, 0.900, 0.100,
+      0, 0.920, 0.100,
+    ], 3));
+    geometry.setIndex([0, 1, 2]);
+    const viseme = new THREE.Float32BufferAttribute(new Float32Array(9), 3);
+    geometry.morphAttributes.position = [viseme];
+    geometry.morphTargetsRelative = true;
+
+    const result = withResp001LipArticulationMorph(geometry, 0);
+    expect(result).not.toBe(geometry);
+    expect(result.getAttribute('position').count).toBe(3);
+    // The articulation degrades to the untouched clone, so the viseme delta
+    // stays all-zero rather than painting movement on the wrong part of a
+    // pediatric-scale face.
+    expect(Array.from(result.morphAttributes.position?.[0]?.array ?? [])).toEqual(
+      Array.from(new Float32Array(9)),
+    );
   });
 });
