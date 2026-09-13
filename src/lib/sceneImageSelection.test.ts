@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { allCases } from '@/data/cases';
-import { inferSceneImage, sceneImageNeedsPatientOverlay, sceneImagePatientGender } from './sceneImageSelection';
+import { inferSceneImage, inferSceneVideo, sceneImageNeedsPatientOverlay, sceneImagePatientGender } from './sceneImageSelection';
 
 describe('scene image demographic consistency', () => {
   it('never selects a visibly gendered patient who contradicts the case', () => {
@@ -76,5 +76,19 @@ describe('scene image demographic consistency', () => {
     const image = inferSceneImage(caseData!);
     expect(image).toBe('/scene-assets/home-pediatric-uae-family.png');
     expect(sceneImageNeedsPatientOverlay(image)).toBe(false);
+  });
+});
+
+describe('animated arrival clips', () => {
+  it('resolves the registered arrival clip for trauma-001', () => {
+    const caseData = allCases.find(({ id }) => id === 'trauma-001');
+    expect(caseData).toBeDefined();
+    expect(inferSceneVideo(caseData!)).toBe('/scene-assets/arrival-trauma-001-rtc.mp4');
+  });
+
+  it('falls back to null when a case has no registered clip', () => {
+    const caseData = allCases.find(({ id }) => id === 'resp-001');
+    expect(caseData).toBeDefined();
+    expect(inferSceneVideo(caseData!)).toBeNull();
   });
 });

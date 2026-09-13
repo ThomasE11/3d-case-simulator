@@ -2342,6 +2342,7 @@ export const caseDatabase: CaseScenario[] = [
       environmentVariant: 'roadside',
       sceneImagePath: '/scene-assets/road-traffic-male-dubai.png',
       sceneImageCaption: 'Motorcycle vs car collision on Sheikh Zayed Road',
+      sceneVideoPath: '/scene-assets/arrival-trauma-001-rtc.mp4',
     },
     initialPresentation: {
       generalImpression: 'Young male, supine on road, helmet removed by bystanders',

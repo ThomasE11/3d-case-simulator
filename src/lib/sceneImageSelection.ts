@@ -511,7 +511,9 @@ export function inferSceneImage(caseData: CaseScenario): string {
  *  generate, so this is the sparse high-value layer, not blanket coverage. */
 const SCENE_VIDEO_OVERRIDES: Record<string, string> = {};
 
-const KNOWN_SCENE_VIDEOS = new Set<string>([]);
+const KNOWN_SCENE_VIDEOS = new Set<string>([
+  '/scene-assets/arrival-trauma-001-rtc.mp4',
+]);
 
 export function hasSceneVideoAsset(src: string): boolean {
   return KNOWN_SCENE_VIDEOS.has(src);
