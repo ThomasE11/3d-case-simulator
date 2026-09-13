@@ -25,7 +25,7 @@ import { getBreathingPattern, liveBreathingDepth } from '@/lib/breathingPresenta
 import { activeRespiratoryInterface, type OxygenVisualMode } from '@/lib/respiratoryEquipment';
 import {
   deriveAppliedPatientStage,
-  deriveNeckGuardEnabled,
+  deriveHandGuardRegion,
   derivePatientMobility,
   derivePatientPosture,
   derivePatientSeatKind,
@@ -5468,8 +5468,8 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
     [caseData],
   );
 
-  const neckGuardEnabled = useMemo(
-    () => deriveNeckGuardEnabled(caseData),
+  const handGuardRegion = useMemo(
+    () => deriveHandGuardRegion(caseData),
     [caseData],
   );
 
@@ -6856,7 +6856,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 // Work-of-breathing posture; eases to recovery as SpO2 climbs.
                 posture={patientPosture}
                 braceHandsOnKnees={caseData.id === 'resp-001'}
-                neckGuardEnabled={neckGuardEnabled}
+                handGuardRegion={handGuardRegion}
                 mobility={patientMobility}
                 // Lip-sync drive from the patient's TTS analyser.
                 mouthOpenRef={patientVoice.mouthOpenRef}

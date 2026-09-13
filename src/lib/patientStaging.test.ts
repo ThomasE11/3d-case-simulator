@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   deriveAppliedPatientStage,
-  deriveNeckGuardEnabled,
+  deriveHandGuardRegion,
   derivePatientMobility,
   derivePatientPosture,
   derivePatientSeatKind,
@@ -172,7 +172,7 @@ describe('derivePatientSeatKind', () => {
   });
 });
 
-describe('deriveNeckGuardEnabled', () => {
+describe('deriveHandGuardRegion', () => {
   it('flags a patient guarding or self-splinting their own neck/c-spine', () => {
     const whiplash = {
       initialPresentation: {
@@ -181,7 +181,7 @@ describe('deriveNeckGuardEnabled', () => {
         appearance: 'Anxious but not distressed, holding posterior neck',
       },
     } as unknown as CaseScenario;
-    expect(deriveNeckGuardEnabled(whiplash)).toBe(true);
+    expect(deriveHandGuardRegion(whiplash)).toBe('neck');
 
     const splinting = {
       initialPresentation: {
@@ -190,12 +190,50 @@ describe('deriveNeckGuardEnabled', () => {
         appearance: '',
       },
     } as unknown as CaseScenario;
-    expect(deriveNeckGuardEnabled(splinting)).toBe(true);
+    expect(deriveHandGuardRegion(splinting)).toBe('neck');
   });
 
-  it('does not flag a neck merely mentioned in an unrelated context', () => {
-    expect(deriveNeckGuardEnabled(fakeCase('Supine on the floor'))).toBe(false);
-    expect(deriveNeckGuardEnabled({} as CaseScenario)).toBe(false);
+  it('classifies the distinct guarding presentations', () => {
+    const choking = {
+      initialPresentation: {
+        generalImpression: 'Middle-aged male, clutching throat, universal choking sign',
+        position: 'Standing',
+        appearance: '',
+      },
+    } as unknown as CaseScenario;
+    expect(deriveHandGuardRegion(choking)).toBe('choking');
+
+    const chest = {
+      initialPresentation: {
+        generalImpression: 'Middle-aged male, diaphoretic, clutching chest',
+        position: 'Sitting upright, leaning forward',
+        appearance: '',
+      },
+    } as unknown as CaseScenario;
+    expect(deriveHandGuardRegion(chest)).toBe('chest');
+
+    const abdomen = {
+      initialPresentation: {
+        generalImpression: 'Young female, pale, diaphoretic, guarding lower abdomen',
+        position: 'Lying on floor, knees drawn up, guarding abdomen',
+        appearance: '',
+      },
+    } as unknown as CaseScenario;
+    expect(deriveHandGuardRegion(abdomen)).toBe('abdomen');
+
+    const head = {
+      initialPresentation: {
+        generalImpression: 'Middle-aged male, distressed, holding head',
+        position: 'Sitting',
+        appearance: '',
+      },
+    } as unknown as CaseScenario;
+    expect(deriveHandGuardRegion(head)).toBe('head');
+  });
+
+  it('does not flag a body part merely mentioned in an unrelated context', () => {
+    expect(deriveHandGuardRegion(fakeCase('Supine on the floor'))).toBeNull();
+    expect(deriveHandGuardRegion({} as CaseScenario)).toBeNull();
   });
 });
 

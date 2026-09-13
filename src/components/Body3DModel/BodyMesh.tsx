@@ -205,10 +205,11 @@ interface BodyMeshProps {
   patientAge?: number;
   /** Pilot calibrated adult tripod support without changing other rigs. */
   braceHandsOnKnees?: boolean;
-  /** Patient is guarding/self-splinting their own neck (e.g. whiplash "holding
-   *  back of neck"). Raises both hands from the lap to the c-spine instead of
-   *  the default seated rest so the render matches the authored presentation. */
-  neckGuardEnabled?: boolean;
+  /** Region the patient is guarding/clutching/self-splinting (e.g. whiplash
+   *  "holding back of neck", cardiac "clutching chest", choking sign). Raises
+   *  the hands from the lap to the guarded region instead of the default
+   *  seated rest so the render matches the authored presentation. */
+  handGuardRegion?: 'neck' | 'head' | 'chest' | 'abdomen' | 'choking' | null;
   /** Fade the surface patient when an internal anatomy reference is shown. */
   surfaceOpacity?: number;
   /** Names of finding morph targets that should be ACTIVE (revealed) — e.g.
@@ -474,10 +475,63 @@ const RECOVERY_BONE_ADJUSTMENTS = {
 // the neck just below the head (~[0, 1.25, 0.55] world).
 const NECK_GUARD_ADJUSTMENTS = {
   leftArm: [-1.15, 0, -0.35] as const,
-  leftForeArm: [-1.55, 0, 1.3] as const,
+  leftForeArm: [-1.5, -0.6, 1.6] as const,
   rightArm: [-1.15, 0, 0.35] as const,
-  rightForeArm: [-1.55, 0, -1.3] as const,
+  rightForeArm: [-1.5, 0.6, -1.6] as const,
 };
+
+/**
+ * Hand-guard bone adjustments per guarded region, applied additively over the
+ * seated/standing rest pose. Each region raises the hands from the lap to the
+ * guarded anatomy. Values are CALIBRATED against live skinned-mesh bone
+ * positions (scripts/guard-final-cal.mjs drives window.__setHandGuard across a
+ * grid of elbow-flexion (foreArm X), horizontal-adduction (foreArm Y) and
+ * inward-sweep (foreArm Z), reads LeftHand/RightHand world positions, and picks
+ * the combo whose hand midpoint lands on the target bone: head→Head,
+ * neck/choking→Neck, chest→Spine2, abdomen→Spine1). The forearm Y (horizontal
+ * adduction) is the axis that brings the hands to the body midline — a Z twist
+ * alone leaves them splayed outboard.
+ */
+const HAND_GUARD_ADJUSTMENTS: Record<
+  'neck' | 'head' | 'chest' | 'abdomen' | 'choking',
+  { leftArm: readonly [number, number, number]; leftForeArm: readonly [number, number, number]; rightArm: readonly [number, number, number]; rightForeArm: readonly [number, number, number] }
+> = {
+  neck: NECK_GUARD_ADJUSTMENTS,
+  // Hands cup the sides of the head — same pose as the neck guard, which
+  // lands the hands at head height flanking the temples.
+  head: NECK_GUARD_ADJUSTMENTS,
+  // Both hands rise to the sternum / left chest. Deeper adduction + more
+  // inward sweep drops the hands from head height to the chest line.
+  chest: {
+    leftArm: [-1.15, 0, -0.35] as const,
+    leftForeArm: [-1.3, -1.5, 2.5] as const,
+    rightArm: [-1.15, 0, 0.35] as const,
+    rightForeArm: [-1.3, 1.5, -2.5] as const,
+  },
+  // Both hands press the lower abdomen — full flexion + deepest adduction
+  // lowers the hands to the belly line.
+  abdomen: {
+    leftArm: [-1.15, 0, -0.35] as const,
+    leftForeArm: [-1.9, -1.5, 2.5] as const,
+    rightArm: [-1.15, 0, 0.35] as const,
+    rightForeArm: [-1.9, 1.5, -2.5] as const,
+  },
+  // Universal choking sign — both hands rise to the front of the throat. Same
+  // pose as the neck guard; hands land at the anterior neck line.
+  choking: NECK_GUARD_ADJUSTMENTS,
+};
+
+// DEV-only calibration hook: lets scripts/guard-cal.mjs mutate the guard
+// rotations at runtime (no rebuild) so the arm chain can be swept against live
+// bone positions. Mirrors the existing `window.__r3f` DEV hook.
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).__setHandGuard = (
+    region: keyof typeof HAND_GUARD_ADJUSTMENTS,
+    values: (typeof HAND_GUARD_ADJUSTMENTS)[keyof typeof HAND_GUARD_ADJUSTMENTS],
+  ) => {
+    (HAND_GUARD_ADJUSTMENTS as Record<string, unknown>)[region] = values;
+  };
+}
 
 function applyLocalBoneAdjustment(
   bone: THREE.Object3D | null | undefined,
@@ -933,7 +987,7 @@ function buildSurfaceSampler(root: THREE.Object3D | null, presentationRoot?: THR
  */
 const ASYMMETRIC_CHEST_RESIDUAL = 0.35;
 
-export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guidedMode = false, nextGuidedStep = null, onBlockedClick, onBodyPoint, bodyInjuries, patientGender, patientAge, braceHandsOnKnees = false, neckGuardEnabled = false, surfaceOpacity = 1, activeFindingMorphs, breathRateRpm = 0, breathingEffort = 0, chestRiseUnilateral = false, breathDepthFactor = 1, onSurfaceSampler, onFaceAttachment, dressed = false, dressedActiveRegion = null, pupilLeftMm = 3.5, pupilRightMm = 3.5, skinTint = null, skinDiaphoretic = false, diaphoresis = 0, jaundice = 0, mottling = 0, unconscious = false, idleCues = null, reduceIdleMotion = false, presentation = 'upright', bayStage = 'stretcher', sss = false, posture = null, mobility = 'recumbent', mouthOpenRef = null, cyanosisLocalStrength = 0 }: BodyMeshProps) {
+export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guidedMode = false, nextGuidedStep = null, onBlockedClick, onBodyPoint, bodyInjuries, patientGender, patientAge, braceHandsOnKnees = false, handGuardRegion = null, surfaceOpacity = 1, activeFindingMorphs, breathRateRpm = 0, breathingEffort = 0, chestRiseUnilateral = false, breathDepthFactor = 1, onSurfaceSampler, onFaceAttachment, dressed = false, dressedActiveRegion = null, pupilLeftMm = 3.5, pupilRightMm = 3.5, skinTint = null, skinDiaphoretic = false, diaphoresis = 0, jaundice = 0, mottling = 0, unconscious = false, idleCues = null, reduceIdleMotion = false, presentation = 'upright', bayStage = 'stretcher', sss = false, posture = null, mobility = 'recumbent', mouthOpenRef = null, cyanosisLocalStrength = 0 }: BodyMeshProps) {
   // The path is recomputed per render so a `caseData.patientInfo.gender`
   // change (e.g. user picks a different case) swaps the mesh without
   // remounting the parent. useGLTF caches by URL.
@@ -1756,15 +1810,19 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
         applyLocalBoneAdjustment(recoveryPoseBones.rightUpLeg, RECOVERY_BONE_ADJUSTMENTS.rightUpLeg);
         applyLocalBoneAdjustment(recoveryPoseBones.rightLeg, RECOVERY_BONE_ADJUSTMENTS.rightLeg);
       }
-      // Seated self-splint / neck guard: raise both hands from the lap to the
-      // c-spine. recoveryPoseBones resolve to the same LeftArm/RightArm/
-      // LeftForeArm/RightForeArm bones the rest pose just positioned, so this
-      // is a clean additive layer over the seated rest, not a competing pose.
-      if (neckGuardEnabled && posture === 'seated') {
-        applyLocalBoneAdjustment(recoveryPoseBones.leftArm, NECK_GUARD_ADJUSTMENTS.leftArm);
-        applyLocalBoneAdjustment(recoveryPoseBones.leftForeArm, NECK_GUARD_ADJUSTMENTS.leftForeArm);
-        applyLocalBoneAdjustment(recoveryPoseBones.rightArm, NECK_GUARD_ADJUSTMENTS.rightArm);
-        applyLocalBoneAdjustment(recoveryPoseBones.rightForeArm, NECK_GUARD_ADJUSTMENTS.rightForeArm);
+      // Seated/standing self-splint / hand guard: raise both hands from the
+      // lap/sides to the guarded region (neck, head, chest, abdomen, choking
+      // sign). Gated on upright mobility rather than a specific posture so a
+      // tripod patient clutching their chest and a standing choking patient
+      // both render correctly — recoveryPoseBones resolve to the same
+      // LeftArm/RightArm/LeftForeArm/RightForeArm bones the rest pose just
+      // positioned, so this is a clean additive layer, not a competing pose.
+      if (handGuardRegion && (mobility === 'seated' || mobility === 'standing')) {
+        const adj = HAND_GUARD_ADJUSTMENTS[handGuardRegion];
+        applyLocalBoneAdjustment(recoveryPoseBones.leftArm, adj.leftArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.leftForeArm, adj.leftForeArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightArm, adj.rightArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightForeArm, adj.rightForeArm);
       }
     }
     const spineLean = patientSpineLeanRadians(posture, patientAge)

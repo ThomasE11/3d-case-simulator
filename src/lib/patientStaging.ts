@@ -370,22 +370,56 @@ export function derivePatientSeatKind(caseData: CaseScenario): PatientSeatKind {
 }
 
 /**
- * Whether the patient is holding / supporting / self-splinting their own neck
- * or c-spine. Authored cases describe this explicitly ("holding back of neck",
- * "supporting cervical spine") and the render must match — a whiplash patient
- * guarding their neck cannot present with both hands resting in their lap.
- * Matches the general impression, appearance and position prose together so a
- * neck-guard cue hidden in any one field is still caught.
+ * Which body region the patient is guarding / clutching / self-splinting, or
+ * null when they present with a neutral arm pose. Authored cases describe
+ * these presentations explicitly ("holding back of neck", "clutching chest",
+ * "guarding lower abdomen", "universal choking sign") and the render must
+ * match — a cardiac patient clutching their chest cannot present with both
+ * hands resting in their lap, and a choking patient needs the universal sign.
+ *
+ * The general impression, appearance and position prose are joined so a guard
+ * cue hidden in any one field is still caught. Ordering is deliberate:
+ * unambiguous, high-specificity presentations (choking, neck) are matched
+ * before the looser torso regions.
  */
-export function deriveNeckGuardEnabled(caseData: CaseScenario): boolean {
+export type HandGuardRegion = 'neck' | 'head' | 'chest' | 'abdomen' | 'choking' | null;
+
+export function deriveHandGuardRegion(caseData: CaseScenario): HandGuardRegion {
   const haystack = [
     caseData.initialPresentation?.generalImpression,
     caseData.initialPresentation?.appearance,
     caseData.initialPresentation?.position,
   ].filter((s): s is string => typeof s === 'string').join(' ').toLowerCase();
-  return /\bholding (?:back of |posterior |the |their |his |her )?(?:neck|c[- ]?spine|cervical spine)\b|self[- ]?splint(?:ing)? (?:the |their |his |her )?(?:neck|c[- ]?spine)|supporting (?:the |their |his |her )?(?:neck|c[- ]?spine)|cradling (?:the |their |his |her )?(?:neck|c[- ]?spine)/.test(
-    haystack,
-  );
+
+  // "Clutching throat / universal choking sign" — the two-handed front-of-neck
+  // gesture. Match before the generic neck guard so "choking" never degrades.
+  if (/clutching (?:the |their |his |her )?(?:throat|neck|airway)|universal choking sign|choking sign/.test(haystack)) {
+    return 'choking';
+  }
+
+  // Neck guard / c-spine self-splint ("holding back of neck", "supporting
+  // cervical spine"). Distinct from "holding head" below.
+  if (/\bholding (?:back of |posterior |the |their |his |her )?(?:neck|c[- ]?spine|cervical spine)\b|self[- ]?splint(?:ing)? (?:the |their |his |her )?(?:neck|c[- ]?spine)|supporting (?:the |their |his |her )?(?:neck|c[- ]?spine)|cradling (?:the |their |his |her )?(?:neck|c[- ]?spine)/.test(haystack)) {
+    return 'neck';
+  }
+
+  // Holding/cradling the head (e.g. headache) — distinct from the c-spine.
+  if (/\bholding (?:the |their |his |her )?head\b|clutching (?:the |their |his |her )?head\b|cradling (?:the |their |his |her )?head\b/.test(haystack)) {
+    return 'head';
+  }
+
+  // Abdominal guarding ("clutching/guarding/gripping abdomen", "holding the
+  // right lower quadrant"). Before chest so a quadrant read maps correctly.
+  if (/clutching (?:the |their |his |her )?abdomen|guarding (?:the |their |his |her )?(?:abdomen|lower abdomen|stomach)|gripping (?:the |their |his |her )?(?:abdomen|stomach)|holding (?:the |their |his |her )?(?:right|left) (?:lower|upper) quadrant/.test(haystack)) {
+    return 'abdomen';
+  }
+
+  // Chest clutching ("clutching chest", "holding chest", "hand on chest").
+  if (/clutching (?:the |their |his |her )?chest|holding (?:the |their |his |her )?(?:chest|right side of (?:the )?chest|left side of (?:the )?chest)|hand on chest/.test(haystack)) {
+    return 'chest';
+  }
+
+  return null;
 }
 
 /** Local upper-arm rotation that turns the donor clip's A-pose into rest. */
