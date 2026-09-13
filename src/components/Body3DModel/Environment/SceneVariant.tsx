@@ -601,31 +601,55 @@ function PublicScene({
   // storefront element behind a generous examination clearance plane so the
   // centre mullion cannot pass through the skull from the arrival camera.
   const backdropZ = -2.7;
+  // Enclosed office shell — the old build floated one dark-glass storefront
+  // panel on an open floor, so the transparent canvas bled the dark HUD in
+  // from every side and the public scene read as a void. A full back + side
+  // wall envelope with a lit window grounds it as a real interior.
+  const halfW = 3.6;
+  const frontZ = 2.8;
+  const height = 2.75;
+  const wallColour = '#e8ecef';
   return (
     <group>
       {/* Polished stone floor — low roughness picks up the lights */}
       <mesh position={[0, -0.05, 0.1]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
-        <planeGeometry args={[7.2, 7.2]} />
+        <planeGeometry args={[halfW * 2, frontZ - backdropZ]} />
         <meshStandardMaterial color="#cdd4da" roughness={0.38} metalness={0.08} />
       </mesh>
-      {/* Storefront back wall: dark glass panels with a lit signage band */}
-      <mesh position={[0, 1.05, backdropZ]} receiveShadow raycast={NO_RAYCAST}>
-        <boxGeometry args={[4.2, 2.3, 0.05]} />
-        <meshStandardMaterial color="#1c2a36" roughness={0.1} metalness={0.5} />
+
+      {/* Back wall — office partition */}
+      <mesh position={[0, height / 2 - 0.05, backdropZ]} receiveShadow raycast={NO_RAYCAST}>
+        <boxGeometry args={[halfW * 2, height, 0.06]} />
+        <meshStandardMaterial color={wallColour} roughness={0.9} />
       </mesh>
-      <mesh position={[0, 2.0, backdropZ + 0.04]} raycast={NO_RAYCAST}>
-        <boxGeometry args={[4.2, 0.3, 0.03]} />
-        <meshStandardMaterial color="#dbeafe" emissive="#cfe8ff" emissiveIntensity={0.8} roughness={0.3} />
+      {/* Side walls — enclose the interior so no dark HUD bleeds in */}
+      {[-halfW, halfW].map((x) => (
+        <mesh key={`public-side-wall-${x}`} position={[x, height / 2 - 0.05, (backdropZ + frontZ) / 2]} receiveShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.06, height, frontZ - backdropZ]} />
+          <meshStandardMaterial color={wallColour} roughness={0.9} />
+        </mesh>
+      ))}
+
+      {/* Storefront window on the back wall — lit blue glass reads as a window
+          onto the street, not a black void. Emissive so it stays bright even
+          without direct light. */}
+      <mesh position={[0, 1.05, backdropZ + 0.04]} raycast={NO_RAYCAST}>
+        <boxGeometry args={[3.4, 1.7, 0.02]} />
+        <meshStandardMaterial color="#7fb2d8" roughness={0.08} metalness={0.25} emissive="#2e5678" emissiveIntensity={0.55} />
       </mesh>
-      {/* Glass mullions */}
-      {/* Side mullions frame the storefront; no centre mullion behind the
-          patient, where perspective made it read as a pole through the body. */}
-      {[-1.4, 1.4].map((x) => (
-        <mesh key={`mullion-${x}`} position={[x, 1.05, backdropZ + 0.05]} raycast={NO_RAYCAST}>
-          <boxGeometry args={[0.06, 2.3, 0.06]} />
+      {/* Window mullions */}
+      {[-1.13, 0, 1.13].map((x) => (
+        <mesh key={`public-mullion-${x}`} position={[x, 1.05, backdropZ + 0.05]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.05, 1.7, 0.05]} />
           <meshStandardMaterial color="#8fa1b1" roughness={0.35} metalness={0.7} />
         </mesh>
       ))}
+      {/* Lit signage band above the window */}
+      <mesh position={[0, 2.08, backdropZ + 0.04]} raycast={NO_RAYCAST}>
+        <boxGeometry args={[3.4, 0.24, 0.03]} />
+        <meshStandardMaterial color="#dbeafe" emissive="#cfe8ff" emissiveIntensity={0.8} roughness={0.3} />
+      </mesh>
+
       {/* Columns framing the open sides */}
       {[-2.0, 2.0].map((x) => (
         <mesh key={`col-${x}`} position={[x, 1.1, 0.9]} castShadow raycast={NO_RAYCAST}>
@@ -633,10 +657,11 @@ function PublicScene({
           <meshStandardMaterial color="#e2e8f0" roughness={0.35} metalness={0.2} />
         </mesh>
       ))}
-      {/* Office task chair + ottoman. A dining chair made Business Bay read as
-          a restaurant, and hanging shins contradicted "sitting with legs
-          elevated". Keep the seat narrow so thighs, chest and pulse sites stay
-          inspectable; the ottoman is the clinical plant for the calves. */}
+
+      {/* Office task chair + ottoman — only when a patient actually sits. A
+          dining chair made Business Bay read as a restaurant, and hanging
+          shins contradicted "sitting with legs elevated". Keep the seat narrow
+          so thighs, chest and pulse sites stay inspectable. */}
       {showPatientSeat && (
         <>
           <Suspense fallback={null}>
@@ -658,35 +683,65 @@ function PublicScene({
               )),
             )}
           </group>
-          {/* Side desk — Business Bay office, not a mall storefront. */}
-          <group name="public-office-desk" position={[1.45, 0, 0.15]}>
-            <mesh position={[0, 0.74, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
-              <boxGeometry args={[1.15, 0.05, 0.68]} />
-              <meshStandardMaterial color="#d7dbe2" roughness={0.42} metalness={0.08} />
-            </mesh>
-            {([-0.48, 0.48] as const).flatMap(x =>
-              ([-0.26, 0.26] as const).map(z => (
-                <mesh key={`public-desk-leg-${x}-${z}`} position={[x, 0.36, z]} castShadow raycast={NO_RAYCAST}>
-                  <boxGeometry args={[0.045, 0.72, 0.045]} />
-                  <meshStandardMaterial color="#9aa3ad" roughness={0.32} metalness={0.5} />
-                </mesh>
-              )),
-            )}
-            <mesh position={[-0.18, 0.80, -0.04]} castShadow raycast={NO_RAYCAST}>
-              <boxGeometry args={[0.38, 0.018, 0.26]} />
-              <meshStandardMaterial color="#1f2937" roughness={0.45} metalness={0.2} />
-            </mesh>
-            <mesh position={[-0.18, 0.95, -0.14]} rotation={[-0.18, 0, 0]} raycast={NO_RAYCAST}>
-              <boxGeometry args={[0.36, 0.24, 0.012]} />
-              <meshStandardMaterial color="#111827" roughness={0.35} emissive="#1e3a5f" emissiveIntensity={0.35} />
-            </mesh>
-          </group>
         </>
       )}
+
+      {/* Always-on office furniture — a desk, a filing cabinet and a potted
+          plant sit out of the treatment lane so the room reads as an office
+          even when a supine patient lies on the floor and no seat is needed. */}
+      <group name="public-office-desk" position={[1.45, 0, 0.15]}>
+        <mesh position={[0, 0.74, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[1.15, 0.05, 0.68]} />
+          <meshStandardMaterial color="#d7dbe2" roughness={0.42} metalness={0.08} />
+        </mesh>
+        {([-0.48, 0.48] as const).flatMap(x =>
+          ([-0.26, 0.26] as const).map(z => (
+            <mesh key={`public-desk-leg-${x}-${z}`} position={[x, 0.36, z]} castShadow raycast={NO_RAYCAST}>
+              <boxGeometry args={[0.045, 0.72, 0.045]} />
+              <meshStandardMaterial color="#9aa3ad" roughness={0.32} metalness={0.5} />
+            </mesh>
+          )),
+        )}
+        <mesh position={[-0.18, 0.80, -0.04]} castShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.38, 0.018, 0.26]} />
+          <meshStandardMaterial color="#1f2937" roughness={0.45} metalness={0.2} />
+        </mesh>
+        <mesh position={[-0.18, 0.95, -0.14]} rotation={[-0.18, 0, 0]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.36, 0.24, 0.012]} />
+          <meshStandardMaterial color="#111827" roughness={0.35} emissive="#1e3a5f" emissiveIntensity={0.35} />
+        </mesh>
+      </group>
+
+      {/* Filing cabinet — left of the lane, out of the patient's way */}
+      <group name="public-filing-cabinet" position={[-1.6, 0, 0.9]}>
+        <mesh position={[0, 0.55, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.48, 1.1, 0.6]} />
+          <meshStandardMaterial color="#7b8794" roughness={0.5} metalness={0.35} />
+        </mesh>
+        {[0.28, 0.0, -0.28].map((y) => (
+          <mesh key={`public-cabinet-drawer-${y}`} position={[0, 0.15 + 0.28 + y, 0.31]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.42, 0.05, 0.02]} />
+            <meshStandardMaterial color="#4a5568" roughness={0.4} metalness={0.5} />
+          </mesh>
+        ))}
+      </group>
+
+      {/* Potted plant — a soft silhouette to break the box, far right of lane */}
+      <group name="public-office-plant" position={[1.9, 0, 1.4]}>
+        <mesh position={[0, 0.16, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
+          <cylinderGeometry args={[0.16, 0.12, 0.32, 16]} />
+          <meshStandardMaterial color="#b99b6b" roughness={0.85} />
+        </mesh>
+        <mesh position={[0, 0.55, 0]} castShadow raycast={NO_RAYCAST}>
+          <sphereGeometry args={[0.34, 16, 12]} />
+          <meshStandardMaterial color="#3f6d4a" roughness={0.95} />
+        </mesh>
+      </group>
+
       {!hideOverhead && (
         <>
           <mesh position={[0, 2.3, 0.1]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
-            <planeGeometry args={[4.2, 3.2]} />
+            <planeGeometry args={[halfW * 2, frontZ - backdropZ]} />
             <meshStandardMaterial color="#dde3e9" roughness={0.8} />
           </mesh>
           {[-1.2, -0.4, 0.4, 1.2].map((x) => (
@@ -698,6 +753,13 @@ function PublicScene({
         </>
       )}
       {/* Cool fluorescent lighting — flatter and brighter than the bay */}
+      {/* Public/office scenes must enclose their space like every other
+          variant. The old build only had a key + 3 point lights aimed at the
+          floor/patient, so the storefront wall and any open backdrop fell to
+          near-black and the transparent canvas bled the dark HUD through —
+          reading as a void. Hemisphere + ambient ground the whole shell. */}
+      <hemisphereLight args={['#e8f0f6', '#4a4a52', 0.55]} />
+      <ambientLight intensity={0.5} color="#e6edf3" />
       <KeyLight color="#f2f7ff" intensity={7.5} position={[0, 2.6, 0.2]} shadowsEnabled={shadowsEnabled} angle={0.65} />
       <pointLight position={[-1.5, 2.0, 0.8]} intensity={2.2} distance={6} decay={2} color="#eaf4ff" />
       <pointLight position={[1.5, 2.0, 0.8]} intensity={2.2} distance={6} decay={2} color="#eaf4ff" />
