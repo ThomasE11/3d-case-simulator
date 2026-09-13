@@ -222,33 +222,49 @@ async function capturePhaseTransition(browser) {
     await page.getByRole('button', { name: /Launch smart case|Generate Case/i }).first().click();
     await page.getByRole('button', { name: /Begin Scene Survey/i }).click();
     await page.getByRole('button', { name: /^Next$/i }).click();
-    // Hazards: click every visible hazard marker. Each click flips its
-    // aria-label from "Identify hazard: …" to "Acknowledged: …", so the
-    // locator re-resolves — always click nth(0) until none remain (a fixed
-    // index loop would skip over the just-acknowledged marker).
-    let guard = 0;
-    while (guard++ < 12) {
-      const next = page.getByRole('button', { name: /^Identify hazard:/i }).first();
-      if (!(await next.count())) break;
-      await next.click({ timeout: 3000 }).catch(() => {});
-      await page.waitForTimeout(150);
-    }
-    await page.getByRole('button', { name: /No obvious hazards after visual sweep/i }).click({ timeout: 3000 }).catch(() => {});
-    // PPE: don every scene-required item (labelled "Required" in the UI).
-    // Gloves are mandatory for every case.
-    await page.getByRole('button', { name: /Gloves/i }).click().catch(() => {});
-    for (const ppe of ['helmet', 'hi-vis', 'n95', 'surgical mask', 'eye protection', 'gown']) {
-      const btn = page.getByRole('button', { name: new RegExp(ppe, 'i') }).filter({ hasText: 'Required' });
-      if (await btn.count()) await btn.first().click().catch(() => {});
-    }
-    // Scene safety: no-hazard case accepts "safe"; hazard case must be declared
-    // "unsafe" and request a resource before advancing.
-    await page.getByRole('button', { name: /Scene is safe - proceed/i }).click().catch(() => {});
-    const unsafe = page.getByRole('button', { name: /Scene is unsafe - request resources/i });
-    if (await unsafe.isVisible().catch(() => false)) {
-      await unsafe.click();
+
+    // The hazards step has TWO mutually-exclusive branches, signalled by what
+    // renders: hazard scenes show "Identify hazard:" markers; no-hazard scenes
+    // show a single "No obvious hazards after visual sweep" toggle. Never click
+    // both — for a no-hazard scene the "unsafe" path is un-satisfiable
+    // (`sceneSafe === false` requires hazardHotspots.length > 0), so the gate
+    // would deadlock forever.
+    const noHazardToggle = page.getByRole('button', { name: /No obvious hazards after visual sweep/i });
+    const isNoHazard = (await noHazardToggle.count()) > 0;
+
+    if (isNoHazard) {
+      // No-hazard scene: acknowledge the clean sweep, then declare safe.
+      await noHazardToggle.first().click();
+      await page.getByRole('button', { name: /Scene is safe - proceed/i }).click();
+    } else {
+      // Hazard scene: click every marker (each click flips its aria-label from
+      // "Identify hazard: …" to "Acknowledged: …", so always click nth(0) until
+      // none remain), then declare unsafe and request a resource.
+      let guard = 0;
+      while (guard++ < 12) {
+        const next = page.getByRole('button', { name: /^Identify hazard:/i }).first();
+        if (!(await next.count())) break;
+        await next.click({ timeout: 3000 }).catch(() => {});
+        await page.waitForTimeout(150);
+      }
+      await page.getByRole('button', { name: /Scene is unsafe - request resources/i }).click();
       const resource = page.getByRole('button', { name: /Additional ambulance|Police|Fire|Rescue/i }).first();
       if (await resource.count()) await resource.first().click();
+    }
+
+    // PPE: don every scene-required item. Required PPE buttons are keyed by
+    // their exact label text; the "Required" badge is a child <span>. Do NOT
+    // match on /Required/ — the hazard marker "CHEMICAL CONTAMINATION - PPE
+    // required" also contains that substring in its aria-label and would be
+    // toggled off again (un-acknowledging the hazard). Click each real PPE
+    // button once.
+    const ppeLabels = ['Gloves', 'Surgical mask', 'N95 respirator', 'Eye protection', 'Gown / apron', 'Helmet', 'Hi-vis vest'];
+    for (const label of ppeLabels) {
+      const btn = page.getByRole('button', { name: new RegExp(`^${label}`), exact: false }).first();
+      if (await btn.count()) {
+        const pressed = await btn.getAttribute('aria-pressed');
+        if (pressed !== 'true') await btn.click().catch(() => {});
+      }
     }
     await page.getByRole('button', { name: /Enter Scene/i }).click();
     await page.locator('canvas').first().waitFor({ state: 'visible', timeout: 20_000 });
