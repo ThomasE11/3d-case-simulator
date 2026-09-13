@@ -2148,7 +2148,8 @@ export const secondYearCases: CaseScenario[] = [
       environment: 'Comfortable indoor golf clubhouse lounge, air conditioned',
       environmentVariant: 'public',
       patientSupportSurface: 'seat',
-      sceneImagePath: '/scene-assets/mall-foodcourt-chestpain-male-65.png'
+      sceneImagePath: '/scene-assets/mall-foodcourt-chestpain-male-65.png',
+      sceneImageCaption: 'Golf clubhouse lounge — Dubai, seated in club chair'
     },
     initialPresentation: {
       generalImpression: 'Middle-aged male, currently appears well, no obvious neurological deficit on initial glance',
@@ -2526,6 +2527,7 @@ export const secondYearCases: CaseScenario[] = [
       environment: 'Small student bedroom, tidy, no other concerning items visible',
       environmentVariant: 'home',
       sceneImagePath: '/scene-assets/home-medical-female-dubai-apartment.png',
+      sceneImageCaption: 'Student flat — bedroom, young female on bed'
     },
     initialPresentation: {
       generalImpression: 'Young female, alert, calm, appears physically well. Empty medication packets visible.',

@@ -2029,7 +2029,8 @@ export const caseDatabase: CaseScenario[] = [
       hazards: [],
       bystanders: 'Colleague',
       environment: 'Air-conditioned',
-      sceneImagePath: '/scene-assets/hotel-room-medical-uae.png'
+      sceneImagePath: '/scene-assets/hotel-room-medical-uae.png',
+      sceneImageCaption: 'Hotel room — Dubai Marina, business traveller'
     },
     initialPresentation: {
       generalImpression: 'Middle-aged female, anxious, dyspneic',
@@ -4107,7 +4108,8 @@ export const caseDatabase: CaseScenario[] = [
       hazards: [],
       bystanders: 'Friend',
       environment: 'Normal apartment',
-      sceneImagePath: '/scene-assets/home-medical-female-dubai-apartment.png'
+      sceneImagePath: '/scene-assets/home-medical-female-dubai-apartment.png',
+      sceneImageCaption: 'Living room — apartment, young female on sofa'
     },
     initialPresentation: {
       generalImpression: 'Young female, Kussmaul breathing, drowsy',
@@ -4816,7 +4818,8 @@ export const caseDatabase: CaseScenario[] = [
       hazards: [],
       bystanders: 'Wife',
       environment: 'Normal home',
-      sceneImagePath: '/scene-assets/home-medical-male-dubai-apartment.png'
+      sceneImagePath: '/scene-assets/home-medical-male-dubai-apartment.png',
+      sceneImageCaption: 'Living room — home, middle-aged male on sofa'
     },
     initialPresentation: {
       generalImpression: 'Middle-aged male, uncomfortable, feverish',
