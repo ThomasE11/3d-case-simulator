@@ -1,4 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   Activity, Stethoscope,
   HeartPulse, Bone, Wind, Brain, Baby,
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { caseCategories } from '@/data/caseFilters';
+import { LandingHeroScene } from '@/components/LandingHeroScene';
 
 const ClinicalReferenceDialog = lazy(() =>
   import('@/components/ClinicalReferenceDialog').then(m => ({ default: m.ClinicalReferenceDialog })),
@@ -323,34 +325,84 @@ export function LandingPage({ onRoleSelect, caseCount, caseCountsByCategory }: L
       <main>
       <section className="training-hero" aria-labelledby="training-title">
         <div className="training-hero-copy">
-          <p className="training-eyebrow">{t('landing.eyebrow', 'Practice for the moments that matter')}</p>
-          <h1 id="training-title">{t('landing.title', 'Your next patient. Your next decision.')}</h1>
-          <p className="training-hero-description">{t('landing.description', 'Enter the scene. Listen to your patient, find the signs, and practise the care they need. Then review your decisions before the next call.')}</p>
-          <div className="training-hero-actions">
+          <motion.p
+            className="training-eyebrow"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.05 }}
+          >
+            {t('landing.eyebrow', 'Practice for the moments that matter')}
+          </motion.p>
+          <motion.h1
+            id="training-title"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+          >
+            {t('landing.title', 'Your next patient. Your next decision.')}
+          </motion.h1>
+          <motion.p
+            className="training-hero-description"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.28 }}
+          >
+            {t('landing.description', 'Enter the scene. Listen to your patient, find the signs, and practise the care they need. Then review your decisions before the next call.')}
+          </motion.p>
+          <motion.div
+            className="training-hero-actions"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.42 }}
+          >
             <button className="training-start" onClick={() => onRoleSelect('student')}>
               {t('landing.start', 'Start training')} <ArrowRight aria-hidden="true" className="rtl:rotate-180 h-5 w-5" />
             </button>
             <button className="training-join" onClick={() => onRoleSelect('classroom-join')}>
               {t('landing.join', 'Join a classroom')}
             </button>
-          </div>
-          <p className="training-hero-note">{t('landing.note', 'From your first assessment to advanced clinical practice.')}</p>
+          </motion.div>
+          <motion.p
+            className="training-hero-note"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.56 }}
+          >
+            {t('landing.note', 'From your first assessment to advanced clinical practice.')}
+          </motion.p>
         </div>
-        <figure className="training-hero-scene">
+        <motion.figure
+          className="training-hero-scene"
+          initial={{ opacity: 0, scale: 0.97, y: 18 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {/* Living 3D pulse layer behind the scene photo */}
+          <div className="training-hero-scene-live" aria-hidden="true">
+            <LandingHeroScene />
+          </div>
           <img src="/scene-assets/asthma-villa-male-uae.png" alt={t('landing.sceneAlt', 'Paramedics approaching a patient in a home scenario')} fetchPriority="high" />
           <figcaption>
             <span>{t('landing.preview', 'A scene from the case library')}</span>
             <strong>{t('landing.sceneCaption', 'Every encounter starts with a patient, not a diagnosis.')}</strong>
           </figcaption>
-        </figure>
+        </motion.figure>
       </section>
       <section className="training-path" aria-label={t('landing.path', 'Your learning journey')}>
         {[
           ['01', t('landing.assess', 'Assess'), t('landing.assessDetail', 'Read the scene. Ask, look, listen and feel.')],
           ['02', t('landing.treat', 'Treat'), t('landing.treatDetail', 'Choose your equipment and deliver care.')],
           ['03', t('landing.review', 'Reassess & reflect'), t('landing.reviewDetail', 'Follow the response. Learn from your decisions.')],
-        ].map(([number, title, detail]) => (
-          <div key={number}><span className="training-step-number">{number}</span><div><h2>{title}</h2><p>{detail}</p></div></div>
+        ].map(([number, title, detail], index) => (
+          <motion.div
+            key={number}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.5 }}
+            transition={{ duration: 0.55, delay: index * 0.12, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <span className="training-step-number">{number}</span><div><h2>{title}</h2><p>{detail}</p></div>
+          </motion.div>
         ))}
       </section>
       <div className="training-teaching">
@@ -426,16 +478,25 @@ export function LandingPage({ onRoleSelect, caseCount, caseCountsByCategory }: L
           </div>
 
           <div className="training-library">
-            {visibleCategories.map((cat) => {
+            {visibleCategories.map((cat, index) => {
               const Icon = cat.icon;
               return (
-                <button key={cat.slug} onClick={() => onRoleSelect('student', cat.slug)}
-                  aria-label={`Start ${cat.name} training cases`} className="training-library-row">
+                <motion.button
+                  key={cat.slug}
+                  onClick={() => onRoleSelect('student', cat.slug)}
+                  aria-label={`Start ${cat.name} training cases`}
+                  className="training-library-row"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.4 }}
+                  transition={{ duration: 0.45, delay: (index % 6) * 0.06, ease: [0.16, 1, 0.3, 1] }}
+                  whileHover={{ x: 4 }}
+                >
                   <Icon aria-hidden="true" className="h-5 w-5" />
                   <span><strong>{cat.name}</strong><span>{cat.summary}</span></span>
                   <span className="training-library-count">{countsLoaded ? cat.count : '…'}</span>
                   <ArrowRight aria-hidden="true" className="rtl:rotate-180 h-4 w-4" />
-                </button>
+                </motion.button>
               );
             })}
           </div>
