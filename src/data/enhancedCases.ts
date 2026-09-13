@@ -1631,6 +1631,7 @@ export const moreTraumaCases: CaseScenario[] = [
       hazards: ['Fluid spill', 'Debris'],
       bystanders: 'Police on scene',
       environment: 'Hot day',
+      environmentVariant: 'roadside',
       sceneImagePath: '/scene-assets/trauma-007-mvc-splenic-luq.png',
       sceneImageCaption: 'Motor vehicle collision — Al Khail Road',
     },

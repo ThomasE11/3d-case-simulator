@@ -120,4 +120,19 @@ describe('deriveSceneEnvironment', () => {
       ),
     ).toBe('public');
   });
+
+  it('authors an environmentVariant for every distinctive derived scene', () => {
+    // Distinctive outdoor/rescue variants (industrial/fire/water/heat/
+    // agricultural/roadside) drive the 3D bay, survey tone and entry-dolly
+    // origin, so they must be authored rather than left to keyword heuristics
+    // that a wording tweak could silently flip back to clinic.
+    const DISTINCTIVE = new Set(['industrial', 'fire', 'water', 'heat', 'agricultural', 'roadside']);
+    const unauthored: string[] = [];
+    for (const caseData of allCases) {
+      if (caseData.sceneInfo?.environmentVariant) continue;
+      const derived = deriveSceneEnvironment(caseData);
+      if (DISTINCTIVE.has(derived)) unauthored.push(`${caseData.id}: ${derived}`);
+    }
+    expect(unauthored, unauthored.join('\n')).toEqual([]);
+  });
 });
