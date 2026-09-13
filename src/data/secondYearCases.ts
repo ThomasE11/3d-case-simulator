@@ -56,7 +56,7 @@ export const secondYearCases: CaseScenario[] = [
       bystanders: '3 friends present, one appears to know patient well',
       environment: 'Indoor, air conditioned',
       environmentVariant: 'public',
-      sceneImagePath: '/scene-assets/campus-student-uae.png',
+      sceneImagePath: '/scene-assets/female-asthma-student-sharjah.png',
       sceneImageCaption: 'University campus in Sharjah — Student common room'
     },
     initialPresentation: {
@@ -2148,7 +2148,7 @@ export const secondYearCases: CaseScenario[] = [
       environment: 'Comfortable indoor golf clubhouse lounge, air conditioned',
       environmentVariant: 'public',
       patientSupportSurface: 'seat',
-      sceneImagePath: '/scene-assets/mall-foodcourt-chestpain-male-65.png',
+      sceneImagePath: '/scene-assets/home-stroke-elderly-male-uae.png',
       sceneImageCaption: 'Golf clubhouse lounge — Dubai, seated in club chair'
     },
     initialPresentation: {
@@ -2526,7 +2526,7 @@ export const secondYearCases: CaseScenario[] = [
       bystanders: 'Flatmate present and supportive, visibly upset',
       environment: 'Small student bedroom, tidy, no other concerning items visible',
       environmentVariant: 'home',
-      sceneImagePath: '/scene-assets/home-medical-female-dubai-apartment.png',
+      sceneImagePath: '/scene-assets/campus-student-uae.png',
       sceneImageCaption: 'Student flat — bedroom, young female on bed'
     },
     initialPresentation: {

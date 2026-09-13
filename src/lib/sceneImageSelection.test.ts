@@ -19,6 +19,19 @@ describe('scene image demographic consistency', () => {
     expect(mismatches, mismatches.join('\n')).toEqual([]);
   });
 
+  it('keeps every authored sceneImagePath truthful against the resolver', () => {
+    const mismatches: string[] = [];
+    for (const caseData of allCases) {
+      const authored = caseData.sceneInfo?.sceneImagePath;
+      if (!authored) continue;
+      const resolved = inferSceneImage(caseData);
+      if (authored !== resolved) {
+        mismatches.push(`${caseData.id}: authored ${authored} != resolved ${resolved}`);
+      }
+    }
+    expect(mismatches, mismatches.join('\n')).toEqual([]);
+  });
+
   it('keeps the LITFL STEMI pre-brief and survey on the same male scene', () => {
     const caseData = allCases.find(({ id }) => id === 'litfl-001');
     expect(caseData).toBeDefined();

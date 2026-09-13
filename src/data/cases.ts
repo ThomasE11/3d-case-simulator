@@ -4109,7 +4109,7 @@ export const caseDatabase: CaseScenario[] = [
       hazards: [],
       bystanders: 'Friend',
       environment: 'Normal apartment',
-      sceneImagePath: '/scene-assets/home-medical-female-dubai-apartment.png',
+      sceneImagePath: '/scene-assets/home-abdominal-female-uae.png',
       sceneImageCaption: 'Living room — apartment, young female on sofa'
     },
     initialPresentation: {
@@ -4819,7 +4819,7 @@ export const caseDatabase: CaseScenario[] = [
       hazards: [],
       bystanders: 'Wife',
       environment: 'Normal home',
-      sceneImagePath: '/scene-assets/home-medical-male-dubai-apartment.png',
+      sceneImagePath: '/scene-assets/postd-001-post-op-wound-infection-ajman.png',
       sceneImageCaption: 'Living room — home, middle-aged male on sofa'
     },
     initialPresentation: {
@@ -5480,7 +5480,7 @@ export const caseDatabase: CaseScenario[] = [
       hazards: ['Construction equipment', 'Heat'],
       bystanders: 'Coworkers',
       environment: 'Outdoor, 42°C, high humidity',
-      sceneImagePath: '/scene-assets/outdoor-heat-illness-uae.png',
+      sceneImagePath: '/scene-assets/env-002-heat-stroke-jebel-ali.png',
       sceneImageCaption: 'Construction site in summer heat — Dubai',
     },
     initialPresentation: {

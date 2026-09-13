@@ -41,7 +41,7 @@ export const additionalRespiratoryCases: CaseScenario[] = [
       hazards: ['Oxygen concentrator present'],
       bystanders: 'Wife distressed',
       environment: 'Warm, poorly ventilated room',
-      sceneImagePath: '/scene-assets/home-medical-male-dubai-apartment.png',
+      sceneImagePath: '/scene-assets/home-copd-male-68-sharjah.png',
       sceneImageCaption: 'Scene — Bedroom, elderly male COPD patient sitting upright'
     },
     initialPresentation: {
@@ -4157,7 +4157,7 @@ export const additionalTraumaCases: CaseScenario[] = [
       bystanders: 'Coworkers, first aider present',
       environment: 'Industrial, noisy',
       environmentVariant: 'industrial',
-      sceneImagePath: '/scene-assets/industrial-workshop-male-uae.png',
+      sceneImagePath: '/scene-assets/trauma-011-industrial-hand-amputation.png',
       sceneImageCaption: 'Scene — Industrial, noisy',
     },
     initialPresentation: {
@@ -4734,7 +4734,7 @@ export const additionalBurnsCases: CaseScenario[] = [
       bystanders: 'Coworkers',
       environment: 'Indoor construction site',
       environmentVariant: 'industrial',
-      sceneImagePath: '/scene-assets/construction-anaphylaxis-male-uae.png',
+      sceneImagePath: '/scene-assets/burn-002-electrical-arrest-business-bay.png',
       sceneImageCaption: 'Scene — Indoor construction site',
     },
     initialPresentation: {
@@ -5265,7 +5265,7 @@ export const additionalLevelBandedCases: CaseScenario[] = [
       bystanders: 'Mall first aider giving handover',
       environment: 'Cool indoor mall',
       environmentVariant: 'public',
-      sceneImagePath: '/scene-assets/mall-foodcourt-chestpain-male-65.png',
+      sceneImagePath: '/scene-assets/cardiac-arrest-mall-male-dubai.png',
       sceneImageCaption: 'Scene — Cool indoor mall',
     },
     initialPresentation: {

@@ -57,7 +57,7 @@ export const firstYearCases: CaseScenario[] = [
       bystanders: 'Daughter present and anxious',
       environment: 'Warm apartment, air conditioning running',
       environmentVariant: 'home',
-      sceneImagePath: '/scene-assets/home-medical-female-dubai-apartment.png',
+      sceneImagePath: '/scene-assets/home-fall-female-livingroom-alain.png',
       sceneImageCaption: 'Scene — Home, ground floor apartment'
     },
     initialPresentation: {
@@ -2845,7 +2845,7 @@ export const firstYearCases: CaseScenario[] = [
       bystanders: 'Security guard performing CPR, multiple bystanders watching, mall staff managing crowd',
       environment: 'Air-conditioned mall, well-lit food court area',
       environmentVariant: 'public',
-      sceneImagePath: '/scene-assets/mall-foodcourt-chestpain-male-65.png',
+      sceneImagePath: '/scene-assets/cardiac-arrest-mall-male-dubai.png',
       sceneImageCaption: 'Scene — Air-conditioned mall, well-lit food court area',
     },
     initialPresentation: {
@@ -3570,7 +3570,7 @@ export const firstYearCases: CaseScenario[] = [
       bystanders: 'Other drivers, helpful',
       environment: 'Hot afternoon, parked in shade',
       environmentVariant: 'roadside',
-      sceneImagePath: '/scene-assets/parking-garage-opioid-od-uae.png',
+      sceneImagePath: '/scene-assets/road-traffic-male-dubai.png',
       sceneImageCaption: 'Scene — Hot afternoon, parked in shade',
     },
     initialPresentation: {
@@ -3825,7 +3825,7 @@ export const firstYearCases: CaseScenario[] = [
       bystanders: 'PE teacher and teammates',
       environment: 'Outdoor pitch, warm evening',
       environmentVariant: 'roadside',
-      sceneImagePath: '/scene-assets/gym-cardiac-arrest-male-dubai.png',
+      sceneImagePath: '/scene-assets/y1-020-school-football-tibial-fracture-male.png',
       sceneImageCaption: 'Scene — Outdoor pitch, warm evening',
     },
     initialPresentation: {
