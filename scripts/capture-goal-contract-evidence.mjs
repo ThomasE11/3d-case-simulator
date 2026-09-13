@@ -430,9 +430,11 @@ try {
     writeDataUrl('07-dof-warm-grade.png', cinematic.dataUrl);
 
     // Remaining frames are deterministic direct framebuffer renders.
-    const skin = await framebuffer(page, {
-      position: [0.10, 2.18, 1.58], target: [0, 2.03, 0.78], fov: 20,
-    });
+    // Face close-up: the head bone sits at y≈1.35, z≈0.83 and the face front
+    // faces +Z (eyes at z≈0.96). Camera in FRONT of the face (+Z side), slight
+    // high angle, tight FOV so pore/SSS detail is legible.
+    const faceCloseup = { position: [0.0, 1.42, 1.55], target: [0, 1.38, 0.88], fov: 16 };
+    const skin = await framebuffer(page, faceCloseup);
     writeDataUrl('01-skin-pores-ears.png', skin.dataUrl);
 
     const male = await framebuffer(page, {
@@ -440,9 +442,13 @@ try {
     });
     writeDataUrl('02-male-morphs.png', male.dataUrl);
 
+    // Jaw/viseme: tight shot at the mouth with FULL influence. The lip-sync
+    // was deliberately recalibrated to a measured 5.8 mm vermilion excursion
+    // (from a comical 50 mm), so at 0.78 the ~4.5 mm gap is sub-pixel from
+    // any wider FOV. At 1.0 the open mouth is legible and proves the morph.
     const speech = await framebuffer(page, {
-      position: [0.10, 2.18, 1.58], target: [0, 2.03, 0.78], fov: 20,
-    }, { morphs: { viseme_open: 0.78 } });
+      position: [0.0, 1.30, 1.55], target: [0, 1.28, 0.88], fov: 14,
+    }, { morphs: { viseme_open: 1.0 } });
     evidence.viseme = speech.morphEvidence;
     writeDataUrl('04-speech-jaw.png', speech.dataUrl);
 
