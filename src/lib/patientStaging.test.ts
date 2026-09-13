@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   deriveAppliedPatientStage,
+  deriveNeckGuardEnabled,
   derivePatientMobility,
   derivePatientPosture,
   derivePatientSeatKind,
@@ -168,6 +169,33 @@ describe('derivePatientSeatKind', () => {
     expect(derivePatientSeatKind(fakeCase('Sitting on a chair'))).toBeNull();
     expect(derivePatientSeatKind(fakeCase('Sitting on the edge of the bed'))).toBeNull();
     expect(derivePatientSeatKind(fakeCase('Supine on the floor'))).toBeNull();
+  });
+});
+
+describe('deriveNeckGuardEnabled', () => {
+  it('flags a patient guarding or self-splinting their own neck/c-spine', () => {
+    const whiplash = {
+      initialPresentation: {
+        generalImpression: 'Adult male sitting in driver seat, holding back of neck, alert and talking',
+        position: 'Seated in driver seat with seatbelt on',
+        appearance: 'Anxious but not distressed, holding posterior neck',
+      },
+    } as unknown as CaseScenario;
+    expect(deriveNeckGuardEnabled(whiplash)).toBe(true);
+
+    const splinting = {
+      initialPresentation: {
+        generalImpression: 'Motorcyclist self-splinting his c-spine after a low-speed fall',
+        position: 'Standing',
+        appearance: '',
+      },
+    } as unknown as CaseScenario;
+    expect(deriveNeckGuardEnabled(splinting)).toBe(true);
+  });
+
+  it('does not flag a neck merely mentioned in an unrelated context', () => {
+    expect(deriveNeckGuardEnabled(fakeCase('Supine on the floor'))).toBe(false);
+    expect(deriveNeckGuardEnabled({} as CaseScenario)).toBe(false);
   });
 });
 
