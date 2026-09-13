@@ -343,10 +343,30 @@ export function derivePatientSupportSurface(
   if (authoredSupport) return authoredSupport;
 
   const position = caseData.initialPresentation?.position?.toLowerCase() ?? '';
-  if (/\b(?:bed|examination couch)\b/.test(position)) return 'bed';
-  if (/\b(?:sofa|couch)\b/.test(position)) return 'sofa';
+  if (/\b(?:bed|examination couch|bunk|mattress|cot|camp bed)\b/.test(position)) return 'bed';
+  if (/\b(?:sofa|couch|settee)\b/.test(position)) return 'sofa';
   if (mobility === 'seated') return 'seat';
   return 'stretcher';
+}
+
+/**
+ * Seat furniture kind, derived from dispatch text. A patient "sitting in an
+ * armchair" must rest in an upholstered chair rather than the scene's default
+ * wooden dining / office chair, and an office chair stays a desk chair even
+ * inside a home scene. Returns null when the variant default is right, so
+ * generic "chair / seat / bench" positions keep the current look.
+ */
+export type PatientSeatKind = 'cushion' | 'desk' | null;
+
+export function derivePatientSeatKind(caseData: CaseScenario): PatientSeatKind {
+  const position = caseData.initialPresentation?.position?.toLowerCase() ?? '';
+  if (/\b(?:armchair|arm chair|lounge chair|club chair|recliner|wingback|upholstered)\b/.test(position)) {
+    return 'cushion';
+  }
+  if (/\b(?:office chair|desk chair|task chair|computer chair)\b/.test(position)) {
+    return 'desk';
+  }
+  return null;
 }
 
 /** Local upper-arm rotation that turns the donor clip's A-pose into rest. */

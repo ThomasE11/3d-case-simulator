@@ -24,7 +24,7 @@ import { SceneVariantEnvironment } from './SceneVariant';
 import { KenneyPatientChair } from './KenneyPatientChair';
 import type { EnvironmentVariant } from '@/lib/sceneEnvironment';
 import { isResp001VillaProfile, type SceneProfile } from './sceneProfile';
-import type { PatientSupportSurface } from '@/lib/patientStaging';
+import type { PatientSeatKind, PatientSupportSurface } from '@/lib/patientStaging';
 import { focusRig, resetFocusRig, FOCUS_REST, FOCUS_WIDE } from '@/lib/focusRig';
 
 const NO_RAYCAST = () => null;
@@ -256,10 +256,10 @@ function Stretcher() {
 /** Kenney desk chair for tripod/seated presentations in the bay, worksite,
  * fire and water scenes. Seat pan is planted at 0.53 m so the pelvis stays
  * on the pan; rolling base + backrest read as a chair, not a crate. */
-function ClinicalPatientSeat() {
+function ClinicalPatientSeat({ kind = 'desk' }: { kind?: 'cushion' | 'desk' | 'dining' }) {
   return (
     <Suspense fallback={null}>
-      <KenneyPatientChair kind="desk" name="clinical-patient-seat" />
+      <KenneyPatientChair kind={kind} name="clinical-patient-seat" />
     </Suspense>
   );
 }
@@ -716,6 +716,7 @@ export function TreatmentBayEnvironment({
   patientSupportSurface = 'stretcher',
   showPatientSeat = false,
   patientSeated = false,
+  patientSeatKind = null,
   shadowsEnabled = true,
   variant = 'clinic',
   sceneProfile,
@@ -724,6 +725,7 @@ export function TreatmentBayEnvironment({
   patientSupportSurface?: PatientSupportSurface;
   showPatientSeat?: boolean;
   patientSeated?: boolean;
+  patientSeatKind?: PatientSeatKind;
   shadowsEnabled?: boolean;
   variant?: EnvironmentVariant;
   sceneProfile?: SceneProfile;
@@ -745,6 +747,7 @@ export function TreatmentBayEnvironment({
           hideOverhead={hideOverhead}
           shadowsEnabled={shadowsEnabled}
           showPatientSeat={showPatientSeat}
+          patientSeatKind={patientSeatKind}
           sceneProfile={sceneProfile}
         />
       )}
@@ -753,7 +756,9 @@ export function TreatmentBayEnvironment({
       {patientSupportSurface === 'stretcher' && <Stretcher />}
       {/* Home/public/heat and road scenes author their own seating. Other
           locations still need a support under a seated patient's pelvis. */}
-      {showPatientSeat && (isClinic || variant === 'industrial' || variant === 'fire' || variant === 'water') && <ClinicalPatientSeat />}
+      {showPatientSeat && (isClinic || variant === 'industrial' || variant === 'fire' || variant === 'water') && (
+        <ClinicalPatientSeat kind={patientSeatKind ?? 'desk'} />
+      )}
       {(patientSupportSurface === 'bed' || patientSupportSurface === 'sofa') && (
         <ScenePatientSupport kind={patientSupportSurface} seated={patientSeated} />
       )}

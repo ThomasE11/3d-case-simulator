@@ -3,6 +3,7 @@ import {
   deriveAppliedPatientStage,
   derivePatientMobility,
   derivePatientPosture,
+  derivePatientSeatKind,
   deriveScenePatientStage,
   deriveTreatmentPositioningOverride,
   patientLoadedOnStretcher,
@@ -148,6 +149,25 @@ describe('patientSkeletalAction', () => {
     expect(patientSpineLeanRadians(null)).toBe(0);
     expect(patientSpineLeanRadians('tripod', 0.5)).toBeCloseTo(0.08);
     expect(patientSpineLeanRadians('tripod', 4)).toBeCloseTo(0.1);
+  });
+});
+
+describe('derivePatientSeatKind', () => {
+  it('renders an upholstered chair for an armchair/recliner presentation', () => {
+    expect(derivePatientSeatKind(fakeCase('Sitting in an armchair'))).toBe('cushion');
+    expect(derivePatientSeatKind(fakeCase('Slumped in a recliner'))).toBe('cushion');
+    expect(derivePatientSeatKind(fakeCase('Collapsed onto a lounge chair'))).toBe('cushion');
+  });
+
+  it('keeps an office/desk chair a desk chair even inside a home scene', () => {
+    expect(derivePatientSeatKind(fakeCase('Sitting on an office chair'))).toBe('desk');
+    expect(derivePatientSeatKind(fakeCase('In front of a computer chair'))).toBe('desk');
+  });
+
+  it('falls back to the scene default for generic chair/seat/bench wording', () => {
+    expect(derivePatientSeatKind(fakeCase('Sitting on a chair'))).toBeNull();
+    expect(derivePatientSeatKind(fakeCase('Sitting on the edge of the bed'))).toBeNull();
+    expect(derivePatientSeatKind(fakeCase('Supine on the floor'))).toBeNull();
   });
 });
 

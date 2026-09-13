@@ -18,6 +18,7 @@ import { useGLTF, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import type { EnvironmentVariant } from '@/lib/sceneEnvironment';
+import type { PatientSeatKind } from '@/lib/patientStaging';
 import { RESP001_VILLA_SHELL } from '@/lib/cameraOrbitSafety';
 import { getVillaTextures } from './textures';
 import { KenneyPatientChair } from './KenneyPatientChair';
@@ -277,11 +278,13 @@ function HomeScene({
   hideOverhead,
   shadowsEnabled,
   showPatientSeat,
+  patientSeatKind,
   sceneProfile,
 }: {
   hideOverhead: boolean;
   shadowsEnabled: boolean;
   showPatientSeat: boolean;
+  patientSeatKind?: PatientSeatKind;
   sceneProfile?: SceneProfile;
 }) {
   const tex = getVillaTextures();
@@ -521,7 +524,7 @@ function HomeScene({
           previous box-pan + slab backrest read as a crate, not furniture. */}
       {showPatientSeat && !hasResp001Dressing && (
         <Suspense fallback={null}>
-          <KenneyPatientChair kind="dining" name="home-patient-chair" />
+          <KenneyPatientChair kind={patientSeatKind ?? 'dining'} name="home-patient-chair" />
         </Suspense>
       )}
 
@@ -1289,15 +1292,17 @@ export function SceneVariantEnvironment({
   hideOverhead,
   shadowsEnabled,
   showPatientSeat,
+  patientSeatKind,
   sceneProfile,
 }: {
   variant: Exclude<EnvironmentVariant, 'clinic'>;
   hideOverhead: boolean;
   shadowsEnabled: boolean;
   showPatientSeat: boolean;
+  patientSeatKind?: PatientSeatKind;
   sceneProfile?: SceneProfile;
 }) {
-  if (variant === 'home') return <HomeScene hideOverhead={hideOverhead} shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} sceneProfile={sceneProfile} />;
+  if (variant === 'home') return <HomeScene hideOverhead={hideOverhead} shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} patientSeatKind={patientSeatKind} sceneProfile={sceneProfile} />;
   if (variant === 'public') return <PublicScene hideOverhead={hideOverhead} shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} />;
   if (variant === 'industrial') return <IndustrialScene shadowsEnabled={shadowsEnabled} />;
   if (variant === 'fire') return <FireScene shadowsEnabled={shadowsEnabled} />;

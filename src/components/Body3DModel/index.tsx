@@ -27,6 +27,7 @@ import {
   deriveAppliedPatientStage,
   derivePatientMobility,
   derivePatientPosture,
+  derivePatientSeatKind,
   derivePatientSupportSurface,
   deriveScenePatientStage,
   deriveTreatmentPositioningOverride,
@@ -34,6 +35,7 @@ import {
   patientLivePositionPresentation,
   type PatientMobility,
   type PatientPosture,
+  type PatientSeatKind,
   type PatientSupportSurface,
 } from '@/lib/patientStaging';
 import { deriveSceneEnvironment } from '@/lib/sceneEnvironment';
@@ -5360,6 +5362,11 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
     [bayStage, caseData, loadedOnStretcher, patientMobility],
   );
 
+  const patientSeatKind = useMemo<PatientSeatKind>(
+    () => derivePatientSeatKind(caseData),
+    [caseData],
+  );
+
   const livePositionPresentation = useMemo(
     () => patientLivePositionPresentation(caseData, {
       stage: bayStage,
@@ -6655,6 +6662,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 patientSupportSurface={treatmentBayOverviewEnabled ? patientSupportSurface : 'stretcher'}
                 showPatientSeat={treatmentBayOverviewEnabled && patientSupportSurface === 'seat'}
                 patientSeated={patientMobility === 'seated'}
+                patientSeatKind={patientSeatKind}
                 shadowsEnabled={quality.contactShadows}
                 variant={bayVariant}
                 sceneProfile={caseData.id === 'resp-001' ? 'resp-001-villa' : undefined}
