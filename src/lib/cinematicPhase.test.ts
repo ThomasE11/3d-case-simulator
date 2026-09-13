@@ -34,10 +34,13 @@ describe('sceneEntryOrigin', () => {
     expect(VILLA_DOORWAY[2]).toBeGreaterThan(2);
   });
 
-  it('leaves clinic / roadside / public on the short pull-back', () => {
+  it('gives every scene variant a real doorway dolly, clinic stays on the short pull-back', () => {
+    expect(sceneEntryOrigin('home')).toEqual(VILLA_DOORWAY);
+    expect(sceneEntryOrigin('public')).toEqual([0, 1.9, 3.6]);
+    expect(sceneEntryOrigin('roadside')).toEqual([0.4, 2.4, 4.2]);
+    expect(sceneEntryOrigin('industrial')).toEqual([1.4, 2.4, 3.6]);
+    // Clinical bay keeps the short pull-back: the student is already in the room.
     expect(sceneEntryOrigin('clinic')).toBeUndefined();
-    expect(sceneEntryOrigin('roadside')).toBeUndefined();
-    expect(sceneEntryOrigin('public')).toBeUndefined();
     expect(sceneEntryOrigin(undefined)).toBeUndefined();
   });
 });
