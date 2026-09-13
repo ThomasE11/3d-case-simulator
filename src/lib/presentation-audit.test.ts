@@ -48,7 +48,13 @@ describe('presentation audit (diagnostic)', () => {
       const position = (c.initialPresentation?.position ?? '').toLowerCase();
 
       if (guard) {
-        if (mobility !== 'seated' && mobility !== 'standing') {
+        // Upright guard (seated/standing) fires for mobility seated/standing.
+        // Recumbent guard fires for posture===supine only (not recovery).
+        const uprightFires = mobility === 'seated' || mobility === 'standing';
+        const recumbentFires = posture === 'supine' && (guard === 'chest' || guard === 'abdomen');
+        const anyGuardFires = uprightFires || recumbentFires;
+
+        if (!anyGuardFires) {
           guardNotRendered.push({
             kind: 'GUARD-NOT-RENDERED', id: c.id, mobility, posture: posture ?? '', guard,
             position: c.initialPresentation?.position ?? '', title: c.title,
