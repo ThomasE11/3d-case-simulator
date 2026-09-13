@@ -67,10 +67,12 @@ const FIRE_PATTERN = new RegExp(
 
 const WATER_PATTERN = new RegExp(
   [
-    '\\bbeach\\b',
-    '\\bpool(?:side)?\\b',
+    // "Beach Road" is a street name (an RTA on it is a road incident), not a
+    // beach rescue. A genuine beach scene never carries a road suffix.
+    '\\bbeach\\b(?!\\s+(?:road|street|drive|avenue|boulevard)\\b)',
+    // "blood pool" is haemorrhage under the patient, not a swimming pool.
+    '(?<!blood )\\bpool(?:side)?\\b',
     '\\bsea\\b',
-    '\\bwater\\b',
     '\\bdrown(?:ing|ed)?\\b',
     '\\bsubmersion\\b',
     '\\bnear-drowning\\b',
@@ -84,7 +86,10 @@ const INDUSTRIAL_PATTERN = new RegExp(
     '\\bwarehouse\\b',
     '\\bfactory\\b',
     '\\bworkshop\\b',
-    '\\bindustrial\\b',
+    // "Industrial Area" / "Industrial Zone" is a Dubai district name in a
+    // dispatch address (e.g. a gym in Al Quoz Industrial Area), not a worksite.
+    // A genuine industrial scene uses construction/factory/workshop/machinery.
+    '\\bindustrial\\b(?!\\s+(?:area|zone|district|park)\\b)',
     '\\bscaffold(?:ing)?\\b',
     '\\bmachinery\\b',
   ].join('|'),
@@ -114,7 +119,8 @@ const HEAT_PATTERN = new RegExp(
     '\\bsun exposure\\b',
     'direct sun',
     '\\boutdoor work(?:er|site)?\\b',
-    '\\bsports? (?:field|pitch)\\b',
+    // A sports field/pitch is a location, not a heat illness; a twisted ankle
+    // on the pitch must not render as heat exposure.
   ].join('|'),
 );
 

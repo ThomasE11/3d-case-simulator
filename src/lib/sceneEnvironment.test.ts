@@ -83,4 +83,41 @@ describe('deriveSceneEnvironment', () => {
     expect(deriveSceneEnvironment(fakeCase('Dubai Healthcare City'))).toBe('clinic');
     expect(deriveSceneEnvironment({} as CaseScenario)).toBe('clinic');
   });
+
+  it('does not misclassify a haemorrhagic road incident as a water rescue', () => {
+    // "blood pool" is bleeding under the patient and "Beach Road" is a street
+    // name, yet a pedestrian struck by a car must stay a road incident.
+    expect(
+      deriveSceneEnvironment(
+        fakeCase('Mamzar Beach Road, Dubai', 'Pedestrian struck by car, small blood pool forming'),
+      ),
+    ).toBe('roadside');
+  });
+
+  it('keeps a boiling-water scald in the kitchen instead of a water rescue', () => {
+    expect(
+      deriveSceneEnvironment(
+        fakeCase('Residential kitchen', 'boiling water spill on arm'),
+      ),
+    ).toBe('home');
+  });
+
+  it('does not render a sports injury as heat exposure', () => {
+    // A twisted leg on a school pitch is a location, not a heat illness.
+    expect(
+      deriveSceneEnvironment(
+        fakeCase('School sports field, Dubai', 'twisted leg in football'),
+      ),
+    ).not.toBe('heat');
+  });
+
+  it('does not turn a gym in an "Industrial Area" district into a worksite', () => {
+    // "Industrial Area" is an address district, not the incident setting; a
+    // cardiac arrest in the gym is a public venue.
+    expect(
+      deriveSceneEnvironment(
+        fakeCase('FitLife Gym, Al Quoz Industrial Area, Dubai', 'collapsed at gym'),
+      ),
+    ).toBe('public');
+  });
 });
