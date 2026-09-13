@@ -89,7 +89,17 @@ export type BayPatientStage = 'stretcher' | 'floor';
 // Grounding is calibrated from the final exported male mesh's world-space
 // bounds. The road is y=-0.05 and the stretcher sheet top is y=0.5025; these
 // stage origins place the active posture against those support planes.
-const BAY_STAGE_Y: Record<BayPatientStage, number> = { stretcher: 0.98, floor: 0.39 };
+//
+// The supine "body thickness" is the rig-origin-to-posterior depth measured on
+// the skinned mesh in the treatment bay (root Y 0.98 → back min-Y ≈ 0.724,
+// i.e. ≈ 0.256 m). The pre-normalisation constant of 0.4775 m assumed the back
+// sat twice that far below the origin, leaving every recumbent patient to
+// hover ~0.22 m above the bed, stretcher or floor.
+const SUPINE_POSTERIOR_DEPTH = 0.256;
+const BAY_STAGE_Y: Record<BayPatientStage, number> = {
+  stretcher: 0.5025 + SUPINE_POSTERIOR_DEPTH,
+  floor: -0.05 + SUPINE_POSTERIOR_DEPTH,
+};
 const BAY_SUPPORT_Y: Record<BayPatientStage, number> = { stretcher: 0.5025, floor: -0.05 };
 const BAY_PATIENT_SCALE = 1.04;
 // The final seated assets place their soles 0.289–0.321 m above the morph

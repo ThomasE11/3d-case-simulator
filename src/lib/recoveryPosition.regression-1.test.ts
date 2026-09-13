@@ -38,7 +38,8 @@ describe('recovery-position staging regression', () => {
     const supine = getTreatmentBayTransform('stretcher', 'supine', 'recumbent', 1);
 
     expect(supine.rotation).toEqual([-Math.PI / 2, 0, 0]);
-    expect(supine.position[1]).toBeCloseTo(0.98);
+    // Back rests on the 0.5025 m stretcher sheet: root = support + posterior depth.
+    expect(supine.position[1]).toBeCloseTo(0.5025 + 0.256);
   });
 
   it('reports the recovery support surface truthfully', () => {
