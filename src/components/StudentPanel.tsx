@@ -94,6 +94,7 @@ import { derivePatientVisualState } from '@/lib/patientVisualState';
 import { phaseMotionVariant, phaseTransitionKey, type CinematicPhase } from '@/lib/cinematicPhase';
 import { deduplicateCareFeedItems } from '@/lib/careFeed';
 import { deriveSceneEnvironment, sceneEnvironmentLabel } from '@/lib/sceneEnvironment';
+import { sceneArrivalCopy } from '@/lib/sceneArrival';
 import { matchRealismScenarios } from '@/lib/patientRealismScenarios';
 import {
   buildReactionForTreatment,
@@ -142,6 +143,7 @@ import { HUDValue } from '@/components/hud/HUDPanel';
 import { HUDVitals } from '@/components/hud/HUDVitals';
 import { HUDTreatmentBags } from '@/components/hud/HUDTreatmentBags';
 import { HUDAssessment } from '@/components/hud/HUDAssessment';
+import { SceneArrivalChyron } from '@/components/hud/SceneArrivalChyron';
 import type { HistoryCategory } from '@/lib/historyTaking';
 // InjuryMap retained for a future debrief/instructor summary — not shown in
 // the student exam view (findings must be discovered, not listed up front).
@@ -1788,6 +1790,12 @@ export function StudentPanel({
   const [caseEndTime, setCaseEndTime] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
+  // Cinematic arrival chyron: when the student enters the scene (and the
+  // CameraEntrance dollies them into the room), show a broadcast lower-third
+  // announcing where they've arrived. Timed to the ~3.3s scene-entrance dolly,
+  // then auto-dismisses; never blocks interaction (pointer-events none).
+  const [arrivalChyronActive, setArrivalChyronActive] = useState(false);
+
   // Treatment effects
   const {
     currentVitals: animatedVitals,
@@ -2879,6 +2887,27 @@ export function StudentPanel({
     setPhase('vitals');
     toast.success('Case started — begin your assessment', { duration: 3000 });
   }, [currentCase, readOnly, setPhase, stopNarration]);
+
+  // Cinematic arrival chyron — fires once when the student enters the scene,
+  // holds through the doorway dolly (~3.3s), then slides back out. Only for
+  // scene-visualised cases (a plain clinic bay has no "arrival"). Clear any
+  // pending timer on cleanup / case change so a stale chyron never outlives
+  // its scene.
+  useEffect(() => {
+    if (phase !== 'vitals' || !currentCase) return;
+    const copy = sceneArrivalCopy(currentCase);
+    if (!copy) return;
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+    const showTimer = setTimeout(() => {
+      setArrivalChyronActive(true);
+      hideTimer = setTimeout(() => setArrivalChyronActive(false), 3400);
+    }, 260);
+    return () => {
+      clearTimeout(showTimer);
+      if (hideTimer) clearTimeout(hideTimer);
+      setArrivalChyronActive(false);
+    };
+  }, [phase, currentCase]);
 
   // The live encounter owns this timer, not the scene-survey button. Loaded
   // classroom/dev encounters enter the same live phase without clicking that
@@ -7923,6 +7952,23 @@ export function StudentPanel({
         )}
           </motion.div>
         </AnimatePresence>
+
+        {/* D3 cinematic: scene-arrival lower-third chyron, timed to the
+            CameraEntrance doorway dolly. Renders outside the phase subtree so
+            it can overlay the live 3D scene without being crossfaded out by
+            AnimatePresence. */}
+        {(() => {
+          const arrival = sceneArrivalCopy(currentCase);
+          return arrival ? (
+            <SceneArrivalChyron
+              active={arrivalChyronActive}
+              kicker={arrival.kicker}
+              title={arrival.title}
+              sub={arrival.sub}
+            />
+          ) : null;
+        })()}
+
         {/* Hands-free voice-first mic — the legacy tap-to-command mic was
             removed (origin), so this surfaces ONLY in voice-first mode, where
             the full intent set (treatments + navigation) is the primary
