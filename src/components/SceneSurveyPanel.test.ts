@@ -3,6 +3,7 @@ import type { CaseScenario } from '@/types';
 import {
   buildArrivalSentence,
   hasReviewedEveryHazard,
+  inferSceneTone,
   sceneSurveyGateHint,
   sceneSurveySetting,
 } from './SceneSurveyPanel';
@@ -90,5 +91,41 @@ describe('sceneSurveySetting', () => {
 
   it('leaves legacy scenes to the text fallback', () => {
     expect(sceneSurveySetting(caseWith('Motorcycle collision'))).toBeNull();
+  });
+});
+
+describe('inferSceneTone public-venue vs hostile-scene split', () => {
+  function publicScene(overrides: Record<string, unknown>): CaseScenario {
+    return {
+      patientInfo: { age: 62, gender: 'male' },
+      dispatchInfo: { callReason: 'episode of facial droop and slurred speech, now resolved' },
+      sceneInfo: {
+        environmentVariant: 'public',
+        description: 'Golf clubhouse lounge, patient sitting in a club chair',
+        environment: 'Comfortable indoor golf clubhouse lounge, air conditioned',
+        hazards: ['None identified'],
+      },
+      ...overrides,
+    } as CaseScenario;
+  }
+
+  it('renders a benign public venue (golf-club TIA) as a venue, not a hostile scene', () => {
+    const tone = inferSceneTone(publicScene({}));
+    expect(tone.setting).toBe('venue');
+    expect(tone.responderLine).not.toContain('Dynamic safety assessment');
+  });
+
+  it('still renders a genuine hostile public scene (nightclub GSW) with the threat dressing', () => {
+    const tone = inferSceneTone(publicScene({
+      dispatchInfo: { callReason: 'Multiple GSW victims, one with chest wounds' },
+      sceneInfo: {
+        environmentVariant: 'public',
+        description: 'Chaotic scene, multiple casualties',
+        environment: 'Indoor nightclub, loud music, flashing lights',
+        hazards: ['ACTIVE SHOOTER SCENE - unsafe!', 'Multiple weapons', 'Panic'],
+      },
+    }));
+    expect(tone.setting).toBe('public');
+    expect(tone.responderLine).toContain('Dynamic safety assessment');
   });
 });

@@ -87,7 +87,7 @@ type SceneTone = {
   floor: string;
   patientPose: string;
   responderLine: string;
-  setting: 'road' | 'industrial' | 'agricultural' | 'public' | 'water' | 'home' | 'fire' | 'heat' | 'medical';
+  setting: 'road' | 'industrial' | 'agricultural' | 'public' | 'venue' | 'water' | 'home' | 'fire' | 'heat' | 'medical';
 };
 
 type HazardHotspot = {
@@ -327,7 +327,7 @@ export function sceneSurveySetting(caseData: CaseScenario): SceneTone['setting']
   }
 }
 
-function inferSceneTone(caseData: CaseScenario): SceneTone {
+export function inferSceneTone(caseData: CaseScenario): SceneTone {
   const authoredSetting = sceneSurveySetting(caseData);
   const haystack = [
     caseData.category,
@@ -400,7 +400,35 @@ function inferSceneTone(caseData: CaseScenario): SceneTone {
       setting: 'water',
     };
   }
-  if (authoredSetting === 'public' || (!authoredSetting && /violence|weapon|police|threat|shouting|agitated|psychiatric/.test(haystack))) {
+  // A benign public venue (golf clubhouse, gym, office, mall, restaurant,
+  // school hall) is not a hostile scene. Only genuine violence/weapon/police/
+  // threat cues warrant the amber "dynamic safety assessment" dressing. The
+  // authored `public` variant is ambiguous — it names a venue type, not a
+  // safety posture — so we resolve it from the case's own scene words.
+  if (
+    authoredSetting === 'public'
+    && /violence|weapon|police|threat|shouting|agitated|psychiatric|assailant|knife|shooter|gunshot|gsw|stab|not secure|unsafe|fled the scene/.test(haystack)
+  ) {
+    return {
+      gradient: 'from-slate-950 via-amber-950 to-stone-950',
+      accent: 'bg-amber-400',
+      floor: 'bg-amber-500/15',
+      patientPose: 'rotate-[3deg]',
+      responderLine: 'Dynamic safety assessment before patient contact.',
+      setting: 'public',
+    };
+  }
+  if (authoredSetting === 'public') {
+    return {
+      gradient: 'from-slate-950 via-slate-900 to-stone-900',
+      accent: 'bg-sky-300',
+      floor: 'bg-sky-500/15',
+      patientPose: 'rotate-[0deg]',
+      responderLine: 'Manage bystanders, secure privacy, and clear working space.',
+      setting: 'venue',
+    };
+  }
+  if (!authoredSetting && /violence|weapon|police|threat|shouting|agitated|psychiatric/.test(haystack)) {
     return {
       gradient: 'from-slate-950 via-amber-950 to-stone-950',
       accent: 'bg-amber-400',
