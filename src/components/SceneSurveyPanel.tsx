@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import type { CaseScenario } from '@/types';
 import { inferAnatomy, inferInjuries, type BodyInjury } from '@/lib/injuryMap';
 import { getSceneTimeLabel, getScenePatientDescriptor } from '@/lib/sceneNarrative';
+import { SceneSensoryStrip } from '@/components/SceneSensoryStrip';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -1615,6 +1616,10 @@ function SceneArrivalVisual({
               No scene-metadata dump, no hazard list (hazards are scanned, not
               told), no image-fidelity checklist. */}
           <h3 className="text-lg font-semibold leading-snug">{buildArrivalSentence(caseData)}</h3>
+          {/* Additive first-person arrival layer (sensory cues, access/extrication,
+              bystander micro-behaviour). Renders only when a case has generated
+              scene-introduction enrichment; otherwise leaves the minimal view intact. */}
+          <SceneSensoryStrip caseData={caseData} />
           <div className="grid gap-2 text-[11px]">
             <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/8 px-3 py-2">
               <MapPin className="h-3.5 w-3.5 shrink-0 text-white/60" />
