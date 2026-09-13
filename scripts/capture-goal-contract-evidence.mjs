@@ -222,8 +222,34 @@ async function capturePhaseTransition(browser) {
     await page.getByRole('button', { name: /Launch smart case|Generate Case/i }).first().click();
     await page.getByRole('button', { name: /Begin Scene Survey/i }).click();
     await page.getByRole('button', { name: /^Next$/i }).click();
-    await page.getByRole('button', { name: /None identified/i }).click();
-    await page.getByRole('button', { name: /Scene is safe/i }).click();
+    // Hazards: click every visible hazard marker. Each click flips its
+    // aria-label from "Identify hazard: …" to "Acknowledged: …", so the
+    // locator re-resolves — always click nth(0) until none remain (a fixed
+    // index loop would skip over the just-acknowledged marker).
+    let guard = 0;
+    while (guard++ < 12) {
+      const next = page.getByRole('button', { name: /^Identify hazard:/i }).first();
+      if (!(await next.count())) break;
+      await next.click({ timeout: 3000 }).catch(() => {});
+      await page.waitForTimeout(150);
+    }
+    await page.getByRole('button', { name: /No obvious hazards after visual sweep/i }).click({ timeout: 3000 }).catch(() => {});
+    // PPE: don every scene-required item (labelled "Required" in the UI).
+    // Gloves are mandatory for every case.
+    await page.getByRole('button', { name: /Gloves/i }).click().catch(() => {});
+    for (const ppe of ['helmet', 'hi-vis', 'n95', 'surgical mask', 'eye protection', 'gown']) {
+      const btn = page.getByRole('button', { name: new RegExp(ppe, 'i') }).filter({ hasText: 'Required' });
+      if (await btn.count()) await btn.first().click().catch(() => {});
+    }
+    // Scene safety: no-hazard case accepts "safe"; hazard case must be declared
+    // "unsafe" and request a resource before advancing.
+    await page.getByRole('button', { name: /Scene is safe - proceed/i }).click().catch(() => {});
+    const unsafe = page.getByRole('button', { name: /Scene is unsafe - request resources/i });
+    if (await unsafe.isVisible().catch(() => false)) {
+      await unsafe.click();
+      const resource = page.getByRole('button', { name: /Additional ambulance|Police|Fire|Rescue/i }).first();
+      if (await resource.count()) await resource.first().click();
+    }
     await page.getByRole('button', { name: /Enter Scene/i }).click();
     await page.locator('canvas').first().waitFor({ state: 'visible', timeout: 20_000 });
     await page.waitForTimeout(1_300);
