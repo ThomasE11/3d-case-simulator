@@ -10717,7 +10717,7 @@ export const caseDatabase: CaseScenario[] = [
       hazards: ['Active construction site', 'Overhead hazards', 'Possible further bee exposure', 'Hot environment (40°C+)'],
       bystanders: 'Multiple co-workers, site foreman, first aid officer',
       environment: 'Outdoor, hot (42°C), dusty, limited shade',
-      environmentVariant: 'roadside',
+      environmentVariant: 'industrial',
       sceneImagePath: '/scene-assets/construction-anaphylaxis-male-uae.png',
       sceneImageCaption: 'Scene — Outdoor, hot (42°C), dusty, limited shade',
       accessIssues: ['Construction site access — security gate', 'Uneven ground for stretcher'],

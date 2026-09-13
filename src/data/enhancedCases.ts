@@ -2578,7 +2578,7 @@ export const moreTraumaCases: CaseScenario[] = [
       hazards: ['Construction equipment', 'Uneven ground', 'Debris'],
       bystanders: 'Multiple workers, foreman',
       environment: 'Dusty, outdoor',
-      environmentVariant: 'public',
+      environmentVariant: 'industrial',
       sceneImagePath: '/scene-assets/construction-fall-male-29-dubaihills.png',
       sceneImageCaption: 'Scene — Construction site, patient supine near scaffolding',
     },

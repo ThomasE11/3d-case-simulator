@@ -1316,7 +1316,7 @@ export const secondYearCases: CaseScenario[] = [
       hazards: ['Hot surfaces', 'Welding equipment still powered', 'Chemical solvents nearby'],
       bystanders: '4 colleagues present, one first-aider applying wet towels',
       environment: 'Indoor workshop, warm ambient temperature, well ventilated',
-      environmentVariant: 'public',
+      environmentVariant: 'industrial',
       sceneImagePath: '/scene-assets/y2-004-workshop-flash-burn.png',
       sceneImageCaption: 'Scene — Indoor workshop, warm ambient temperature, well ventilated',
     },
