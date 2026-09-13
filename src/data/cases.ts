@@ -10369,6 +10369,8 @@ export const caseDatabase: CaseScenario[] = [
       bystanders: 'Mother (hysterical, being comforted by hotel staff), hotel duty manager, two housekeeping staff',
       environment: 'Outdoor poolside, morning, air temperature 20°C, breezy. Child soaking wet, estimated core temperature significantly below normal.',
       environmentVariant: 'water',
+      sceneImagePath: '/scene-assets/paediatric-pool-rescue-environment.png',
+      sceneImageCaption: 'Paediatric drowning — hotel poolside, Dubai',
       accessIssues: ['Pool area accessible through hotel lobby', 'Stretcher access via service entrance — hotel staff to guide'],
       extricationNeeded: false
     },

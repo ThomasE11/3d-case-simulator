@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { allCases } from '@/data/cases';
 import { inferSceneImage, inferSceneVideo, sceneImageNeedsPatientOverlay, sceneImagePatientGender } from './sceneImageSelection';
+import { sceneArrivalCopy } from './sceneArrival';
 
 describe('scene image demographic consistency', () => {
   it('never selects a visibly gendered patient who contradicts the case', () => {
@@ -90,5 +91,24 @@ describe('animated arrival clips', () => {
     const caseData = allCases.find(({ id }) => id === 'resp-001');
     expect(caseData).toBeDefined();
     expect(inferSceneVideo(caseData!)).toBeNull();
+  });
+});
+
+describe('critical distinct-scene cases', () => {
+  // Drowning/spinal/construction/heat cases derive a distinctive outdoor
+  // variant but previously had no authored image/caption, so the arrival
+  // chyron never fired and the scene photo silently used a resolver fallback.
+  it.each([
+    ['cardiac-014', '/scene-assets/paediatric-pool-rescue-environment.png', 'water'],
+    ['trauma-010', '/scene-assets/beach-spinal-injury-uae.png', 'water'],
+    ['trauma-012', '/scene-assets/paediatric-pool-rescue-environment.png', 'water'],
+    ['resp-006', '/scene-assets/resp-002-construction-tension-pneumothorax.png', 'industrial'],
+    ['env-002', '/scene-assets/env-002-heat-stroke-jebel-ali.png', 'industrial'],
+  ] as const)('%s authors an image, caption and environment variant', (caseId, expectedImage, expectedVariant) => {
+    const caseData = allCases.find(({ id }) => id === caseId);
+    expect(caseData).toBeDefined();
+    expect(caseData!.sceneInfo?.sceneImagePath).toBe(expectedImage);
+    expect(caseData!.sceneInfo?.environmentVariant).toBe(expectedVariant);
+    expect(sceneArrivalCopy(caseData!)).not.toBeNull();
   });
 });

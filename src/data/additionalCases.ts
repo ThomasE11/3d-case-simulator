@@ -361,7 +361,10 @@ export const additionalRespiratoryCases: CaseScenario[] = [
       description: 'Construction site, patient on ground near scaffolding',
       hazards: ['Fallen tools', 'Unstable ladder', 'Construction materials'],
       bystanders: 'Coworkers gathered',
-      environment: 'Outdoor, hot, dusty'
+      environment: 'Outdoor, hot, dusty',
+      environmentVariant: 'industrial',
+      sceneImagePath: '/scene-assets/resp-002-construction-tension-pneumothorax.png',
+      sceneImageCaption: 'Construction site pneumothorax — Dubai Marina'
     },
     initialPresentation: {
       generalImpression: 'Young male, sitting upright, holding right side of chest',
@@ -3370,7 +3373,10 @@ export const additionalEnvironmentalCases: CaseScenario[] = [
       description: 'Construction site, patient in shade under tarp',
       hazards: ['Heavy machinery', 'Hot environment'],
       bystanders: 'Coworkers',
-      environment: 'Outdoor, temperature 45°C, high humidity'
+      environment: 'Outdoor, temperature 45°C, high humidity',
+      environmentVariant: 'industrial',
+      sceneImagePath: '/scene-assets/env-002-heat-stroke-jebel-ali.png',
+      sceneImageCaption: 'Heat stroke — construction site, Jebel Ali'
     },
     initialPresentation: {
       generalImpression: 'Young male, hot to touch, agitated then unresponsive',
@@ -4423,7 +4429,10 @@ export const additionalTraumaCases: CaseScenario[] = [
       description: 'Poolside, child on towel',
       hazards: ['Wet surface', 'Pool chemicals'],
       bystanders: 'Parents, lifeguard',
-      environment: 'Outdoor, hot weather'
+      environment: 'Outdoor, hot weather',
+      environmentVariant: 'water',
+      sceneImagePath: '/scene-assets/paediatric-pool-rescue-environment.png',
+      sceneImageCaption: 'Paediatric drowning — villa pool, Emirates Hills'
     },
     initialPresentation: {
       generalImpression: 'Young child, pale, not breathing',

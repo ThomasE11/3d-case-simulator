@@ -3006,6 +3006,9 @@ export const moreTraumaCases: CaseScenario[] = [
       hazards: ['Water rescue', 'Crowd on beach'],
       bystanders: 'Lifeguards, multiple bystanders',
       environment: 'Hot sunny day, sand, water',
+      environmentVariant: 'water',
+      sceneImagePath: '/scene-assets/beach-spinal-injury-uae.png',
+      sceneImageCaption: 'Diving spinal injury — Jumeirah Beach',
     },
     initialPresentation: {
       generalImpression: 'Young male, alert but unable to move extremities',
