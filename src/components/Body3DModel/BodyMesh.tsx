@@ -205,6 +205,10 @@ interface BodyMeshProps {
   patientAge?: number;
   /** Pilot calibrated adult tripod support without changing other rigs. */
   braceHandsOnKnees?: boolean;
+  /** Patient is guarding/self-splinting their own neck (e.g. whiplash "holding
+   *  back of neck"). Raises both hands from the lap to the c-spine instead of
+   *  the default seated rest so the render matches the authored presentation. */
+  neckGuardEnabled?: boolean;
   /** Fade the surface patient when an internal anatomy reference is shown. */
   surfaceOpacity?: number;
   /** Names of finding morph targets that should be ACTIVE (revealed) — e.g.
@@ -461,6 +465,18 @@ const RECOVERY_BONE_ADJUSTMENTS = {
   rightForeArm: [-1.29, 0, 1.09] as const,
   rightUpLeg: [0.87, 0, 0] as const,
   rightLeg: [-1.4, 0, 0] as const,
+};
+
+// Seated self-splint / neck guard: the patient cups the posterior c-spine with
+// both hands (whiplash "holding back of neck") instead of resting them in the
+// lap. Additive to the seated rest pose applied in the frame loop. Calibrated
+// on the adult seated rig — hands move from ~[±0.26, 0.87, 1.08] world up to
+// the neck just below the head (~[0, 1.25, 0.55] world).
+const NECK_GUARD_ADJUSTMENTS = {
+  leftArm: [-1.15, 0, -0.35] as const,
+  leftForeArm: [-1.55, 0, 1.3] as const,
+  rightArm: [-1.15, 0, 0.35] as const,
+  rightForeArm: [-1.55, 0, -1.3] as const,
 };
 
 function applyLocalBoneAdjustment(
@@ -917,7 +933,7 @@ function buildSurfaceSampler(root: THREE.Object3D | null, presentationRoot?: THR
  */
 const ASYMMETRIC_CHEST_RESIDUAL = 0.35;
 
-export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guidedMode = false, nextGuidedStep = null, onBlockedClick, onBodyPoint, bodyInjuries, patientGender, patientAge, braceHandsOnKnees = false, surfaceOpacity = 1, activeFindingMorphs, breathRateRpm = 0, breathingEffort = 0, chestRiseUnilateral = false, breathDepthFactor = 1, onSurfaceSampler, onFaceAttachment, dressed = false, dressedActiveRegion = null, pupilLeftMm = 3.5, pupilRightMm = 3.5, skinTint = null, skinDiaphoretic = false, diaphoresis = 0, jaundice = 0, mottling = 0, unconscious = false, idleCues = null, reduceIdleMotion = false, presentation = 'upright', bayStage = 'stretcher', sss = false, posture = null, mobility = 'recumbent', mouthOpenRef = null, cyanosisLocalStrength = 0 }: BodyMeshProps) {
+export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guidedMode = false, nextGuidedStep = null, onBlockedClick, onBodyPoint, bodyInjuries, patientGender, patientAge, braceHandsOnKnees = false, neckGuardEnabled = false, surfaceOpacity = 1, activeFindingMorphs, breathRateRpm = 0, breathingEffort = 0, chestRiseUnilateral = false, breathDepthFactor = 1, onSurfaceSampler, onFaceAttachment, dressed = false, dressedActiveRegion = null, pupilLeftMm = 3.5, pupilRightMm = 3.5, skinTint = null, skinDiaphoretic = false, diaphoresis = 0, jaundice = 0, mottling = 0, unconscious = false, idleCues = null, reduceIdleMotion = false, presentation = 'upright', bayStage = 'stretcher', sss = false, posture = null, mobility = 'recumbent', mouthOpenRef = null, cyanosisLocalStrength = 0 }: BodyMeshProps) {
   // The path is recomputed per render so a `caseData.patientInfo.gender`
   // change (e.g. user picks a different case) swaps the mesh without
   // remounting the parent. useGLTF caches by URL.
@@ -1739,6 +1755,16 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
         applyLocalBoneAdjustment(recoveryPoseBones.rightForeArm, RECOVERY_BONE_ADJUSTMENTS.rightForeArm);
         applyLocalBoneAdjustment(recoveryPoseBones.rightUpLeg, RECOVERY_BONE_ADJUSTMENTS.rightUpLeg);
         applyLocalBoneAdjustment(recoveryPoseBones.rightLeg, RECOVERY_BONE_ADJUSTMENTS.rightLeg);
+      }
+      // Seated self-splint / neck guard: raise both hands from the lap to the
+      // c-spine. recoveryPoseBones resolve to the same LeftArm/RightArm/
+      // LeftForeArm/RightForeArm bones the rest pose just positioned, so this
+      // is a clean additive layer over the seated rest, not a competing pose.
+      if (neckGuardEnabled && posture === 'seated') {
+        applyLocalBoneAdjustment(recoveryPoseBones.leftArm, NECK_GUARD_ADJUSTMENTS.leftArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.leftForeArm, NECK_GUARD_ADJUSTMENTS.leftForeArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightArm, NECK_GUARD_ADJUSTMENTS.rightArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightForeArm, NECK_GUARD_ADJUSTMENTS.rightForeArm);
       }
     }
     const spineLean = patientSpineLeanRadians(posture, patientAge)

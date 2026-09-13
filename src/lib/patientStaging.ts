@@ -369,6 +369,25 @@ export function derivePatientSeatKind(caseData: CaseScenario): PatientSeatKind {
   return null;
 }
 
+/**
+ * Whether the patient is holding / supporting / self-splinting their own neck
+ * or c-spine. Authored cases describe this explicitly ("holding back of neck",
+ * "supporting cervical spine") and the render must match — a whiplash patient
+ * guarding their neck cannot present with both hands resting in their lap.
+ * Matches the general impression, appearance and position prose together so a
+ * neck-guard cue hidden in any one field is still caught.
+ */
+export function deriveNeckGuardEnabled(caseData: CaseScenario): boolean {
+  const haystack = [
+    caseData.initialPresentation?.generalImpression,
+    caseData.initialPresentation?.appearance,
+    caseData.initialPresentation?.position,
+  ].filter((s): s is string => typeof s === 'string').join(' ').toLowerCase();
+  return /\bholding (?:back of |posterior |the |their |his |her )?(?:neck|c[- ]?spine|cervical spine)\b|self[- ]?splint(?:ing)? (?:the |their |his |her )?(?:neck|c[- ]?spine)|supporting (?:the |their |his |her )?(?:neck|c[- ]?spine)|cradling (?:the |their |his |her )?(?:neck|c[- ]?spine)/.test(
+    haystack,
+  );
+}
+
 /** Local upper-arm rotation that turns the donor clip's A-pose into rest. */
 export function patientArmRestRadians(
   mobility: PatientMobility,
