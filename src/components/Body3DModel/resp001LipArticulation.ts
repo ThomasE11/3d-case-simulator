@@ -11,6 +11,23 @@ export const RESP001_LIP_ARTICULATION_MORPH = 'viseme_open';
 
 export type Resp001LipSide = -1 | 0 | 1;
 
+/**
+ * The corrected amplitude-reactive articulation is calibrated to the male
+ * patient mesh (`patient-male.glb`) — its vermilion band, seam topology and
+ * measured 5.8 mm excursion. Apply it to every male case, not only the
+ * resp-001 pilot, so a speaking male patient never falls back to the shipped
+ * malformed 50 mm lower-face viseme with its axis-bugged normal delta.
+ * Female and legacy meshes keep their shipped morph until a female-calibrated
+ * delta exists (their lip coordinates differ, so reusing the male band would
+ * land the movement on the wrong part of the face).
+ */
+export function shouldApplyCorrectedLipArticulation(
+  modelPath: string,
+  meshName: string,
+): boolean {
+  return modelPath.includes('-male.glb') && meshName === 'Patient';
+}
+
 const LIP_X_FULL = 0.020;
 const LIP_X_OUTER = 0.028;
 const LIP_Y_MIN = 1.536;

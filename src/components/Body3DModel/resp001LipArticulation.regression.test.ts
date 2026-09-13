@@ -3,10 +3,24 @@ import * as THREE from 'three';
 import {
   classifyResp001LipSeamSides,
   resp001LipArticulationDelta,
+  shouldApplyCorrectedLipArticulation,
   withResp001LipArticulationMorph,
 } from './resp001LipArticulation';
 
 describe('resp-001 amplitude-reactive lip articulation', () => {
+  describe('shouldApplyCorrectedLipArticulation', () => {
+    it('applies the corrected male articulation to every male case', () => {
+      expect(shouldApplyCorrectedLipArticulation('/models/patient-male.glb', 'Patient')).toBe(true);
+    });
+
+    it('leaves female, legacy and non-Patient meshes on their shipped morph', () => {
+      expect(shouldApplyCorrectedLipArticulation('/models/patient-female.glb', 'Patient')).toBe(false);
+      expect(shouldApplyCorrectedLipArticulation('/models/patient.glb', 'Patient')).toBe(false);
+      expect(shouldApplyCorrectedLipArticulation('/models/patient-male.glb', 'Eyes')).toBe(false);
+      expect(shouldApplyCorrectedLipArticulation('/models/patient-male.glb', '')).toBe(false);
+    });
+  });
+
   it('does not fold the supporting skin beneath the lower lip during opening', () => {
     for (const influence of [0.25, 0.5, 0.75, 1]) {
       let previous = -Infinity;

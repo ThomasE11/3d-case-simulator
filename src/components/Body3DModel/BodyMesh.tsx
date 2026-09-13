@@ -38,7 +38,7 @@ import { computeIdleLimbMotion, createIdleLimbMotion } from '@/lib/idleLimbMotio
 import { patientWalkingPath } from '@/lib/patientWalkingPath';
 import { tripodHandBraceSweep, TRIPOD_BRACE_CALIBRATION } from '@/lib/tripodHandBrace';
 import { skinDetailProfileForPilot, type SkinDetailProfile } from './resp001SkinDetail';
-import { withResp001LipArticulationMorph } from './resp001LipArticulation';
+import { shouldApplyCorrectedLipArticulation, withResp001LipArticulationMorph } from './resp001LipArticulation';
 import { createEyeMorphFollower } from './eyeMorphFollow';
 import {
   patientSkeletalAction,
@@ -1026,9 +1026,12 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        // The reference pilot shares its gate with the tripod/skin refinement.
-        // Replace the malformed mouth delta locally; never mutate the GLTF cache.
-        if (pilotGarment && mesh.name === 'Patient') {
+        // Replace the malformed mouth delta locally; never mutate the GLTF
+        // cache. The corrected articulation is calibrated to the male mesh, so
+        // every male case (not only the resp-001 pilot) speaks with the
+        // measured 5.8 mm vermilion excursion instead of the shipped 50 mm
+        // lower-face viseme. Female/legacy meshes keep their shipped morph.
+        if (shouldApplyCorrectedLipArticulation(modelPath, mesh.name)) {
           const influences = mesh.morphTargetInfluences?.slice();
           const dictionary = mesh.morphTargetDictionary;
           mesh.geometry = withResp001LipArticulationMorph(mesh.geometry, dictionary?.viseme_open);
