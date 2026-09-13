@@ -521,15 +521,49 @@ const HAND_GUARD_ADJUSTMENTS: Record<
   choking: NECK_GUARD_ADJUSTMENTS,
 };
 
+/**
+ * Recumbent self-splint / hand guard: the patient is lying down and draws the
+ * hands ONTO the guarded anatomy rather than raising them from a lap. A supine
+ * STEMI patient clutches the sternum (chest), an ectopic/placenta-previa
+ * patient curls the hands onto the lower abdomen (abdomen). Gated on supine
+ * posture in the frame loop; additive over the recumbent rest pose. Values are
+ * calibrated against live skinned-mesh bone positions via
+ * scripts/guard-recumbent-cal.mjs (drives window.__setHandGuard across an
+ * arm/forearm Euler grid, reads LeftHand/RightHand world positions, and picks
+ * the combo whose hand midpoint lands on the target bone: chest→Spine2,
+ * abdomen→Spine1). Recovery (left-lateral) posture is deliberately excluded —
+ * it already positions the arms via RECOVERY_BONE_ADJUSTMENTS and stacking the
+ * supine guard on top would double-apply.
+ */
+const RECUMBENT_GUARD_ADJUSTMENTS: Record<
+  'chest' | 'abdomen',
+  { leftArm: readonly [number, number, number]; leftForeArm: readonly [number, number, number]; rightArm: readonly [number, number, number]; rightForeArm: readonly [number, number, number] }
+> = {
+  chest: {
+    leftArm: [-0.4, -1.2, -0.6] as const,
+    leftForeArm: [-0.6, 1.6, -0.8] as const,
+    rightArm: [-0.4, 1.2, 0.6] as const,
+    rightForeArm: [-0.6, -1.6, 0.8] as const,
+  },
+  abdomen: {
+    leftArm: [-0.4, -1.2, -0.6] as const,
+    leftForeArm: [-1.2, -1.6, 0] as const,
+    rightArm: [-0.4, 1.2, 0.6] as const,
+    rightForeArm: [-1.2, 1.6, 0] as const,
+  },
+};
+
 // DEV-only calibration hook: lets scripts/guard-cal.mjs mutate the guard
 // rotations at runtime (no rebuild) so the arm chain can be swept against live
 // bone positions. Mirrors the existing `window.__r3f` DEV hook.
 if (typeof window !== 'undefined' && import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__setHandGuard = (
-    region: keyof typeof HAND_GUARD_ADJUSTMENTS,
-    values: (typeof HAND_GUARD_ADJUSTMENTS)[keyof typeof HAND_GUARD_ADJUSTMENTS],
+    mode: 'upright' | 'recumbent',
+    region: string,
+    values: Record<string, readonly [number, number, number]>,
   ) => {
-    (HAND_GUARD_ADJUSTMENTS as Record<string, unknown>)[region] = values;
+    const table = mode === 'recumbent' ? RECUMBENT_GUARD_ADJUSTMENTS : HAND_GUARD_ADJUSTMENTS;
+    (table as Record<string, unknown>)[region] = values;
   };
 }
 
@@ -1819,6 +1853,20 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
       // positioned, so this is a clean additive layer, not a competing pose.
       if (handGuardRegion && (mobility === 'seated' || mobility === 'standing')) {
         const adj = HAND_GUARD_ADJUSTMENTS[handGuardRegion];
+        applyLocalBoneAdjustment(recoveryPoseBones.leftArm, adj.leftArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.leftForeArm, adj.leftForeArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightArm, adj.rightArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightForeArm, adj.rightForeArm);
+      } else if (posture === 'supine' && (handGuardRegion === 'chest' || handGuardRegion === 'abdomen')) {
+        // Recumbent self-splint: the supine patient draws the hands ONTO the
+        // guarded anatomy (supine STEMI clutching the sternum; ectopic /
+        // placenta-previa curling the hands onto the lower abdomen). Only
+        // chest/abdomen have a recumbent variant — neck/head/choking guards are
+        // inherently upright gestures. Fires for supine posture here, which the
+        // upright branch above excludes. Recovery (left-lateral) posture is
+        // deliberately skipped: it positions the arms via the recovery pose and
+        // stacking the supine guard on top would double-apply.
+        const adj = RECUMBENT_GUARD_ADJUSTMENTS[handGuardRegion];
         applyLocalBoneAdjustment(recoveryPoseBones.leftArm, adj.leftArm);
         applyLocalBoneAdjustment(recoveryPoseBones.leftForeArm, adj.leftForeArm);
         applyLocalBoneAdjustment(recoveryPoseBones.rightArm, adj.rightArm);
