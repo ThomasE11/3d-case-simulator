@@ -1796,6 +1796,16 @@ export function StudentPanel({
   // announcing where they've arrived. Timed to the ~3.3s scene-entrance dolly,
   // then auto-dismisses; never blocks interaction (pointer-events none).
   const [arrivalChyronActive, setArrivalChyronActive] = useState(false);
+  // Keep the lower-third tied to a live encounter, rather than to the
+  // incidental object identity of `currentCase`. Case-management updates can
+  // replace that object while the 3D room is streaming; previously that
+  // cleanup cancelled the lower-third early, often before the first useful
+  // patient frame had rendered on a cold load.
+  const arrivalChyronEncounterRef = useRef<string | null>(null);
+  const [sceneReadyForCase, setSceneReadyForCase] = useState<string | null>(null);
+  const handlePatientSceneReady = useCallback(() => {
+    if (currentCase) setSceneReadyForCase(currentCase.id);
+  }, [currentCase?.id]);
 
   // Treatment effects
   const {
@@ -2891,13 +2901,26 @@ export function StudentPanel({
 
   // Cinematic arrival chyron — fires once when the student enters the scene,
   // holds through the doorway dolly (~3.3s), then slides back out. Only for
-  // scene-visualised cases (a plain clinic bay has no "arrival"). Clear any
-  // pending timer on cleanup / case change so a stale chyron never outlives
-  // its scene.
+  // scene-visualised cases (a plain clinic bay has no "arrival"). Treat both
+  // live subviews as one encounter so opening Case Details cannot abruptly
+  // dismiss the arrival context.
   useEffect(() => {
-    if (phase !== 'vitals' || !currentCase) return;
+    const isLiveEncounter = phase === 'vitals' || phase === 'case';
+    if (!currentCase) {
+      arrivalChyronEncounterRef.current = null;
+      setArrivalChyronActive(false);
+      return;
+    }
+    if (!isLiveEncounter) return;
     const copy = sceneArrivalCopy(currentCase);
     if (!copy) return;
+    // The room and GLB stream independently from the encounter shell. Start
+    // the arrival beat only once the patient has actually painted, so a slow
+    // device never spends the full animation on an empty canvas.
+    if (sceneReadyForCase !== currentCase.id) return;
+    if (arrivalChyronEncounterRef.current === currentCase.id) return;
+    arrivalChyronEncounterRef.current = currentCase.id;
+
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
     const showTimer = setTimeout(() => {
       setArrivalChyronActive(true);
@@ -2906,14 +2929,14 @@ export function StudentPanel({
       // first useful 3D frame appeared, so students never saw the arrival
       // context at all. Keep the lower-third through the entrance dolly and
       // a short settled beat; it still clears itself and remains non-modal.
-      hideTimer = setTimeout(() => setArrivalChyronActive(false), 6000);
+      hideTimer = setTimeout(() => setArrivalChyronActive(false), 5000);
     }, 260);
     return () => {
       clearTimeout(showTimer);
       if (hideTimer) clearTimeout(hideTimer);
       setArrivalChyronActive(false);
     };
-  }, [phase, currentCase]);
+  }, [phase === 'vitals' || phase === 'case', currentCase?.id, sceneReadyForCase]);
 
   // The live encounter owns this timer, not the scene-survey button. Loaded
   // classroom/dev encounters enter the same live phase without clicking that
@@ -6078,6 +6101,7 @@ export function StudentPanel({
                       patientVisualState={patientVisualState}
                       isInArrest={patientState?.isInArrest ?? false}
                       vitals={currentVitals ?? undefined}
+                      onSceneReady={handlePatientSceneReady}
                       onPulse={runPulseCheck}
                       treatmentBayMode
                       onRequestTreat={(hint) => {

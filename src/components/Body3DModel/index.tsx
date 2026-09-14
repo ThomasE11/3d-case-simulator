@@ -4425,6 +4425,12 @@ interface Body3DModelProps {
   /** Use stretcher-side treatment presentation in the full-body overview. */
   treatmentBayMode?: boolean;
   /**
+   * Signals that the patient has mounted and survived two paint frames. This
+   * lets the surrounding encounter UI time arrival cues to a usable scene,
+   * rather than to the start of an asynchronous GLB/environment load.
+   */
+  onSceneReady?: () => void;
+  /**
    * Tiny bridge to the care rail Treat tab after a finding (does not open jump-bag
    * internals — StudentPanel owns bag selection). Used for "listen → then treat".
    */
@@ -5297,7 +5303,7 @@ function PatientRealismStrip({
   );
 }
 
-export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientSounds, caseCategory, appliedTreatmentIds = [], patientVisualState = null, isInArrest = false, vitals, liveRespiration, onPulse, treatmentBayMode = false, onRequestTreat }: Body3DModelProps) {
+export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientSounds, caseCategory, appliedTreatmentIds = [], patientVisualState = null, isInArrest = false, vitals, liveRespiration, onPulse, treatmentBayMode = false, onSceneReady, onRequestTreat }: Body3DModelProps) {
   const { t } = useTranslation();
   const bedsideConversation = useBedsideConversation(caseData.id);
   const controlsRef = useRef<OrbitControlsHandle | null>(null);
@@ -5307,6 +5313,20 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
   // the male, female, or any future GLB without per-model coordinate tuning).
   const [surfaceSampler, setSurfaceSampler] = useState<SurfaceSampler | null>(null);
   const [faceAttachment, setFaceAttachment] = useState<THREE.Group | null>(null);
+  // A mounted face attachment is the last asynchronous patient asset. Wait
+  // through two animation frames so the caller receives this only after the
+  // first meaningful patient frame has reached the canvas.
+  useEffect(() => {
+    if (!faceAttachment || !onSceneReady) return;
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(onSceneReady);
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      if (secondFrame) cancelAnimationFrame(secondFrame);
+    };
+  }, [caseData.id, faceAttachment, onSceneReady]);
   // Stable callback for BodyMesh — it lives in an effect dependency array, so
   // a fresh inline arrow each render would re-run that effect → setState →
   // re-render every frame (an infinite "Maximum update depth" loop that read
