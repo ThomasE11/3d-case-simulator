@@ -9,15 +9,47 @@ test.use({
   viewport: { width: 1440, height: 900 },
 });
 
+/**
+ * The monitor is intentionally dark until a student powers it on and asks for
+ * a measurement.  These encounter tests must preserve that clinical order
+ * rather than silently relying on pre-populated vital-sign text.
+ */
+async function powerAndMeasureRespiratoryVitals(page: Page) {
+  const monitor = page.getByRole('region', { name: 'Vital signs monitor', exact: true });
+  await expect(monitor.getByText('MONITOR OFF', { exact: true })).toBeVisible({ timeout: 30_000 });
+  await monitor.getByRole('button', { name: 'Press ON to power the monitor' }).click();
+  await page.clock.fastForward(4_000);
+  for (const name of ['respiratory rate', 'oxygen saturation', 'heart rate']) {
+    await monitor.getByRole('button', { name: `Measure ${name}`, exact: true }).click();
+  }
+  // Visual RR observation is deliberately a 35-second clinical assessment;
+  // wait through the longer of the paired methods before asserting a value.
+  await page.clock.fastForward(36_000);
+  return monitor;
+}
+
+async function monitorValue(monitor: ReturnType<Page['getByRole']>, name: string) {
+  const text = await monitor.getByRole('button', { name, exact: true }).innerText();
+  const numbers = text.match(/\d+/g) ?? [];
+  const value = Number.parseInt(numbers.at(-1) ?? '', 10);
+  if (!Number.isFinite(value)) throw new Error(`Expected a measured value for ${name}, received: ${text}`);
+  return value;
+}
+
 test('a loaded encounter still deteriorates when no treatment is given', async ({ page }) => {
   await page.clock.install();
   await page.goto('/?devLiveCase=resp-001');
-  const monitor = page.getByRole('region', { name: 'Vital signs monitor', exact: true });
-  await expect(monitor.getByText('RR 32', { exact: true })).toBeVisible({ timeout: 30_000 });
+  const monitor = await powerAndMeasureRespiratoryVitals(page);
+  await expect(monitor.getByText('RR 32', { exact: true })).toBeVisible();
+  const baselineSpo2 = await monitorValue(monitor, 'Measure oxygen saturation');
   await page.clock.fastForward(30_000);
   await page.clock.fastForward(30_000);
-  await expect(monitor.getByText('RR 33', { exact: true })).toBeVisible();
-  await expect(monitor.getByText('86', { exact: true }).first()).toBeVisible();
+  // SpO₂ allows a deliberate repeat measurement. RR stays visibly live after
+  // its observed count, so it should worsen without inventing a second count.
+  await monitor.getByRole('button', { name: 'Measure oxygen saturation', exact: true }).click();
+  await page.clock.fastForward(10_000);
+  expect(await monitorValue(monitor, 'Measure respiratory rate')).toBeGreaterThan(32);
+  expect(await monitorValue(monitor, 'Measure oxygen saturation')).toBeLessThan(baselineSpo2);
 });
 
 async function ask(page: Page, question: string) {
@@ -66,8 +98,6 @@ test('history, treatment, monitor and visible respiratory findings form one enco
   page.on('pageerror', error => errors.push(error.message));
   await page.clock.install();
   await page.goto('/?devLiveCase=resp-001');
-  const monitor = page.getByRole('region', { name: 'Vital signs monitor', exact: true });
-  await expect(monitor.getByText('RR 32', { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect.poll(() => cyanosisPainted(page), { timeout: 30_000 }).toBe(true);
 
   const history = await ask(page, 'What happened?');
@@ -75,6 +105,10 @@ test('history, treatment, monitor and visible respiratory findings form one enco
   expect(layout.content).toBeLessThanOrEqual(layout.width + 1);
   expect(layout.scroll).toBe(0);
   await expect(history.getByRole('log')).toContainText("Can't... talk much...");
+  // History comes before interventions while the patient is still capable of
+  // short answers. The monitor is then powered and deliberately sampled.
+  const monitor = await powerAndMeasureRespiratoryVitals(page);
+  await expect(monitor.getByText('RR 32', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Examine Face', exact: true }).click();
   await page.getByRole('button', { name: /^Lips \(colour, cyanosis, dryness\)/ }).click();
   await expect(page.locator('.patient-first-exam-dock')).toContainText(/blue|dusky/i);
@@ -132,6 +166,9 @@ test('history, treatment, monitor and visible respiratory findings form one enco
   await ask(page, 'How do you feel?');
   await expect(history.getByRole('log')).toContainText('Breathing feels easier now. I can talk more comfortably.');
   await expect(history.getByRole('log')).toContainText('What happened?');
+  // Return to the assessment rail deliberately; the examination controls are
+  // not duplicated underneath the conversation view.
+  await page.getByRole('tab', { name: 'Assess', exact: true }).click();
   await page.getByRole('button', { name: 'Look: Chest rise & colour', exact: true }).click();
   await expect(page.locator('.patient-first-exam-dock')).toContainText('Effort easing. Respiratory rate 14/min.');
   await page.getByRole('button', { name: 'Expose', exact: true }).click();

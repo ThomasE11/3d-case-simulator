@@ -12,6 +12,7 @@
  */
 
 import type { TargetAndTransition, Transition } from 'framer-motion';
+import { RESP001_VILLA_ENTRY } from './cameraOrbitSafety';
 
 export type CinematicPhase =
   | 'select'
@@ -32,8 +33,12 @@ export function phaseTransitionKey(phase: CinematicPhase): string {
   return phase;
 }
 
-/** Standing start just outside the villa front wall (SceneVariant ROOM.frontZ = 2.0). */
-export const VILLA_DOORWAY: [number, number, number] = [0, 1.8, 2.8];
+/** Standing start on the exterior landing, aligned with the physical villa entry. */
+export const VILLA_DOORWAY: [number, number, number] = [
+  RESP001_VILLA_ENTRY.x,
+  1.8,
+  RESP001_VILLA_ENTRY.arrivalZ,
+];
 
 /**
  * Doorway origin for the scene-entry dolly. Every variant gets a real

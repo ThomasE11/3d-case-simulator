@@ -23,6 +23,20 @@ export const RESP001_VILLA_SHELL = {
   overviewTarget: { x: 0, y: 0.751, z: 0.78 },
 } as const;
 
+/**
+ * The resp-001 arrival is a real opening in the villa's front envelope, not
+ * a camera starting point in a sealed wall.  Keep this geometry in one place
+ * so the scene shell, camera dolly and regression checks cannot drift apart.
+ */
+export const RESP001_VILLA_ENTRY = {
+  x: 0,
+  openingWidth: 1.45,
+  openingHeight: 2.22,
+  /** Camera begins on the small exterior landing, just beyond the threshold. */
+  arrivalZ: RESP001_VILLA_SHELL.frontZ + 0.58,
+  landingDepth: 0.92,
+} as const;
+
 const OPEN_SCENE: CameraOrbitSafety = {
   minAzimuthAngle: -Infinity,
   maxAzimuthAngle: Infinity,

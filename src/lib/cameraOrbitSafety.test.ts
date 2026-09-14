@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cameraOrbitSafetyForEnvironment, RESP001_VILLA_SHELL } from './cameraOrbitSafety';
+import { cameraOrbitSafetyForEnvironment, RESP001_VILLA_ENTRY, RESP001_VILLA_SHELL } from './cameraOrbitSafety';
 
 describe('cameraOrbitSafetyForEnvironment', () => {
   it('keeps clinic and home cameras on the open, patient-facing side of walls', () => {
@@ -29,6 +29,14 @@ describe('cameraOrbitSafetyForEnvironment', () => {
     expect(Math.abs(maxCameraX)).toBeLessThan(halfWidth - wallDepth / 2);
     expect(maxCameraY).toBeLessThan(ceilingY);
     expect(minCameraY).toBeGreaterThan(floorY);
+  });
+
+  it('keeps the resp-001 arrival landing outside the shell without widening the student orbit', () => {
+    const home = cameraOrbitSafetyForEnvironment('home');
+    expect(RESP001_VILLA_ENTRY.arrivalZ).toBeGreaterThan(RESP001_VILLA_SHELL.frontZ);
+    expect(RESP001_VILLA_ENTRY.openingWidth).toBeLessThan(RESP001_VILLA_SHELL.halfWidth * 2);
+    expect(RESP001_VILLA_ENTRY.openingHeight).toBeLessThan(RESP001_VILLA_SHELL.ceilingY);
+    expect(RESP001_VILLA_SHELL.overviewTarget.z + home.maxDistance).toBeLessThan(RESP001_VILLA_SHELL.frontZ);
   });
 
   it('leaves outdoor incident scenes unrestricted', () => {

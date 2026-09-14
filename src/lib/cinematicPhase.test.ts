@@ -7,6 +7,7 @@ import {
   type CinematicPhase,
   type PhaseMotionVariant,
 } from './cinematicPhase';
+import { RESP001_VILLA_ENTRY } from './cameraOrbitSafety';
 
 describe('phaseTransitionKey', () => {
   it('crossfades briefing → scene → treat as distinct keys', () => {
@@ -29,9 +30,10 @@ describe('phaseTransitionKey', () => {
 });
 
 describe('sceneEntryOrigin', () => {
-  it('starts the villa dolly just outside the living-room front wall', () => {
+  it('starts the villa dolly on the physical entry landing', () => {
     expect(sceneEntryOrigin('home')).toEqual(VILLA_DOORWAY);
-    expect(VILLA_DOORWAY[2]).toBeGreaterThan(2);
+    expect(VILLA_DOORWAY[0]).toBe(RESP001_VILLA_ENTRY.x);
+    expect(VILLA_DOORWAY[2]).toBe(RESP001_VILLA_ENTRY.arrivalZ);
   });
 
   it('gives every scene variant a real doorway dolly, clinic stays on the short pull-back', () => {

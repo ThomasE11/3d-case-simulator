@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import type { EnvironmentVariant } from '@/lib/sceneEnvironment';
 import type { PatientSeatKind } from '@/lib/patientStaging';
-import { RESP001_VILLA_SHELL } from '@/lib/cameraOrbitSafety';
+import { RESP001_VILLA_ENTRY, RESP001_VILLA_SHELL } from '@/lib/cameraOrbitSafety';
 import { getVillaTextures } from './textures';
 import { KenneyPatientChair } from './KenneyPatientChair';
 import { Resp001VillaDressing } from './Resp001VillaDressing';
@@ -294,6 +294,8 @@ function HomeScene({
   // exactly for other cases; only the pilot gets the extended physical room.
   const roomDepth = hasResp001Dressing ? roomFrontZ - ROOM.backZ : ROOM.frontZ - ROOM.backZ;
   const roomCentreZ = hasResp001Dressing ? (ROOM.backZ + roomFrontZ) / 2 : 0;
+  const entryHalfWidth = RESP001_VILLA_ENTRY.openingWidth / 2;
+  const frontWallHeight = ROOM.height;
   return (
     <group>
       {/* Oak floor */}
@@ -356,13 +358,57 @@ function HomeScene({
 
       {hasResp001Dressing && (
         <group name="resp001-villa-front-envelope">
-          <mesh name="resp001-villa-front-wall" position={[0, ROOM.height / 2 - 0.05, roomFrontZ]} receiveShadow raycast={NO_RAYCAST}>
-            <boxGeometry args={[ROOM.halfW * 2, ROOM.height, RESP001_VILLA_SHELL.wallDepth]} />
+          {/* The camera arrives through this genuine opening. The old full-width
+              front plane made a sealed box, with the arrival origin stranded
+              in an unexplained void beyond it. */}
+          {([
+            [-(ROOM.halfW + entryHalfWidth) / 2, ROOM.halfW - entryHalfWidth],
+            [(ROOM.halfW + entryHalfWidth) / 2, ROOM.halfW - entryHalfWidth],
+          ] as const).map(([x, width], index) => (
+            <mesh
+              key={`resp001-villa-front-wall-${index}`}
+              name={index === 0 ? 'resp001-villa-front-wall' : undefined}
+              position={[x, frontWallHeight / 2 - 0.05, roomFrontZ]}
+              receiveShadow
+              raycast={NO_RAYCAST}
+            >
+              <boxGeometry args={[width, frontWallHeight, RESP001_VILLA_SHELL.wallDepth]} />
+              <meshStandardMaterial map={tex.plaster.map} normalMap={tex.plaster.normalMap} normalScale={[0.5, 0.5]} roughness={0.92} />
+            </mesh>
+          ))}
+          <mesh name="resp001-villa-entry-lintel" position={[RESP001_VILLA_ENTRY.x, RESP001_VILLA_ENTRY.openingHeight + (frontWallHeight - RESP001_VILLA_ENTRY.openingHeight) / 2 - 0.05, roomFrontZ]} receiveShadow raycast={NO_RAYCAST}>
+            <boxGeometry args={[RESP001_VILLA_ENTRY.openingWidth, frontWallHeight - RESP001_VILLA_ENTRY.openingHeight, RESP001_VILLA_SHELL.wallDepth]} />
             <meshStandardMaterial map={tex.plaster.map} normalMap={tex.plaster.normalMap} normalScale={[0.5, 0.5]} roughness={0.92} />
           </mesh>
-          <mesh name="resp001-villa-front-skirting" position={[0, 0.05, roomFrontZ - 0.04]} raycast={NO_RAYCAST}>
-            <boxGeometry args={[ROOM.halfW * 2, 0.14, 0.02]} />
-            <meshStandardMaterial color="#e8ddc8" roughness={0.7} />
+          {[-entryHalfWidth, entryHalfWidth].map((x) => (
+            <mesh key={`resp001-villa-entry-jamb-${x}`} name={`resp001-villa-entry-jamb-${x < 0 ? 'left' : 'right'}`} position={[x, RESP001_VILLA_ENTRY.openingHeight / 2, roomFrontZ - 0.01]} raycast={NO_RAYCAST}>
+              <boxGeometry args={[0.1, RESP001_VILLA_ENTRY.openingHeight, 0.12]} />
+              <meshStandardMaterial color="#eee1cf" roughness={0.66} />
+            </mesh>
+          ))}
+          <mesh name="resp001-villa-entry-head" position={[RESP001_VILLA_ENTRY.x, RESP001_VILLA_ENTRY.openingHeight, roomFrontZ - 0.01]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[RESP001_VILLA_ENTRY.openingWidth + 0.18, 0.1, 0.12]} />
+            <meshStandardMaterial color="#eee1cf" roughness={0.66} />
+          </mesh>
+          {([
+            [-(ROOM.halfW + entryHalfWidth) / 2, ROOM.halfW - entryHalfWidth],
+            [(ROOM.halfW + entryHalfWidth) / 2, ROOM.halfW - entryHalfWidth],
+          ] as const).map(([x, width], index) => (
+            <mesh key={`resp001-villa-front-skirting-${index}`} position={[x, 0.05, roomFrontZ - 0.04]} raycast={NO_RAYCAST}>
+              <boxGeometry args={[width, 0.14, 0.02]} />
+              <meshStandardMaterial color="#e8ddc8" roughness={0.7} />
+            </mesh>
+          ))}
+          {/* A shallow, lit landing supplies physical depth during the entrance
+              dolly without widening the student orbit or adding an exterior
+              scene that would compete with the patient's presentation. */}
+          <mesh name="resp001-villa-entry-landing" position={[RESP001_VILLA_ENTRY.x, -0.06, roomFrontZ + RESP001_VILLA_ENTRY.landingDepth / 2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
+            <planeGeometry args={[RESP001_VILLA_ENTRY.openingWidth + 0.86, RESP001_VILLA_ENTRY.landingDepth]} />
+            <meshStandardMaterial color="#b4a997" roughness={0.84} />
+          </mesh>
+          <mesh name="resp001-villa-entry-canopy" position={[RESP001_VILLA_ENTRY.x, RESP001_VILLA_ENTRY.openingHeight + 0.16, roomFrontZ + RESP001_VILLA_ENTRY.landingDepth / 2]} receiveShadow raycast={NO_RAYCAST}>
+            <boxGeometry args={[RESP001_VILLA_ENTRY.openingWidth + 0.35, 0.12, RESP001_VILLA_ENTRY.landingDepth]} />
+            <meshStandardMaterial color="#61564d" roughness={0.72} />
           </mesh>
         </group>
       )}

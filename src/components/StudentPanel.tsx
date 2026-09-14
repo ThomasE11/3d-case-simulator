@@ -2900,7 +2900,12 @@ export function StudentPanel({
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
     const showTimer = setTimeout(() => {
       setArrivalChyronActive(true);
-      hideTimer = setTimeout(() => setArrivalChyronActive(false), 3400);
+      // The scene and its authored dressing stream independently of the UI
+      // phase. On a cold load the old 3.4 s hold could finish before the
+      // first useful 3D frame appeared, so students never saw the arrival
+      // context at all. Keep the lower-third through the entrance dolly and
+      // a short settled beat; it still clears itself and remains non-modal.
+      hideTimer = setTimeout(() => setArrivalChyronActive(false), 6000);
     }, 260);
     return () => {
       clearTimeout(showTimer);
