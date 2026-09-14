@@ -195,13 +195,17 @@ async function composeCyanosis(page, faceDataUrl, handsDataUrl, spo2) {
 async function captureCyanosis(browser, spo2, fileName) {
   const page = await openLivePage(browser, spo2);
   try {
-    // Patient is SUPINE: bbox y 0.25–0.87. Torso mesh spans z −0.86…−0.01,
-    // so the HEAD is at the −z end (z≈−0.9); hands at hips (x≈±0.35, y≈0.65).
+    // resp-001 is seated forward in tripod. Its face looks toward +Z around
+    // y≈1.35/z≈0.88; the braced hands sit around y≈0.65/z≈1.08. Keep the
+    // two forced-SpO₂ captures in identical portrait/hand framing so this is
+    // genuine cyanosis evidence, not a leftover supine-camera artefact.
     const face = await framebuffer(page, {
-      position: [0.06, 1.02, -0.15], target: [0, 0.74, -0.82], fov: 24,
+      position: [0, 1.42, 1.55], target: [0, 1.35, 0.88], fov: 16,
     });
     const hands = await framebuffer(page, {
-      position: [-1.15, 1.25, -0.35], target: [0.3, 0.62, -0.35], fov: 34,
+      // One hand fills the frame so the nails are actually inspectable; a
+      // waist-up frame made the nailbeds too small to support this criterion.
+      position: [0.85, 0.85, 1.75], target: [0.24, 0.65, 1.10], fov: 24,
     });
     writeDataUrl(fileName, await composeCyanosis(page, face.dataUrl, hands.dataUrl, spo2));
   } finally {
