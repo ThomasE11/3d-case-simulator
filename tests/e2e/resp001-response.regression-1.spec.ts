@@ -13,6 +13,18 @@ async function jaw(page: Page) {
   });
 }
 
+async function mouthCavityScale(page: Page) {
+  return page.evaluate(() => {
+    const scene = (window as unknown as { __r3f?: { scene: THREE.Scene } }).__r3f?.scene;
+    const cavity = scene?.getObjectByName('resp001-mouth-cavity') as THREE.Mesh | undefined;
+    if (!cavity) return null;
+    return {
+      y: cavity.scale.y,
+      anchorVertexIndex: cavity.userData.anchorVertexIndex as number | undefined,
+    };
+  });
+}
+
 // A controlled sound/silence fixture tests real AudioContext -> mesh wiring,
 // not provider voice quality. No clinical audio or external service required.
 function speechEnvelopeWav() {
@@ -42,6 +54,10 @@ test('patient jaw follows audible audio, not synthesis, silence or dispatch', as
   });
   await page.goto('/?devLiveCase=resp-001');
   await expect.poll(() => jaw(page), { timeout: 30_000 }).toBe(0);
+  await expect.poll(() => mouthCavityScale(page), { timeout: 30_000 }).toMatchObject({
+    anchorVertexIndex: expect.any(Number),
+  });
+  expect((await mouthCavityScale(page))!.y).toBeCloseTo(.075, 2);
   await page.getByRole('tab', { name: 'History', exact: true }).click();
   const panel = page.locator('.bedside-history-panel');
   await panel.getByRole('textbox').fill('What happened?');
@@ -52,16 +68,20 @@ test('patient jaw follows audible audio, not synthesis, silence or dispatch', as
   expect(requestedProfile).toMatchObject({ role: 'patient', patientVoice: { gender: 'male' } });
   expect(await jaw(page)).toBeLessThan(.02); // first second is genuinely silent
   await expect.poll(() => jaw(page)).toBeGreaterThan(.2);
+  await expect.poll(async () => (await mouthCavityScale(page))?.y ?? 0).toBeGreaterThan(.09);
   await page.screenshot({ path: info.outputPath('patient-speaking.png') });
   await expect.poll(() => jaw(page)).toBeLessThan(.01); // closes during trailing silence
+  await expect.poll(async () => (await mouthCavityScale(page))?.y ?? 1).toBeCloseTo(.075, 2);
   await expect(panel.getByRole('status')).toContainText('Ready for a question');
   await page.getByRole('button', { name: 'Replay dispatch briefing', exact: true }).click();
   await page.waitForTimeout(2600); // audible section of dispatcher fixture
   expect(await jaw(page)).toBeLessThan(.01);
   await panel.getByRole('button', { name: 'Replay last answer', exact: true }).click();
   await expect.poll(() => jaw(page)).toBeGreaterThan(.2);
+  await expect.poll(async () => (await mouthCavityScale(page))?.y ?? 0).toBeGreaterThan(.09);
   await panel.getByRole('button', { name: 'Mute patient voice', exact: true }).click();
   await expect.poll(() => jaw(page)).toBeLessThan(.01);
+  await expect.poll(async () => (await mouthCavityScale(page))?.y ?? 1).toBeCloseTo(.075, 2);
   await expect(panel.getByRole('status')).toContainText('Voice muted');
 });
 
