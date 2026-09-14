@@ -1447,6 +1447,54 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
     } catch {
       // dressing is cosmetic; the exam continues undressed
     }
+    // The source mesh has separate upper/lower lip loops but no visible oral
+    // cavity behind them. Add a small, calibrated interior on the adult male
+    // patient so amplitude-driven speech reads as an opening into the mouth,
+    // not a pale line sliding across the face. The anchor is a real lip vertex
+    // and is skinned each frame below, keeping the interior with the animated
+    // head instead of leaving a stationary decal behind when the patient leans.
+    if (modelPath === '/models/patient-male.glb') {
+      const patientMesh = clone.getObjectByName('Patient') as THREE.Mesh | undefined;
+      if (patientMesh) {
+        const position = patientMesh.geometry.getAttribute('position');
+        let anchorVertexIndex = -1;
+        let closestDistance = Infinity;
+        if (position instanceof THREE.BufferAttribute) {
+          for (let index = 0; index < position.count; index++) {
+            const dx = position.getX(index);
+            // The lower lip's supporting loop is the stable anchor. The seam
+            // itself can separate under the viseme morph, which would make an
+            // aperture attached to it jump from the upper to the lower lip.
+            const dy = position.getY(index) - 1.53;
+            const dz = position.getZ(index) - 0.15;
+            const distance = dx * dx + dy * dy + dz * dz;
+            if (distance < closestDistance) {
+              closestDistance = distance;
+              anchorVertexIndex = index;
+            }
+          }
+        }
+        const cavity = new THREE.Mesh(
+          new THREE.CircleGeometry(0.033, 20),
+          new THREE.MeshBasicMaterial({
+            color: '#321617',
+            transparent: true,
+            opacity: 0.82,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+          }),
+        );
+        cavity.name = 'resp001-mouth-cavity';
+        cavity.position.set(0, 1.543, 0.158);
+        cavity.scale.set(0.65, 0.075, 1);
+        cavity.renderOrder = 2;
+        cavity.userData.skipRecolor = true;
+        cavity.userData.anchorVertexIndex = anchorVertexIndex;
+        cavity.userData.anchorPoint = new THREE.Vector3();
+        cavity.raycast = () => {};
+        patientMesh.add(cavity);
+      }
+    }
     createFaceAttachment(clone, patientScale);
     return { clonedScene: clone, updateEyeMorphs };
     // surfaceOpacity & pupil sizes are deliberately omitted from deps: a
@@ -1903,6 +1951,30 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
         treatmentBayTransform.rotation[1] + pace.yaw,
         treatmentBayTransform.rotation[2],
       );
+    }
+    const mouthCavity = clonedScene.getObjectByName('resp001-mouth-cavity') as THREE.Mesh | undefined;
+    const skinnedPatient = mouthCavity?.parent as THREE.SkinnedMesh | undefined;
+    const anchorVertexIndex = mouthCavity?.userData.anchorVertexIndex as number | undefined;
+    const anchorPoint = mouthCavity?.userData.anchorPoint as THREE.Vector3 | undefined;
+    if (mouthCavity && skinnedPatient?.isSkinnedMesh && typeof anchorVertexIndex === 'number'
+      && Number.isInteger(anchorVertexIndex) && anchorVertexIndex >= 0 && anchorPoint) {
+      const position = skinnedPatient.geometry.getAttribute('position');
+      if (position instanceof THREE.BufferAttribute && anchorVertexIndex < position.count) {
+        // applyBoneTransform gives the live lip location in the SkinnedMesh's
+        // local coordinates. This mesh's lip surface sits 7 cm anterior of
+        // its skinned landmark; that calibrated offset makes the opening
+        // visible at the seam without turning it into a floating face decal.
+        anchorPoint.fromBufferAttribute(position, anchorVertexIndex);
+        skinnedPatient.applyBoneTransform(anchorVertexIndex, anchorPoint);
+        mouthCavity.position.copy(anchorPoint);
+        mouthCavity.position.z += 0.07;
+      }
+      const open = Math.min(1, Math.max(0, mouthOpenRef?.current ?? 0));
+      // At rest this is only a narrow natural seam. Speech opens it inside the
+      // lip silhouette without turning the mouth into a visible flat disc.
+      mouthCavity.scale.y = 0.075 + open * 0.075;
+      const material = mouthCavity.material as THREE.MeshBasicMaterial;
+      material.opacity = 0.56 + open * 0.22;
     }
     if ((requiredRegions && requiredRegions.size > 0) || (guidedMode && nextGuidedStep)) {
       pulseRef.current += delta;
