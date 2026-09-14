@@ -84,7 +84,6 @@ import {
   nearestPupilExamAction,
   type PupilProfile,
 } from '@/lib/pupilExam';
-import { hashInjury } from './WoundLayer';
 import { ActiveBleedSprites } from './ActiveBleedLayer';
 import { FocusedWoundLayer } from './FocusedWoundLayer';
 import type { PatientVisualState, PatientWoundOverlay } from '@/lib/patientVisualState';
@@ -4798,10 +4797,13 @@ function getPatientReaction(
       ...reactionBase,
       id: `${actionId}-listen-cue`,
       tone: 'coach',
-      title: 'Technique cue',
-      quote: patient.canVocalize && regionId === 'chest' ? 'I will try to stay still.' : undefined,
+      title: 'Auscultation cue',
+      // Consent belongs at the beginning of the examination. The calibrated
+      // site sequence itself is deliberately quiet: the learner needs to hear
+      // the breath/heart sounds, not a new patient line at every position.
+      quote: patient.canVocalize && regionId === 'chest' ? 'You can go ahead and listen to my chest.' : undefined,
       message: regionId === 'chest'
-        ? 'Ask for normal open-mouth breaths and compare matching positions side to side.'
+        ? 'Ask for normal open-mouth breaths, compare matching positions side to side, then keep the patient quiet while you move between sites.'
         : 'Pause long enough to hear a real pattern before moving to the next site.',
     };
   }
@@ -5863,23 +5865,16 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
     setSelectedAction(null);
     clearPatientReaction();
 
-    // Consent beat: focusing a clothed region parts the garment — for an
-    // awake patient that's an intimate act, so the patient audibly consents
-    // (as if the student just asked) and the coach reinforces asking first.
+    // Focusing a clothed region is not itself a patient interaction. Keep the
+    // exposure reminder for the clinical coach, but do not make the patient
+    // talk just because the learner changes view. Patient dialogue belongs to
+    // a deliberate clinical action (for example the single consent cue that
+    // starts auscultation), never to the subsequent site-to-site movement.
     // Once per region per case (component is keyed per case → ref resets).
-    // Speak + coach ONCE per case, not once per region — with ~11 regions the
-    // per-region version had the patient consenting on nearly every click,
-    // which read as a bug ("anywhere you click it says the same line").
     if (anatomyLayer === 'dressed' && (CLOTHING_PARTING[stepId]?.length ?? 0) > 0
       && consentedRegionsRef.current.size === 0) {
       consentedRegionsRef.current.add(stepId);
       if (patientVoice.communication.isAwake) {
-        const lines = [
-          'Yes, that’s fine — go ahead.',
-          'Okay… do what you need to do.',
-          'Go ahead. Is everything okay?',
-        ];
-        patientVoice.say(lines[hashInjury(stepId) % lines.length]);
         setPatientReaction({
           id: `${stepId}-consent`,
           tone: 'coach',

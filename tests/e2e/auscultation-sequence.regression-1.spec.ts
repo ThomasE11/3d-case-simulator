@@ -2,6 +2,44 @@ import { expect, test } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import type * as THREE from 'three';
 
+function silentWav() {
+  const rate = 8_000;
+  const out = Buffer.alloc(44 + rate * 2);
+  out.write('RIFF'); out.writeUInt32LE(out.length - 8, 4); out.write('WAVEfmt ', 8);
+  out.writeUInt32LE(16, 16); out.writeUInt16LE(1, 20); out.writeUInt16LE(1, 22);
+  out.writeUInt32LE(rate, 24); out.writeUInt32LE(rate * 2, 28);
+  out.writeUInt16LE(2, 32); out.writeUInt16LE(16, 34);
+  out.write('data', 36); out.writeUInt32LE(out.length - 44, 40);
+  return out;
+}
+
+test('auscultation gives consent once and remains quiet while contact moves', async ({ page }) => {
+  test.setTimeout(45_000);
+  const spoken: unknown[] = [];
+  await page.addInitScript(() => localStorage.setItem('paramedic-studio-voice-enabled', 'true'));
+  await page.route('**/api/tts/health', route => route.fulfill({ json: { ok: true } }));
+  await page.route('**/api/tts', async route => {
+    spoken.push(route.request().postDataJSON());
+    await route.fulfill({ contentType: 'audio/wav', body: silentWav() });
+  });
+  await page.goto('/?devLiveCase=resp-001');
+  await page.getByRole('button', { name: 'Examine Chest', exact: true }).click();
+  await page.getByRole('button', { name: 'Expose', exact: true }).click();
+  const dock = page.locator('.patient-first-exam-dock');
+  await dock.getByRole('button', { name: 'Listen', exact: true }).click();
+  await dock.getByRole('button', { name: /Auscultate apices, mid-zones, bases/ }).click();
+
+  await expect.poll(() => spoken.length).toBe(1);
+  expect(spoken[0]).toMatchObject({
+    text: 'You can go ahead and listen to my chest.',
+    role: 'patient',
+  });
+  // Two full 4-second sites have elapsed. The stethoscope may move, but the
+  // patient must not talk over subsequent listening positions.
+  await page.waitForTimeout(8_500);
+  expect(spoken).toHaveLength(1);
+});
+
 for (const exam of ['lungs', 'heart'] as const) {
   test(`${exam} audio and skin contact visit every promised site once`, async ({ page }, info) => {
     test.setTimeout(70_000);
