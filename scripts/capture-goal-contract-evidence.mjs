@@ -223,7 +223,14 @@ async function capturePhaseTransition(browser) {
     await page.goto(`${baseUrl}/?capture`, { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: /Start Training/i }).first().click();
     await page.getByRole('button', { name: /Skip Tour/i }).click({ timeout: 5_000 }).catch(() => {});
-    await page.getByRole('button', { name: /Launch smart case|Generate Case/i }).first().click();
+    // This evidence pack is specifically for resp-001. The normal launcher
+    // intentionally randomises its preview, so choose its unique diagnosis in
+    // Condition practice instead. Do not let a visually plausible but
+    // unrelated scene stand in as proof of this vertical slice.
+    await page.getByRole('button', { name: /Condition practice/i }).click();
+    await page.locator('input[placeholder*="STEMI"]').fill('Life-threatening Asthma Exacerbation');
+    await page.getByRole('button', { name: /^Life-threatening Asthma Exacerbation\b/i }).click();
+    await page.getByText('Villa in Al Ain', { exact: true }).waitFor({ state: 'visible' });
     await page.getByRole('button', { name: /Begin Scene Survey/i }).click();
     await page.getByRole('button', { name: /^Next$/i }).click();
 
