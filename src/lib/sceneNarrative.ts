@@ -19,6 +19,21 @@ function clean(value?: string | number | null): string {
   return String(value ?? '').trim();
 }
 
+/**
+ * Student-facing setting copy for the few cases whose original clinical
+ * record predates their authored 3D scene.  Keep this mapping deliberately
+ * narrow: it corrects presentation drift without mutating the protected case
+ * data that feeds the clinical engine, assessment logic, and debrief.
+ */
+const PRESENTATION_SCENE_DESCRIPTIONS: Record<string, string> = {
+  'resp-001': 'Villa living room, patient seated upright in tripod position',
+};
+
+export function getScenePresentationDescription(caseData: CaseScenario): string {
+  return PRESENTATION_SCENE_DESCRIPTIONS[caseData.id]
+    ?? (clean(caseData.sceneInfo?.description) || 'Scene description not available');
+}
+
 function sceneTextFor(caseData: CaseScenario): string {
   return [
     caseData.title,

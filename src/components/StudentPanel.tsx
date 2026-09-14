@@ -57,6 +57,7 @@ function seededShuffle<T>(array: T[], seed: string): T[] {
   return shuffled;
 }
 import { loadAllCases } from '@/data/caseLibrary';
+import { getScenePresentationDescription } from '@/lib/sceneNarrative';
 import { yearLevels, caseCategories, isCaseAvailableForCohort, isStudentYear, type CohortMode } from '@/data/caseFilters';
 import { pickRandomFromPool, skillFocusForCategory } from '@/lib/missionCasePick';
 import { ensureCompleteVitals, vitalsEqual, buildInitialVitalsFromCase } from '@/data/treatmentEffects';
@@ -5572,7 +5573,7 @@ export function StudentPanel({
             </button>
             {showScene && (
               <div className="live-scene-details glass-panel p-3 rounded-xl text-xs space-y-2 animate-fade-in">
-                <p className="leading-relaxed">{currentCase.sceneInfo.description}</p>
+                <p className="leading-relaxed">{getScenePresentationDescription(currentCase)}</p>
                 {sceneSurvey && (
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <div className="rounded-lg border border-border/40 bg-white/55 p-2 dark:bg-white/[0.05]">

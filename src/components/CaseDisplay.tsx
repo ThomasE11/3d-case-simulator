@@ -13,6 +13,7 @@ import {
 import { getECGForCase } from '@/data/litflECGs';
 import { ECGDisplayComponent, EmergencyECGQuickRef } from './ECGDisplay';
 import { ClinicalResources } from './ClinicalResources';
+import { getScenePresentationDescription } from '@/lib/sceneNarrative';
 
 // Error boundary to prevent ClinicalResources crashes from taking down the whole app
 class ResourcesErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
@@ -309,7 +310,7 @@ export function CaseDisplay({ caseData, studentYear = '3rd-year', isStudentView:
               <FileText className="mt-0.5 h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Scene Description</p>
-                <p className="text-sm text-muted-foreground">{caseData.sceneInfo.description}</p>
+                <p className="text-sm text-muted-foreground">{getScenePresentationDescription(caseData)}</p>
               </div>
             </div>
           </RevealableField>
