@@ -4,6 +4,8 @@ import {
   GARMENT_GLBS,
   RESP001_GARMENT_GLBS,
   shirtHemDropForSpec,
+  waistbandBandFractionForSpec,
+  waistbandRiseForSpec,
 } from './ClothingLayer';
 
 describe('resp-001 shirt-hem ownership', () => {
@@ -14,7 +16,13 @@ describe('resp-001 shirt-hem ownership', () => {
     expect(standardShirt).toBeDefined();
     expect(resp001Shirt).toBeDefined();
     expect(shirtHemDropForSpec(standardShirt!)).toBeCloseTo(0.05);
-    expect(shirtHemDropForSpec(resp001Shirt!)).toBeCloseTo(0.05);
+    expect(shirtHemDropForSpec(resp001Shirt!)).toBeCloseTo(0);
+    const standardTrousers = GARMENT_GLBS.find(garment => garment.name === 'scrub-trousers');
+    const resp001Trousers = RESP001_GARMENT_GLBS.find(garment => garment.name === 'scrub-trousers');
+    expect(waistbandRiseForSpec(standardTrousers!)).toBeCloseTo(0.05);
+    expect(waistbandRiseForSpec(resp001Trousers!)).toBeCloseTo(0.065);
+    expect(waistbandBandFractionForSpec(standardTrousers!)).toBeCloseTo(0.12);
+    expect(waistbandBandFractionForSpec(resp001Trousers!)).toBeCloseTo(0.06);
   });
 
   it('uses a case-owned clean-hem shirt asset with the standard material contract', () => {
@@ -27,7 +35,7 @@ describe('resp-001 shirt-hem ownership', () => {
       name: standardShirt!.name,
       color: standardShirt!.color,
       offset: standardShirt!.offset,
-      hemDrop: 0.05,
+      hemDrop: 0,
     });
   });
 });

@@ -96,6 +96,13 @@ export interface GarmentGlbSpec {
    * Omit it to retain the generic seated-hip seam closure.
    */
   hemDrop?: number;
+  /**
+   * Profile-owned rise for the trouser waistband.  This is preferable to
+   * stretching the visible shirt across a flexed abdomen when the source
+   * garment already has a clean hem.
+   */
+  waistbandRise?: number;
+  waistbandBandFraction?: number;
 }
 
 /**
@@ -134,8 +141,8 @@ export const RESP001_GARMENT_GLBS: GarmentGlbSpec[] = [
   // The tripod profile needs a true torso-only shirt shell. It is baked with
   // a level hem above the flexing pelvis, rather than reusing the generic
   // body-cut garment whose pelvic bridge triangles formed a pointed flap.
-  { url: '/models/garment-shirt-resp001.glb', name: 'scrub-top', color: TOP_COLOR, offset: 0.002, hemDrop: 0.05 },
-  { url: '/models/garment-trousers-resp001.glb', name: 'scrub-trousers', color: TROUSER_COLOR, offset: 0.002 },
+  { url: '/models/garment-shirt-resp001.glb', name: 'scrub-top', color: TOP_COLOR, offset: 0.002, hemDrop: 0 },
+  { url: '/models/garment-trousers-resp001.glb', name: 'scrub-trousers', color: TROUSER_COLOR, offset: 0.002, waistbandRise: 0.065, waistbandBandFraction: 0.06 },
 ];
 
 export const FEMALE_GARMENT_GLBS: GarmentGlbSpec[] = [
@@ -156,6 +163,14 @@ export const ADOLESCENT_FEMALE_GARMENT_GLBS = [FEMALE_GARMENT_GLBS[1]];
 /** The generic waist closure remains the default unless a profile owns it. */
 export function shirtHemDropForSpec(spec: GarmentGlbSpec): number {
   return spec.hemDrop ?? SHIRT_HEM_DROP;
+}
+
+export function waistbandRiseForSpec(spec: GarmentGlbSpec): number {
+  return spec.waistbandRise ?? WAISTBAND_RISE;
+}
+
+export function waistbandBandFractionForSpec(spec: GarmentGlbSpec): number {
+  return spec.waistbandBandFraction ?? WAISTBAND_BAND_FRACTION;
 }
 
 export function garmentGlbsForModel(modelPath: string): GarmentGlbSpec[] {
@@ -746,7 +761,7 @@ export function buildBlendedGarments(
     // ponytail: seam bands only. If other seams open up, the real fix is a wider
     // authored overlap in scripts/anatomy-models/blender-garment-bake.py.
     const seam = spec.name === 'scrub-trousers'
-      ? { shift: WAISTBAND_RISE, fraction: WAISTBAND_BAND_FRACTION, fromTop: true }
+      ? { shift: waistbandRiseForSpec(spec), fraction: waistbandBandFractionForSpec(spec), fromTop: true }
       : spec.name === 'scrub-top'
         ? { shift: -shirtHemDropForSpec(spec), fraction: SHIRT_HEM_BAND_FRACTION, fromTop: false }
         : null;

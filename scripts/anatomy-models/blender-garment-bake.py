@@ -56,9 +56,10 @@ FABRIC_THICKNESS = 0.004
 # The resp-001 tripod profile uses a deliberately higher, clean hem. The
 # generic 0.522 cut includes pelvic bridge triangles from the source skin;
 # once the patient flexes at the hips those triangles form the false V-shaped
-# shirt flap reported in visual QA. A 0.574 cut stays on the torso and still
-# overlaps the 0.539 trouser waistband by 35 mm on the adult male mesh.
-SHIRT_HEM = 0.574 if VARIANT == "resp001" else 0.522
+# shirt flap reported in visual QA. A 0.530 cut gives the seated profile a
+# genuine garment overlap with the waistband (rather than a runtime stretch)
+# while stopping short of the generic 0.522 pelvic bridge.
+SHIRT_HEM = 0.530 if VARIANT == "resp001" else 0.522
 # The cap must sit above the full shoulder girdle. Cutting it at 0.844 ran
 # through the deltoid/trapezius triangles; once the arms came down from the
 # authored A-pose, the open boundary looked like a torn, saw-toothed shirt.
