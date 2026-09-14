@@ -4,6 +4,11 @@
     "source": "scripts/anatomy-models/build-resp001-villa-dressing.py",
     "licence": "Original project-authored geometry; no third-party geometry"
   },
+  "runtimeExterior": {
+    "source": "src/components/Body3DModel/Environment/SceneVariant.tsx (Resp001VillaArrivalExterior)",
+    "licence": "Original project-authored procedural geometry; no third-party geometry or network-loaded asset",
+    "performance": "Primitive-only facade, paving, door, sconces and two low-poly planters; no additional texture fetches or shadow-casting lights"
+  },
   "materials": [
     {
       "asset": "Cotton Jersey",

@@ -37,6 +37,24 @@ export const RESP001_VILLA_ENTRY = {
   landingDepth: 0.92,
 } as const;
 
+/**
+ * Architectural limits for the profile-specific exterior threshold.
+ *
+ * This is intentionally a compact arrival forecourt rather than an open world:
+ * it makes the doorway dolly read as entering a villa, while keeping the
+ * patient and interior as the instructional focal point and avoiding an
+ * additional streamed scene asset on iPad. The protected centre lane is
+ * wider than the doorway, so the first camera frame never starts inside a
+ * planter, gate, or facade prop.
+ */
+export const RESP001_VILLA_EXTERIOR = {
+  approachEndZ: RESP001_VILLA_ENTRY.arrivalZ + 2.15,
+  approachWidth: RESP001_VILLA_ENTRY.openingWidth + 1.25,
+  protectedHalfWidth: RESP001_VILLA_ENTRY.openingWidth / 2 + 0.32,
+  facadeDepth: 1.12,
+  planterX: 1.82,
+} as const;
+
 const OPEN_SCENE: CameraOrbitSafety = {
   minAzimuthAngle: -Infinity,
   maxAzimuthAngle: Infinity,

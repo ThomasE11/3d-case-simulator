@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import type { EnvironmentVariant } from '@/lib/sceneEnvironment';
 import type { PatientSeatKind } from '@/lib/patientStaging';
-import { RESP001_VILLA_ENTRY, RESP001_VILLA_SHELL } from '@/lib/cameraOrbitSafety';
+import { RESP001_VILLA_ENTRY, RESP001_VILLA_EXTERIOR, RESP001_VILLA_SHELL } from '@/lib/cameraOrbitSafety';
 import { getVillaTextures } from './textures';
 import { KenneyPatientChair } from './KenneyPatientChair';
 import { Resp001VillaDressing } from './Resp001VillaDressing';
@@ -196,6 +196,114 @@ function VillaCourtyardView() {
           </mesh>
         ))}
       </group>
+    </group>
+  );
+}
+
+/**
+ * The case-profiled exterior arrival threshold.
+ *
+ * The front facade is deliberately procedural project-authored geometry (no
+ * hidden third-party download): it stays light enough for the adaptive iPad
+ * tier and remains reproducible alongside the authored dressing GLB. Nothing
+ * occupies the protected centre lane; it is an architectural beat for the
+ * entry dolly, not another clinical interaction surface.
+ */
+function Resp001VillaArrivalExterior() {
+  const entryHalfWidth = RESP001_VILLA_ENTRY.openingWidth / 2;
+  const approachDepth = RESP001_VILLA_EXTERIOR.approachEndZ - RESP001_VILLA_SHELL.frontZ;
+  const approachCentreZ = (RESP001_VILLA_EXTERIOR.approachEndZ + RESP001_VILLA_SHELL.frontZ) / 2;
+  const doorWidth = RESP001_VILLA_ENTRY.openingWidth - 0.11;
+  const doorHeight = RESP001_VILLA_ENTRY.openingHeight - 0.12;
+
+  return (
+    <group name="resp001-villa-arrival-exterior">
+      {/* A broad paved path carries the camera from the gate-side landing to
+          the threshold. Its centre stays clear for the approach animation. */}
+      <mesh name="resp001-villa-approach-paving" position={[0, -0.055, approachCentreZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
+        <planeGeometry args={[RESP001_VILLA_EXTERIOR.approachWidth, approachDepth]} />
+        <meshStandardMaterial color="#b8aa94" roughness={0.88} metalness={0.02} />
+      </mesh>
+      {/* Offset expansion joints give the paving scale without another texture
+          fetch or high-frequency geometry. */}
+      {[-0.32, 0.32].map(x => (
+        <mesh key={`resp001-villa-paving-joint-${x}`} position={[x, -0.051, approachCentreZ]} rotation={[-Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
+          <planeGeometry args={[0.018, approachDepth - 0.08]} />
+          <meshBasicMaterial color="#91836f" transparent opacity={0.48} toneMapped={false} />
+        </mesh>
+      ))}
+      {[RESP001_VILLA_SHELL.frontZ + 1.2, RESP001_VILLA_SHELL.frontZ + 1.92].map(z => (
+        <mesh key={`resp001-villa-paving-cross-joint-${z}`} position={[0, -0.051, z]} rotation={[-Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
+          <planeGeometry args={[RESP001_VILLA_EXTERIOR.approachWidth - 0.08, 0.018]} />
+          <meshBasicMaterial color="#91836f" transparent opacity={0.48} toneMapped={false} />
+        </mesh>
+      ))}
+
+      {/* Exterior eave and entry surround make the otherwise thin room shell
+          read as a real villa facade from the first camera frame. */}
+      <mesh name="resp001-villa-exterior-eave" position={[0, RESP001_VILLA_SHELL.ceilingY + 0.12, RESP001_VILLA_SHELL.frontZ + RESP001_VILLA_EXTERIOR.facadeDepth / 2]} receiveShadow raycast={NO_RAYCAST}>
+        <boxGeometry args={[RESP001_VILLA_SHELL.halfWidth * 2 + 0.22, 0.16, RESP001_VILLA_EXTERIOR.facadeDepth]} />
+        <meshStandardMaterial color="#584c43" roughness={0.72} />
+      </mesh>
+      {[-(entryHalfWidth + 0.38), entryHalfWidth + 0.38].map(x => (
+        <mesh key={`resp001-villa-facade-pilaster-${x}`} name={`resp001-villa-facade-pilaster-${x < 0 ? 'left' : 'right'}`} position={[x, RESP001_VILLA_ENTRY.openingHeight / 2, RESP001_VILLA_SHELL.frontZ + 0.08]} receiveShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.18, RESP001_VILLA_ENTRY.openingHeight + 0.08, 0.22]} />
+          <meshStandardMaterial color="#d6c6af" roughness={0.76} />
+        </mesh>
+      ))}
+      {[-1.22, 1.22].map(x => (
+        <group key={`resp001-villa-entry-sconce-${x}`} position={[x, 1.65, RESP001_VILLA_SHELL.frontZ + 0.14]}>
+          <mesh raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.14, 0.22, 0.08]} />
+            <meshStandardMaterial color="#3d362f" roughness={0.42} metalness={0.45} />
+          </mesh>
+          <mesh position={[0, -0.02, 0.05]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.07, 0.11, 0.025]} />
+            <meshStandardMaterial color="#fff0c6" emissive="#ffdda0" emissiveIntensity={1.25} roughness={0.42} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Door hangs open into the left interior wall. The clear central lane
+          means the camera can pass the threshold without clipping it. */}
+      <group name="resp001-villa-open-entry-door" position={[-entryHalfWidth + 0.045, doorHeight / 2, RESP001_VILLA_SHELL.frontZ - 0.075]} rotation={[0, Math.PI / 2, 0]}>
+        <mesh position={[doorWidth / 2, 0, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[doorWidth, doorHeight, 0.055]} />
+          <meshStandardMaterial color="#755239" roughness={0.58} metalness={0.04} />
+        </mesh>
+        {[-0.28, 0.28].map(y => (
+          <mesh key={`resp001-villa-door-panel-${y}`} position={[doorWidth * 0.52, y, 0.033]} raycast={NO_RAYCAST}>
+            <boxGeometry args={[doorWidth * 0.68, 0.42, 0.025]} />
+            <meshStandardMaterial color="#8a6346" roughness={0.62} />
+          </mesh>
+        ))}
+        <mesh name="resp001-villa-door-handle" position={[doorWidth * 0.84, 0, -0.06]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
+          <cylinderGeometry args={[0.028, 0.028, 0.16, 12]} />
+          <meshStandardMaterial color="#c9a86a" roughness={0.26} metalness={0.72} />
+        </mesh>
+      </group>
+
+      {/* Two restrained courtyard planters sit beyond the protected approach
+          lane. Fronds are primitive low-poly silhouettes, intentionally below
+          the patient-facing view and free of click raycasts. */}
+      {([-RESP001_VILLA_EXTERIOR.planterX, RESP001_VILLA_EXTERIOR.planterX] as const).map(x => (
+        <group key={`resp001-villa-courtyard-planter-${x}`} position={[x, 0, RESP001_VILLA_SHELL.frontZ + 1.22]}>
+          <mesh position={[0, 0.18, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
+            <cylinderGeometry args={[0.25, 0.19, 0.36, 14]} />
+            <meshStandardMaterial color="#8b5a3d" roughness={0.86} />
+          </mesh>
+          <mesh position={[0, 0.6, 0]} raycast={NO_RAYCAST}>
+            <cylinderGeometry args={[0.04, 0.055, 0.56, 10]} />
+            <meshStandardMaterial color="#69553d" roughness={0.88} />
+          </mesh>
+          {[0, Math.PI / 2, Math.PI, Math.PI * 1.5].map(rotation => (
+            <mesh key={`resp001-villa-courtyard-frond-${rotation}`} position={[Math.cos(rotation) * 0.13, 0.82, Math.sin(rotation) * 0.13]} rotation={[0.5, 0, -rotation]} raycast={NO_RAYCAST}>
+              <coneGeometry args={[0.14, 0.62, 5]} />
+              <meshStandardMaterial color="#345d3b" roughness={0.9} />
+            </mesh>
+          ))}
+        </group>
+      ))}
     </group>
   );
 }
@@ -410,6 +518,7 @@ function HomeScene({
             <boxGeometry args={[RESP001_VILLA_ENTRY.openingWidth + 0.35, 0.12, RESP001_VILLA_ENTRY.landingDepth]} />
             <meshStandardMaterial color="#61564d" roughness={0.72} />
           </mesh>
+          <Resp001VillaArrivalExterior />
         </group>
       )}
 

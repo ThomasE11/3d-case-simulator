@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cameraOrbitSafetyForEnvironment, RESP001_VILLA_ENTRY, RESP001_VILLA_SHELL } from './cameraOrbitSafety';
+import { cameraOrbitSafetyForEnvironment, RESP001_VILLA_ENTRY, RESP001_VILLA_EXTERIOR, RESP001_VILLA_SHELL } from './cameraOrbitSafety';
 
 describe('cameraOrbitSafetyForEnvironment', () => {
   it('keeps clinic and home cameras on the open, patient-facing side of walls', () => {
@@ -37,6 +37,14 @@ describe('cameraOrbitSafetyForEnvironment', () => {
     expect(RESP001_VILLA_ENTRY.openingWidth).toBeLessThan(RESP001_VILLA_SHELL.halfWidth * 2);
     expect(RESP001_VILLA_ENTRY.openingHeight).toBeLessThan(RESP001_VILLA_SHELL.ceilingY);
     expect(RESP001_VILLA_SHELL.overviewTarget.z + home.maxDistance).toBeLessThan(RESP001_VILLA_SHELL.frontZ);
+  });
+
+  it('gives the exterior approach a clear, bounded threshold lane', () => {
+    expect(RESP001_VILLA_EXTERIOR.approachEndZ).toBeGreaterThan(RESP001_VILLA_ENTRY.arrivalZ);
+    expect(RESP001_VILLA_ENTRY.arrivalZ).toBeGreaterThan(RESP001_VILLA_SHELL.frontZ);
+    expect(RESP001_VILLA_EXTERIOR.protectedHalfWidth).toBeGreaterThan(RESP001_VILLA_ENTRY.openingWidth / 2);
+    expect(RESP001_VILLA_EXTERIOR.planterX).toBeGreaterThan(RESP001_VILLA_EXTERIOR.protectedHalfWidth);
+    expect(RESP001_VILLA_EXTERIOR.approachWidth / 2).toBeGreaterThan(RESP001_VILLA_EXTERIOR.protectedHalfWidth);
   });
 
   it('leaves outdoor incident scenes unrestricted', () => {
