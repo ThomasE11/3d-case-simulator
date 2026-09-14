@@ -39,7 +39,7 @@ import {
   type PatientSeatKind,
   type PatientSupportSurface,
 } from '@/lib/patientStaging';
-import { deriveSceneEnvironment } from '@/lib/sceneEnvironment';
+import { deriveSceneEnvironment, type EnvironmentVariant } from '@/lib/sceneEnvironment';
 import { sceneEntryOrigin } from '@/lib/cinematicPhase';
 import { cameraOrbitSafetyForEnvironment } from '@/lib/cameraOrbitSafety';
 import type { LimbSide, SurfaceSampler } from './BodyMesh';
@@ -51,7 +51,11 @@ import type { AmbientBreathKind } from '@/lib/ambientAudio';
 import type { QualityTier } from './AdaptiveQuality';
 import { AnatomyReferenceLayer } from './AnatomyReferenceLayer';
 import {
+  floorOverviewFov,
+  floorOverviewMaxDistance,
+  floorOverviewMinPolarAngle,
   resolveTreatmentBayActionTarget,
+  treatmentBayFloorOverviewOffset,
   treatmentBayActionFramingRadius,
 } from './cameraFraming';
 import {
@@ -4272,6 +4276,7 @@ function getTreatmentBayCameraFocus(
   mobility: PatientMobility = 'recumbent',
   patientScale = 1,
   seatedSupportLift = 0,
+  environment: EnvironmentVariant = 'clinic',
 ) {
   const cameraScale = Math.max(0.6, Math.min(1, patientScale));
   if (mobility === 'pacing') {
@@ -4319,7 +4324,7 @@ function getTreatmentBayCameraFocus(
     };
   }
   const adultOffset = stage === 'floor'
-    ? [0.55, 2.15, 3.85]
+    ? treatmentBayFloorOverviewOffset(environment)
     : [1.42, 1.30 - 0.888, 2.12 - (-0.218)];
   return {
     // Scene context is established before the student enters treatment. Once
@@ -5493,7 +5498,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
   const overviewCameraFocus = useMemo(
     () => {
       const focus = treatmentBayOverviewEnabled
-        ? getTreatmentBayCameraFocus(bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift)
+        ? getTreatmentBayCameraFocus(bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift, bayVariant)
         : getUprightCameraFocus(patientScale);
       if (caseData.id === 'resp-001' && treatmentBayOverviewEnabled && (patientPosture === 'tripod' || patientPosture === 'seated')) {
         // Orbit around the patient root, not a point 60cm behind the chair.
@@ -5505,7 +5510,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
       }
       return focus;
     },
-    [caseData.id, treatmentBayOverviewEnabled, bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift],
+    [caseData.id, treatmentBayOverviewEnabled, bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift, bayVariant],
   );
 
   // OrbitControls target is imperative state. Initialise/reset it only for the
@@ -6666,7 +6671,14 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
         <div className={`patient-model-canvas-shell relative min-w-0 overflow-hidden ${patientFirstExamLayout ? 'patient-first-canvas' : ''} ${activeRegion ? 'bg-slate-100/35 dark:bg-slate-950/20' : 'h-[320px] sm:h-[380px] lg:h-[420px]'}`}>
           <div className={`patient-model-canvas-stage relative min-w-0 overflow-hidden ${patientFirstExamLayout ? 'patient-first-canvas-stage' : activeRegion ? 'h-[430px] sm:h-[470px]' : 'h-full'}`}>
             <Canvas
-              camera={{ position: overviewCameraFocus.pos, fov: treatmentBayOverviewEnabled && patientMobility === 'pacing' ? 48 : 34, near: 0.05, far: 200 }}
+              camera={{
+                position: overviewCameraFocus.pos,
+                fov: treatmentBayOverviewEnabled && bayStage === 'floor'
+                  ? floorOverviewFov(bayVariant)
+                  : treatmentBayOverviewEnabled && patientMobility === 'pacing' ? 48 : 34,
+                near: 0.05,
+                far: 200,
+              }}
               dpr={Math.min(window.devicePixelRatio, 2)}
               frameloop="always"
               // One standard PCF shadow map for the surgical key light;
@@ -7015,10 +7027,18 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 rotateSpeed={0.55}
                 zoomSpeed={0.65}
                 minDistance={caseData.id === 'resp-001' && showEyeContext ? .28 : activeRegion ? 0.7 : 2}
-                maxDistance={caseData.id === 'resp-001' && showEyeContext ? 1 : cameraOrbitSafety.maxDistance}
+                maxDistance={caseData.id === 'resp-001' && showEyeContext
+                  ? 1
+                  : bayStage === 'floor'
+                    ? floorOverviewMaxDistance(bayVariant) ?? cameraOrbitSafety.maxDistance
+                    : cameraOrbitSafety.maxDistance}
                 minAzimuthAngle={cameraOrbitSafety.minAzimuthAngle}
                 maxAzimuthAngle={cameraOrbitSafety.maxAzimuthAngle}
-                minPolarAngle={caseData.id === 'resp-001' && !showEyeContext ? cameraOrbitSafety.minPolarAngle : Math.PI * 0.15}
+                minPolarAngle={caseData.id === 'resp-001' && !showEyeContext
+                  ? cameraOrbitSafety.minPolarAngle
+                  : bayStage === 'floor'
+                    ? floorOverviewMinPolarAngle(bayVariant)
+                    : Math.PI * 0.15}
                 // The focal point is on the patient, above their support.
                 // Never orbit below that plane into the road/floor underside.
                 maxPolarAngle={caseData.id === 'resp-001' && showEyeContext ? Math.PI * .65 : caseData.id === 'resp-001' ? cameraOrbitSafety.maxPolarAngle : Math.PI / 2 - 0.05}
