@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { allCases } from '@/data/cases';
-import { getScenePresentationDescription } from './sceneNarrative';
+import { buildSceneVisualBrief, getScenePresentationDescription } from './sceneNarrative';
 
 describe('scene presentation descriptions', () => {
   it('keeps the resp-001 briefing aligned with its authored villa living-room scene', () => {
@@ -17,5 +17,13 @@ describe('scene presentation descriptions', () => {
 
     expect(scenario).toBeDefined();
     expect(getScenePresentationDescription(scenario!)).toBe(scenario!.sceneInfo.description);
+  });
+
+  it('uses the same approved setting in downstream scene briefing cues', () => {
+    const scenario = allCases.find(caseData => caseData.id === 'resp-001');
+    const brief = buildSceneVisualBrief(scenario!);
+
+    expect(brief.environmentCues).toContain('Villa living room, patient seated upright in tripod position');
+    expect(brief.environmentCues.join(' ')).not.toContain('Bedroom, patient sitting on edge of bed');
   });
 });

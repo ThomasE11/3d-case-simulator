@@ -44,7 +44,7 @@ function sceneTextFor(caseData: CaseScenario): string {
     caseData.dispatchInfo?.timeOfDay,
     caseData.dispatchInfo?.additionalInfo?.join(' '),
     caseData.sceneInfo?.environment,
-    caseData.sceneInfo?.description,
+    getScenePresentationDescription(caseData),
     caseData.sceneInfo?.hazards?.join(' '),
     caseData.initialPresentation?.generalImpression,
     caseData.initialPresentation?.position,
@@ -209,7 +209,7 @@ export function buildSceneVisualBrief(caseData: CaseScenario): SceneVisualBrief 
     `${location}`,
     `time: ${time}`,
     caseData.sceneInfo?.environment,
-    caseData.sceneInfo?.description,
+    getScenePresentationDescription(caseData),
     caseData.sceneInfo?.bystanders ? `bystanders: ${caseData.sceneInfo.bystanders}` : null,
   ]);
 
