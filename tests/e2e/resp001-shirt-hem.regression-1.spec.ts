@@ -15,8 +15,11 @@ test('reference shirt hem preserves its authored seated shape', async ({ page },
       await page.route('**/ClothingLayer.tsx*', async route => {
         const response = await route.fetch();
         const body = await response.text();
-        expect(body).toContain('hemDrop: 0');
-        await route.fulfill({ response, body: body.replace('hemDrop: 0', 'hemDrop: 0.05') });
+        // Keep the baseline route syntactically valid after the clean-hem
+        // profile became the default. Match the complete property so a value
+        // of 0.05 cannot turn into the invalid literal `0.05.05`.
+        expect(body).toContain('hemDrop: 0.05');
+        await route.fulfill({ response, body: body.replace('hemDrop: 0.05', 'hemDrop: 0') });
       });
     }
     await page.goto('/?devLiveCase=resp-001');
