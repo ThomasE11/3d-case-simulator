@@ -53,7 +53,12 @@ FABRIC_THICKNESS = 0.004
 # LATERALLY (this model holds a wide A-pose), everything else by height band.
 #   shirt:    hem  -> shoulder cap, short sleeves bounded by |x|
 #   trousers: cuff -> waistband
-SHIRT_HEM = 0.522
+# The resp-001 tripod profile uses a deliberately higher, clean hem. The
+# generic 0.522 cut includes pelvic bridge triangles from the source skin;
+# once the patient flexes at the hips those triangles form the false V-shaped
+# shirt flap reported in visual QA. A 0.574 cut stays on the torso and still
+# overlaps the 0.539 trouser waistband by 35 mm on the adult male mesh.
+SHIRT_HEM = 0.574 if VARIANT == "resp001" else 0.522
 # The cap must sit above the full shoulder girdle. Cutting it at 0.844 ran
 # through the deltoid/trapezius triangles; once the arms came down from the
 # authored A-pose, the open boundary looked like a torn, saw-toothed shirt.
@@ -214,6 +219,19 @@ def mask_and_offset(body, name, keep_fn, clearance, out_path):
             co = source_mesh.vertices[source_index].co
             normalised_x = abs(co.x) / scoop_half_local
             zf = (co.z - z_min) / H
+            # The final complete triangle row is naturally jagged because the
+            # skin mesh is triangulated at the pelvis. Project only the lower
+            # torso boundary onto the authored hem plane, then copy that same
+            # delta into every shape key. This leaves sleeves and the collar
+            # untouched while preventing a saw-tooth (or a pointed flap) as
+            # the patient leans into the resp-001 tripod pose.
+            torso_half = TORSO_HALF_W * half_scale
+            if zf <= SHIRT_HEM + 0.04 and abs(co.x) <= torso_half * 1.12:
+                hem_z = z_min + SHIRT_HEM * H
+                adjustment = hem_z - co.z
+                if -0.04 * H <= adjustment <= 0.006 * H:
+                    basis_adjustment_z[source_index] = adjustment
+                continue
             # The front of this imported body faces Blender -Y. Do not project
             # the posterior collar: UV seams there also look like boundaries
             # topologically and stretching them produces shoulder spikes.
@@ -380,7 +398,10 @@ def main():
         lambda co: keep_shirt(co, z_min, H, half_scale, scoop_half_local),
         SHIRT_CLEARANCE, shirt_path,
     )
-    ok_trouser = mask_and_offset(
+    # The resp-001 profile owns only a corrected shirt. Its trousers have a
+    # separate medial-thigh calibration and must not be overwritten by this
+    # generic body-shell bake.
+    ok_trouser = True if VARIANT == "resp001" else mask_and_offset(
         body, "garment-trousers",
         lambda co: keep_trouser(co, z_min, H),
         TROUSER_CLEARANCE, trouser_path,

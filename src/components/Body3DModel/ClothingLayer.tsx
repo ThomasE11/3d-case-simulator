@@ -131,11 +131,10 @@ export const GARMENT_GLBS: GarmentGlbSpec[] = [
  * BodyMesh selects this only for that case; all other adults retain GARMENT_GLBS.
  */
 export const RESP001_GARMENT_GLBS: GarmentGlbSpec[] = [
-  // The tripod morph already carries this shirt's hem forward and down. The
-  // generic base-only drop would therefore become an unowned hip flap here;
-  // retain the exact shared GLB (and its clinical morph targets), but opt out
-  // of that runtime seam correction for this one patient profile.
-  { ...GARMENT_GLBS[0], hemDrop: 0 },
+  // The tripod profile needs a true torso-only shirt shell. It is baked with
+  // a level hem above the flexing pelvis, rather than reusing the generic
+  // body-cut garment whose pelvic bridge triangles formed a pointed flap.
+  { url: '/models/garment-shirt-resp001.glb', name: 'scrub-top', color: TOP_COLOR, offset: 0.002, hemDrop: 0.05 },
   { url: '/models/garment-trousers-resp001.glb', name: 'scrub-trousers', color: TROUSER_COLOR, offset: 0.002 },
 ];
 
@@ -144,10 +143,11 @@ export const FEMALE_GARMENT_GLBS: GarmentGlbSpec[] = [
   { url: '/models/garment-trousers-female.glb', name: 'scrub-trousers', color: TROUSER_COLOR, offset: 0.002 },
 ];
 
-// The profile reuses GARMENT_GLBS[0], so preload only its alternate trouser.
+// The profile owns both its clean-hem shirt and alternate trouser shell.
 export const ALL_GARMENT_GLBS = [
   ...GARMENT_GLBS,
   ...FEMALE_GARMENT_GLBS,
+  RESP001_GARMENT_GLBS[0],
   RESP001_GARMENT_GLBS[1],
 ];
 export const ADOLESCENT_MALE_GARMENT_GLBS = [GARMENT_GLBS[1]];
