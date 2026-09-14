@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import type { CaseScenario } from '@/types';
 import { inferAnatomy, inferInjuries, type BodyInjury } from '@/lib/injuryMap';
 import { getSceneTimeLabel, getScenePatientDescriptor } from '@/lib/sceneNarrative';
@@ -1591,6 +1592,65 @@ function SceneSettingDetail({ tone }: { tone: SceneTone }) {
   );
 }
 
+/**
+ * A short, non-blocking visual bridge between dispatch and the scene image.
+ *
+ * The image remains the clinical source of truth; the crew figures are only a
+ * point-of-view cue. Keeping this in the approach step means students can
+ * still inspect or advance immediately, while the first two seconds make the
+ * hand-off feel like an arrival rather than a static photograph appearing.
+ */
+function DispatchApproachBeat({ caseData }: { caseData: CaseScenario }) {
+  const reducedMotion = useReducedMotion();
+  const [beat, setBeat] = useState<'dispatch' | 'approach' | 'patient'>('dispatch');
+
+  useEffect(() => {
+    if (reducedMotion) {
+      setBeat('patient');
+      return;
+    }
+    setBeat('dispatch');
+    const approachTimer = window.setTimeout(() => setBeat('approach'), 850);
+    const patientTimer = window.setTimeout(() => setBeat('patient'), 2350);
+    return () => {
+      window.clearTimeout(approachTimer);
+      window.clearTimeout(patientTimer);
+    };
+  }, [caseData.id, reducedMotion]);
+
+  const priority = caseData.dispatchInfo?.dispatchCode || caseData.priority || 'Emergency response';
+  const location = caseData.dispatchInfo?.location || 'scene location';
+  const message = beat === 'dispatch'
+    ? { label: 'Dispatch acknowledged', value: `${priority} · ${location}` }
+    : beat === 'approach'
+      ? { label: 'Crew approaching', value: 'Maintain a safe view of the patient and scene.' }
+      : { label: 'Patient first look', value: 'Observe before making contact.' };
+
+  return (
+    <div
+      data-testid={`dispatch-approach-${beat}`}
+      aria-live="polite"
+      className={`absolute inset-x-4 top-4 z-20 flex items-start justify-between gap-3 transition-opacity duration-300 ${beat === 'patient' ? 'pointer-events-none opacity-0 sm:opacity-100 sm:[&>div]:scale-[0.94]' : ''}`}
+    >
+      <div className="max-w-[min(21rem,calc(100%-2.75rem))] rounded-xl border border-cyan-200/30 bg-slate-950/75 px-3 py-2.5 text-white shadow-xl backdrop-blur-md">
+        <div className="flex items-center gap-2">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-cyan-200/35 bg-cyan-300/10 text-cyan-100">
+            {beat === 'dispatch' ? <Radio className="h-3 w-3" /> : beat === 'approach' ? <Footprints className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+          </span>
+          <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-cyan-100/90">{message.label}</span>
+        </div>
+        <p className="mt-1 text-[10px] leading-snug text-white/75">{message.value}</p>
+      </div>
+      {beat === 'approach' && (
+        <div aria-hidden="true" className="paramedic-arrival-crew absolute bottom-1 left-0 flex items-end gap-1.5 text-white/90">
+          <span className="relative block h-10 w-4 rounded-t-full bg-slate-900/95 shadow-[0_0_0_1px_rgba(125,211,252,0.35)] before:absolute before:-top-2 before:left-0.5 before:h-2.5 before:w-2.5 before:rounded-full before:bg-amber-100 after:absolute after:bottom-1 after:left-0 after:h-2 after:w-4 after:rounded-full after:bg-cyan-300/90" />
+          <span className="relative mb-0.5 block h-8 w-3.5 rounded-t-full bg-slate-800/95 shadow-[0_0_0_1px_rgba(125,211,252,0.25)] before:absolute before:-top-2 before:left-0.5 before:h-2.5 before:w-2.5 before:rounded-full before:bg-amber-100 after:absolute after:bottom-1 after:left-0 after:h-1.5 after:w-3.5 after:rounded-full after:bg-cyan-300/90" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SceneArrivalVisual({
   caseData,
   hazardHotspots,
@@ -1688,6 +1748,7 @@ function SceneArrivalVisual({
               <ProceduralPatient caseData={caseData} tone={tone} />
             </>
           )}
+          {focus === 'approach' && <DispatchApproachBeat caseData={caseData} />}
           {caseSceneNeedsPatientOverlay(caseData, sceneImage) && (
             <ProceduralPatient caseData={caseData} tone={tone} sceneImage={sceneImage} />
           )}
@@ -1969,6 +2030,18 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
           70% {
             box-shadow: 0 0 0 10px rgba(252, 211, 77, 0), 0 6px 16px -4px rgba(0,0,0,0.35);
           }
+        }
+        @keyframes paramedic-crew-arrival {
+          0% { transform: translate3d(-8rem, 0.4rem, 0) scale(0.86); opacity: 0; }
+          12% { opacity: 0.92; }
+          58% { transform: translate3d(46vw, -0.2rem, 0) scale(1); opacity: 0.96; }
+          100% { transform: translate3d(62vw, 0, 0) scale(0.96); opacity: 0; }
+        }
+        .paramedic-arrival-crew {
+          animation: paramedic-crew-arrival 1.45s cubic-bezier(.22, 1, .36, 1) both;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .paramedic-arrival-crew { animation: none; }
         }
       `}</style>
       {/* Stepper + voice toggle */}

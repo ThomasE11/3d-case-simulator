@@ -5290,8 +5290,13 @@ export function StudentPanel({
                     { label: 'Time',      value: String(currentCase.dispatchInfo.timeOfDay) },
                     { label: 'Caller',    value: currentCase.dispatchInfo.callerInfo },
                     { label: 'Priority',  value: currentCase.dispatchInfo.dispatchCode || currentCase.priority || '—' },
-                  ].map(item => (
-                    <div key={item.label} className="rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-md px-3 py-2.5">
+                  ].map((item, index) => (
+                    <div
+                      key={item.label}
+                      data-testid={`dispatch-field-${item.label.toLowerCase()}`}
+                      className="animate-fade-in-up rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-md px-3 py-2.5"
+                      style={{ animationDelay: `${120 + index * 90}ms` }}
+                    >
                       <p className="text-[9px] uppercase tracking-[0.2em] text-white/45 font-semibold">{item.label}</p>
                       <p className="mt-0.5 text-xs sm:text-sm font-medium text-white/90 capitalize line-clamp-2">{item.value}</p>
                     </div>
