@@ -27,6 +27,7 @@ import { buildHairLayer } from './HairLayer';
 import { paintEyesOnTexture } from './EyesLayer';
 import { buildMottledTextures, buildCyanosisLocalTwin } from './MottlingLayer';
 import { applyWoundsToTextures } from './WoundLayer';
+import { armAmputationSides } from './amputationPresentation';
 import { injuryRegionTo3D, type BodyInjury } from '@/lib/injuryMap';
 import { LifeSigns } from './LifeSigns';
 import { createFaceAttachment } from './patientAttachments';
@@ -809,6 +810,64 @@ function updateSkeleton(root: THREE.Object3D | null): void {
 }
 
 /**
+ * Collapse only the hand subtree for a hand-level traumatic amputation and
+ * seal the visible forearm with a small, bone-parented stump cap. This keeps
+ * the original skinned arm and all pose/mobility animation intact while
+ * removing the impossible intact hand. It intentionally does not use the
+ * shared wound atlas: that atlas packs unrelated torso and limb UV islands.
+ */
+function applyArmAmputationPresentation(
+  bodyMesh: THREE.Mesh,
+  injuries: readonly BodyInjury[] | undefined,
+): void {
+  if (!(bodyMesh as THREE.SkinnedMesh).isSkinnedMesh) return;
+  const sides = armAmputationSides(injuries);
+  if (!sides.length) return;
+
+  const body = bodyMesh as THREE.SkinnedMesh;
+  for (const side of sides) {
+    const title = side === 'right' ? 'Right' : 'Left';
+    const hand = body.skeleton.bones.find(bone => bone.name === `mixamorig${title}Hand`);
+    const forearm = body.skeleton.bones.find(bone => bone.name === `mixamorig${title}ForeArm`);
+    if (!hand || !forearm) continue;
+
+    hand.scale.setScalar(0.001);
+    const cap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.051, 0.046, 0.014, 20),
+      new THREE.MeshStandardMaterial({ color: '#431719', roughness: 0.56, metalness: 0 }),
+    );
+    cap.name = `traumatic-${side}-hand-stump`;
+    cap.position.copy(hand.position);
+    cap.castShadow = true;
+    cap.receiveShadow = true;
+    cap.userData.skipRecolor = true;
+    cap.raycast = () => {};
+    forearm.add(cap);
+
+    // A small, non-gory cross-section keeps the cap legible as a traumatic
+    // stump at the overview without turning the patient into a flat red disc.
+    const woundFace = new THREE.Mesh(
+      new THREE.CircleGeometry(0.030, 20),
+      new THREE.MeshStandardMaterial({ color: '#762923', roughness: 0.48, side: THREE.DoubleSide }),
+    );
+    woundFace.name = `traumatic-${side}-hand-wound-face`;
+    woundFace.position.y = 0.0075;
+    woundFace.rotation.x = -Math.PI / 2;
+    woundFace.userData.skipRecolor = true;
+    cap.add(woundFace);
+
+    const boneCue = new THREE.Mesh(
+      new THREE.CircleGeometry(0.011, 16),
+      new THREE.MeshStandardMaterial({ color: '#c7a17d', roughness: 0.72, side: THREE.DoubleSide }),
+    );
+    boneCue.name = `traumatic-${side}-hand-bone-cue`;
+    boneCue.position.y = 0.001;
+    boneCue.userData.skipRecolor = true;
+    woundFace.add(boneCue);
+  }
+}
+
+/**
  * Find the anatomical region for a hit point.
  *
  * Primary path: weighted nearest-anchor across the rig's skeletal bones.
@@ -1283,6 +1342,7 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
         }
       });
       if (bodyMesh) {
+        applyArmAmputationPresentation(bodyMesh as THREE.Mesh, bodyInjuries);
         // Prefer Blender-authored garments (blended-garment mode); fall back to
         // the runtime cut-from-skin scrubs if the GLBs didn't load or the piece
         // build came back empty.
