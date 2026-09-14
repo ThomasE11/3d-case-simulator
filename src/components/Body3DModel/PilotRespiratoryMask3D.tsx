@@ -71,7 +71,7 @@ export function PilotRespiratoryMask3D({
       </mesh>
 
       {mode === 'nonrebreather' ? (
-        <group key="reservoir" name="nonrebreather-reservoir" position={[-width * 0.035, -height * 0.16, 0.043]} raycast={NO_RAYCAST}>
+        <group key="reservoir" name="nonrebreather-reservoir" position={[-width * 0.035, -height * 0.11, 0.043]} raycast={NO_RAYCAST}>
           <mesh geometry={reservoirGeometry} renderOrder={16} raycast={NO_RAYCAST}>
             <meshPhysicalMaterial color="#edf4e9" transparent opacity={0.84} roughness={0.62} depthWrite />
           </mesh>

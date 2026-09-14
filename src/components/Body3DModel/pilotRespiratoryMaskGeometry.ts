@@ -99,8 +99,13 @@ export function createPilotMaskShellGeometry(spec: PilotRespiratoryMaskGeometryS
 
 export function createPilotReservoirGeometry(width: number, height: number): THREE.ExtrudeGeometry {
   const shape = new THREE.Shape();
-  const w = width * 0.27;
-  const h = height * 0.23;
+  // A reservoir should hang below the chin without reading as a second torso.
+  // The first volume used 54% of the full mask width and 46% of its source
+  // image height, which made a 600–1000 mL bag look adult-head sized in a
+  // face close-up. These dimensions preserve a visibly pre-inflated belly
+  // while keeping the bag materially smaller than the fitted face interface.
+  const w = width * 0.22;
+  const h = height * 0.18;
   shape.moveTo(-w * 0.72, h);
   shape.quadraticCurveTo(-w, h * 0.72, -w, 0);
   shape.quadraticCurveTo(-w, -h, 0, -h);
@@ -108,10 +113,10 @@ export function createPilotReservoirGeometry(width: number, height: number): THR
   shape.quadraticCurveTo(w, h * 0.72, w * 0.72, h);
   shape.closePath();
   const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: 0.026,
+    depth: 0.020,
     bevelEnabled: true,
-    bevelSize: 0.004,
-    bevelThickness: 0.006,
+    bevelSize: 0.003,
+    bevelThickness: 0.004,
     bevelSegments: 3,
     curveSegments: 12,
   });

@@ -95,8 +95,8 @@ describe('resp-001 volumetric respiratory masks', () => {
     const geometry = createPilotReservoirGeometry(0.16, 0.24);
     const bounds = geometry.boundingBox!;
     const depth = bounds.max.z - bounds.min.z;
-    expect(depth).toBeGreaterThanOrEqual(0.03);
-    expect(depth).toBeLessThanOrEqual(0.045);
+    expect(depth).toBeGreaterThanOrEqual(0.025);
+    expect(depth).toBeLessThanOrEqual(0.035);
     expect(bounds.max.y - bounds.min.y).toBeGreaterThan(depth * 2);
     geometry.dispose();
   });
