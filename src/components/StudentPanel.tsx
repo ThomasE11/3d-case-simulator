@@ -1802,10 +1802,13 @@ export function StudentPanel({
   // cleanup cancelled the lower-third early, often before the first useful
   // patient frame had rendered on a cold load.
   const arrivalChyronEncounterRef = useRef<string | null>(null);
+  const arrivalCaseId = currentCase?.id ?? null;
+  const hasSceneArrival = Boolean(currentCase?.sceneInfo?.sceneImageCaption?.trim());
+  const isArrivalLivePhase = phase === 'vitals' || phase === 'case';
   const [sceneReadyForCase, setSceneReadyForCase] = useState<string | null>(null);
   const handlePatientSceneReady = useCallback(() => {
-    if (currentCase) setSceneReadyForCase(currentCase.id);
-  }, [currentCase?.id]);
+    if (arrivalCaseId) setSceneReadyForCase(arrivalCaseId);
+  }, [arrivalCaseId]);
 
   // Treatment effects
   const {
@@ -2905,21 +2908,19 @@ export function StudentPanel({
   // live subviews as one encounter so opening Case Details cannot abruptly
   // dismiss the arrival context.
   useEffect(() => {
-    const isLiveEncounter = phase === 'vitals' || phase === 'case';
-    if (!currentCase) {
+    if (!arrivalCaseId) {
       arrivalChyronEncounterRef.current = null;
       setArrivalChyronActive(false);
       return;
     }
-    if (!isLiveEncounter) return;
-    const copy = sceneArrivalCopy(currentCase);
-    if (!copy) return;
+    if (!isArrivalLivePhase) return;
+    if (!hasSceneArrival) return;
     // The room and GLB stream independently from the encounter shell. Start
     // the arrival beat only once the patient has actually painted, so a slow
     // device never spends the full animation on an empty canvas.
-    if (sceneReadyForCase !== currentCase.id) return;
-    if (arrivalChyronEncounterRef.current === currentCase.id) return;
-    arrivalChyronEncounterRef.current = currentCase.id;
+    if (sceneReadyForCase !== arrivalCaseId) return;
+    if (arrivalChyronEncounterRef.current === arrivalCaseId) return;
+    arrivalChyronEncounterRef.current = arrivalCaseId;
 
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
     const showTimer = setTimeout(() => {
@@ -2936,7 +2937,7 @@ export function StudentPanel({
       if (hideTimer) clearTimeout(hideTimer);
       setArrivalChyronActive(false);
     };
-  }, [phase === 'vitals' || phase === 'case', currentCase?.id, sceneReadyForCase]);
+  }, [isArrivalLivePhase, arrivalCaseId, hasSceneArrival, sceneReadyForCase]);
 
   // The live encounter owns this timer, not the scene-survey button. Loaded
   // classroom/dev encounters enter the same live phase without clicking that

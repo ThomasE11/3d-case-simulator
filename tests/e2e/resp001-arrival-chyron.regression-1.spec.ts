@@ -31,6 +31,12 @@ test('entering the resp-001 scene announces arrival via a self-clearing chyron',
   const pointerEvents = await chyron.evaluate((el) => getComputedStyle(el).pointerEvents);
   expect(pointerEvents).toBe('none');
 
+  // The live Case Details view is the same encounter, not a new scene. The
+  // lower-third must survive that tab switch instead of being torn down by a
+  // phase-object update while its arrival hold is still running.
+  await page.getByRole('button', { name: 'Case Details', exact: true }).click();
+  await expect(chyron).toBeVisible();
+
   // It auto-clears after the hold window (≤ ~4.2s after it appears).
   await expect(chyron).toBeHidden({ timeout: 6_000 });
   expect(errors).toEqual([]);
