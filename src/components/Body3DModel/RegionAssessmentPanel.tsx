@@ -11,7 +11,7 @@
 import { useState, useMemo } from 'react';
 import type { CaseScenario } from '@/types';
 import { usePatientVoice } from '@/hooks/usePatientVoice';
-import { hasPainfulPalpationFinding } from './palpationReaction';
+import { palpationReactionFor } from './palpationReaction';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -688,9 +688,8 @@ export function RegionAssessmentPanel({
                             // Hook silently no-ops if patient is unconscious.
                             if (technique === 'palpate') {
                               const finding = getFindings(caseData, regionId, subRegion.id, action.id);
-                              if (!hasPainfulPalpationFinding(finding)) return;
-                              const movement = /\b(?:move|moved|moving|movement|range of motion|rom|flex\w*|extend\w*|rotat\w*)\b/i.test(finding);
-                              patientVoice.react(movement ? 'movement-pain' : 'tender-palpation');
+                              const reaction = palpationReactionFor(finding);
+                              if (reaction) patientVoice.react(reaction);
                             }
                           }}
                           disabled={isRevealed}

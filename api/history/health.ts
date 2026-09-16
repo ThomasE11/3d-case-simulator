@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import { resolveProvider } from './chat';
+// See index.ts: Vercel's NodeNext function compiler requires .js here.
+import { resolveProvider } from './chat.js';
 
 /**
  * Health probe for /api/history. The client uses `ok` to decide whether to

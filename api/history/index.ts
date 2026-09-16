@@ -1,6 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import { requestPatientAnswer, resolveProvider } from './chat';
+// Vercel type-checks functions with NodeNext resolution, which requires the
+// emitted JavaScript extension even though Vite resolves the TypeScript source
+// in local development.
+import { requestPatientAnswer, resolveProvider } from './chat.js';
 
 /**
  * POST /api/history — the patient's free-text answer to a history question.

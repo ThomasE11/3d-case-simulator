@@ -37,8 +37,12 @@ export function resolveProvider(env: NodeJS.ProcessEnv = process.env): {
   if (ollamaUrl) {
     return {
       kind: 'ollama',
-      url: `${ollamaUrl.replace(/\/$/, '')}/chat/completions`,
-      model: env.OLLAMA_MODEL?.trim() || 'llama3.2',
+      // Ollama's NATIVE chat route, not its OpenAI-compatible one. The compat
+      // route ignores `think:false`, so a reasoning model (qwen3.5, the local
+      // default) spends the whole token budget on hidden reasoning and returns
+      // an empty `content`. Native + think:false answers in ~2s instead.
+      url: `${ollamaUrl.replace(/\/$/, '')}/api/chat`,
+      model: env.OLLAMA_MODEL?.trim() || 'hermes-qwen3.5:9b',
       // Ollama Cloud needs a key; a local server ignores the header.
       apiKey: env.OLLAMA_API_KEY?.trim() || '',
     };
@@ -96,26 +100,40 @@ export async function requestPatientAnswer({
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (provider.apiKey) headers.Authorization = `Bearer ${provider.apiKey}`;
 
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: question },
+    ];
+    const body = provider.kind === 'ollama'
+      ? {
+        model: provider.model,
+        messages,
+        stream: false,
+        think: false,
+        options: { temperature: 0.7, num_predict: MAX_TOKENS },
+      }
+      : {
+        model: provider.model,
+        messages,
+        temperature: 0.7,
+        max_tokens: MAX_TOKENS,
+      };
+
     const upstream = await fetchImpl(provider.url, {
       method: 'POST',
       signal: AbortSignal.timeout(TIMEOUT_MS),
       headers,
-      body: JSON.stringify({
-        model: provider.model,
-        temperature: 0.7,
-        max_tokens: MAX_TOKENS,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: question },
-        ],
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!upstream.ok) return null;
     const payload = await upstream.json() as {
+      message?: { content?: string };
       choices?: Array<{ message?: { content?: string } }>;
     };
-    const content = payload.choices?.[0]?.message?.content;
+    const content = provider.kind === 'ollama'
+      ? payload.message?.content
+      : payload.choices?.[0]?.message?.content;
     if (typeof content !== 'string') return null;
     const answer = sanitiseAnswer(content);
     if (!answer) return null;

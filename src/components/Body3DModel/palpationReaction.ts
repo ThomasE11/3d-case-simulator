@@ -5,6 +5,21 @@ const PAIN_FINDING = /\b(?:tender\w*|pain\w*|sore\w*|guard\w*|rigid\w*|rebound|c
  * at a contrast ("no guarding, but focal tenderness"). Ambiguous negative
  * clauses do not justify inventing a spoken complaint.
  */
+/**
+ * Which spoken reaction a palpation earns, if any.
+ *
+ * Decided by the REVEALED FINDING, never by the action's label. Labels are
+ * prompts for the student ("Tenderness, crepitus, rib fractures" = the list
+ * of things to look FOR), so matching them made every patient cry out on
+ * every chest palpation regardless of what the case actually authored.
+ */
+export function palpationReactionFor(finding: string): 'movement-pain' | 'tender-palpation' | null {
+  if (!hasPainfulPalpationFinding(finding)) return null;
+  return /\b(?:move|moved|moving|movement|range of motion|rom|flex\w*|extend\w*|rotat\w*)\b/i.test(finding)
+    ? 'movement-pain'
+    : 'tender-palpation';
+}
+
 export function hasPainfulPalpationFinding(finding: string): boolean {
   return finding.split(/[.;!\n]|\b(?:but|however|yet|although|with)\b/i).some(clause => {
     const affirmative = clause
