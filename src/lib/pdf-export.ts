@@ -51,6 +51,55 @@ interface ExportOptions {
   download?: boolean;
 }
 
+export interface PdfCaseIdentity {
+  caseId: string;
+  title: string;
+  patient: string;
+  location: string;
+  callReason: string;
+}
+
+/**
+ * Convert clinical text to the conservative character set embedded by jsPDF.
+ *
+ * The earlier implementation removed unsupported punctuation outright. That
+ * made a report factually less clear: "Yes — Emergency Department" became
+ * "Yes Emergency Department", while inequality signs and microgram units
+ * could lose their meaning. Keep the PDF ASCII-safe without discarding the
+ * clinical relationship expressed by the source text.
+ */
+export function normalizePdfText(text: string | undefined | null): string {
+  if (!text) return '';
+  return String(text)
+    .replace(/[\u2010-\u2015]/g, '-')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/\u2026/g, '...')
+    .replace(/\u2192/g, '->')
+    .replace(/\u2190/g, '<-')
+    .replace(/\u2264/g, '<=')
+    .replace(/\u2265/g, '>=')
+    .replace(/[\u00B5\u03BC](?=g\b)/gi, 'mc')
+    .replace(/\u00B0/g, ' deg')
+    .replace(/[^\x20-\x7E\n]/g, '');
+}
+
+/** The canonical case facts used in every report and the identity audit. */
+export function getPdfCaseIdentity(caseData: CaseScenario): PdfCaseIdentity {
+  return {
+    caseId: caseData.id,
+    title: caseData.title,
+    patient: `${patientAgeShortLabel(caseData.patientInfo.age)} ${caseData.patientInfo.gender}`,
+    location: caseData.dispatchInfo.location,
+    callReason: caseData.dispatchInfo.callReason,
+  };
+}
+
+export function createPdfReportFilename(caseData: CaseScenario, generatedAt = new Date()): string {
+  const date = generatedAt.toISOString().split('T')[0];
+  return `Paramedic-Case-${caseData.id}-${date}.pdf`;
+}
+
 // ==========================================================================
 // DESIGN CONSTANTS - Three font sizes only, consistent spacing
 // ==========================================================================
@@ -95,7 +144,13 @@ const COLOR = {
  */
 export async function exportSessionToPDF(options: ExportOptions): Promise<Blob> {
   const { session, caseData, elapsedTime } = options;
+  if (session.caseId !== caseData.id) {
+    throw new Error(
+      `Report case mismatch: session is for ${session.caseId}, but the active case is ${caseData.id}. Restart the encounter before exporting.`,
+    );
+  }
   const completedItemIds = Array.isArray(session.completedItems) ? session.completedItems : [];
+  const caseIdentity = getPdfCaseIdentity(caseData);
 
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -119,15 +174,7 @@ export async function exportSessionToPDF(options: ExportOptions): Promise<Blob> 
     return false;
   };
 
-  // Sanitize text to remove Unicode characters that jsPDF can't render
-  const sanitizeText = (text: string | undefined | null): string => {
-    if (!text) return '';
-    return String(text)
-      .replace(/→/g, '->')
-      .replace(/←/g, '<-')
-      .replace(/°/g, ' deg')
-      .replace(/[^\x20-\x7E\n]/g, '');
-  };
+  const sanitizeText = normalizePdfText;
 
   // Helper: add wrapped text at current yPosition, auto page-breaking
   const addWrappedText = (
@@ -238,13 +285,14 @@ export async function exportSessionToPDF(options: ExportOptions): Promise<Blob> 
   addSectionHeader('Case Information');
 
   const caseInfo = [
-    ['Case Title:', sanitizeText(caseData.title)],
+    ['Case ID:', sanitizeText(caseIdentity.caseId)],
+    ['Case Title:', sanitizeText(caseIdentity.title)],
     ['Category:', sanitizeText(caseData.category)],
     ['Priority:', caseData.priority.toUpperCase()],
     ['Complexity:', caseData.complexity.toUpperCase()],
     ['Year Level:', session.studentYear],
-    ['Patient:', `${patientAgeShortLabel(caseData.patientInfo.age)} ${caseData.patientInfo.gender}`],
-    ['Location:', sanitizeText(caseData.dispatchInfo.location)],
+    ['Patient:', sanitizeText(caseIdentity.patient)],
+    ['Location:', sanitizeText(caseIdentity.location)],
   ];
 
   caseInfo.forEach(([label, value]) => {
@@ -263,27 +311,36 @@ export async function exportSessionToPDF(options: ExportOptions): Promise<Blob> 
   if (options.simulationObjective) {
     addSectionHeader('Simulation Objective');
 
-    checkPageBreak(20);
-    addFilledRoundedRect(margin, yPosition, contentWidth, 16, 2, COLOR.BG_BLUE);
-    addStrokeRoundedRect(margin, yPosition, contentWidth, 16, 2, COLOR.PRIMARY);
-
-    addTextAt('Objective:', margin + 3, yPosition + 5, FONT.BODY, 'bold', COLOR.PRIMARY);
     const objLines = doc.splitTextToSize(sanitizeText(options.simulationObjective.primaryObjective), contentWidth - 30) as string[];
-    addTextAt(objLines[0], margin + 25, yPosition + 5, FONT.BODY, 'normal', COLOR.BODY_TEXT);
-
-    addTextAt('Skills Focus:', margin + 3, yPosition + 11, FONT.LABEL, 'bold', COLOR.MUTED);
     const skillsText = sanitizeText(options.simulationObjective.skillsFocus.join(', '));
     const skillLines = doc.splitTextToSize(skillsText, contentWidth - 30) as string[];
-    addTextAt(skillLines[0], margin + 25, yPosition + 11, FONT.LABEL, 'normal', COLOR.MUTED);
+    const objectiveHeight = Math.max(
+      16,
+      7 + objLines.length * LINE_HEIGHT.BODY + skillLines.length * LINE_HEIGHT.LABEL + 4,
+    );
+    checkPageBreak(objectiveHeight + 4);
+    addFilledRoundedRect(margin, yPosition, contentWidth, objectiveHeight, 2, COLOR.BG_BLUE);
+    addStrokeRoundedRect(margin, yPosition, contentWidth, objectiveHeight, 2, COLOR.PRIMARY);
 
-    yPosition += 20;
+    addTextAt('Objective:', margin + 3, yPosition + 5, FONT.BODY, 'bold', COLOR.PRIMARY);
+    objLines.forEach((line: string, index: number) => {
+      addTextAt(line, margin + 25, yPosition + 5 + index * LINE_HEIGHT.BODY, FONT.BODY, 'normal', COLOR.BODY_TEXT);
+    });
+
+    const skillsY = yPosition + 7 + objLines.length * LINE_HEIGHT.BODY;
+    addTextAt('Skills Focus:', margin + 3, skillsY, FONT.LABEL, 'bold', COLOR.MUTED);
+    skillLines.forEach((line: string, index: number) => {
+      addTextAt(line, margin + 25, skillsY + index * LINE_HEIGHT.LABEL, FONT.LABEL, 'normal', COLOR.MUTED);
+    });
+
+    yPosition += objectiveHeight + 4;
   }
 
   // ========== DISPATCH INFORMATION ==========
   addSectionHeader('Dispatch Information');
 
   const dispatchLines = [
-    `Call Reason: ${sanitizeText(caseData.dispatchInfo.callReason)}`,
+    `Call Reason: ${sanitizeText(caseIdentity.callReason)}`,
     `Time of Day: ${sanitizeText(caseData.dispatchInfo.timeOfDay)}`,
     `Caller Info: ${sanitizeText(caseData.dispatchInfo.callerInfo)}`,
   ];
@@ -314,6 +371,10 @@ export async function exportSessionToPDF(options: ExportOptions): Promise<Blob> 
   addWrappedText(vitalSignsParts.join('   |   '), FONT.BODY, LINE_HEIGHT.BODY);
 
   // ========== PERFORMANCE SUMMARY ==========
+  // Keep the heading attached to the score card. The earlier generic section
+  // reserve left just enough room for the heading, then moved the card to the
+  // next page, creating an orphaned "Performance Summary" at page bottom.
+  checkPageBreak(SECTION_GAP + 48);
   addSectionHeader('Performance Summary');
 
   const basePercentage = options.scoreSummary?.basePercentage
@@ -951,7 +1012,18 @@ export async function exportSessionToPDF(options: ExportOptions): Promise<Blob> 
     };
 
     for (const note of options.instructorAssessmentNotes) {
-      checkPageBreak(24);
+      const findingLines = doc.splitTextToSize(sanitizeText(note.finding), contentWidth - 10) as string[];
+      const missedLines = note.whatWasMissed && note.whatWasMissed !== 'Not specified'
+        ? doc.splitTextToSize(`Missed: ${sanitizeText(note.whatWasMissed)}`, contentWidth - 10) as string[]
+        : [];
+      const actionLines = note.improvementAction
+        ? doc.splitTextToSize(`Action: ${sanitizeText(note.improvementAction)}`, contentWidth - 10) as string[]
+        : [];
+      const cardHeight = Math.max(
+        22,
+        9 + findingLines.length * LINE_HEIGHT.BODY + missedLines.length * LINE_HEIGHT.LABEL + actionLines.length * LINE_HEIGHT.LABEL + 4,
+      );
+      checkPageBreak(cardHeight + 4);
 
       const catColor = categoryColors[note.category] || COLOR.MUTED;
       const severityColor = severityColors[note.severity] || COLOR.MUTED;
@@ -960,11 +1032,11 @@ export async function exportSessionToPDF(options: ExportOptions): Promise<Blob> 
       const bgColor: [number, number, number] = note.category === 'excellent'
         ? COLOR.BG_GREEN : note.category === 'critical-miss'
         ? COLOR.BG_RED : COLOR.BG_YELLOW;
-      addFilledRoundedRect(margin, yPosition, contentWidth, 22, 2, bgColor);
+      addFilledRoundedRect(margin, yPosition, contentWidth, cardHeight, 2, bgColor);
 
       // Left border accent
       doc.setFillColor(catColor[0], catColor[1], catColor[2]);
-      doc.rect(margin, yPosition, 2, 22, 'F');
+      doc.rect(margin, yPosition, 2, cardHeight, 'F');
 
       // Severity badge
       addTextAt(`[${note.severity.toUpperCase()}]`, margin + 5, yPosition + 5, FONT.LABEL, 'bold', severityColor);
@@ -976,22 +1048,21 @@ export async function exportSessionToPDF(options: ExportOptions): Promise<Blob> 
       const noteTime = new Date(note.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
       addTextAt(noteTime, pageWidth - margin - 12, yPosition + 5, FONT.LABEL, 'normal', COLOR.LIGHT_MUTED);
 
-      // Finding
-      const findingLines = doc.splitTextToSize(sanitizeText(note.finding), contentWidth - 10) as string[];
-      addTextAt(findingLines[0], margin + 5, yPosition + 11, FONT.BODY, 'bold', COLOR.BLACK);
+      let contentY = yPosition + 11;
+      findingLines.forEach((line: string) => {
+        addTextAt(line, margin + 5, contentY, FONT.BODY, 'bold', COLOR.BLACK);
+        contentY += LINE_HEIGHT.BODY;
+      });
+      missedLines.forEach((line: string) => {
+        addTextAt(line, margin + 5, contentY, FONT.LABEL, 'normal', COLOR.MUTED);
+        contentY += LINE_HEIGHT.LABEL;
+      });
+      actionLines.forEach((line: string) => {
+        addTextAt(line, margin + 5, contentY, FONT.LABEL, 'normal', COLOR.PRIMARY);
+        contentY += LINE_HEIGHT.LABEL;
+      });
 
-      // What was missed
-      if (note.whatWasMissed && note.whatWasMissed !== 'Not specified') {
-        const missedText = `Missed: ${sanitizeText(note.whatWasMissed)}`;
-        const missedLines = doc.splitTextToSize(missedText, contentWidth - 10) as string[];
-        addTextAt(missedLines[0], margin + 5, yPosition + 16, FONT.LABEL, 'normal', COLOR.MUTED);
-      }
-
-      if (note.improvementAction) {
-        addTextAt(sanitizeText(`Action: ${note.improvementAction}`), margin + 5, yPosition + 20, FONT.LABEL, 'normal', COLOR.PRIMARY);
-      }
-
-      yPosition += 25;
+      yPosition += cardHeight + 3;
     }
 
     // Summary counts
@@ -1342,7 +1413,7 @@ export async function exportSessionToPDF(options: ExportOptions): Promise<Blob> 
     const url = URL.createObjectURL(pdfBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Case-${caseData.category}-${session.studentYear}-${new Date().toISOString().split('T')[0]}.pdf`;
+    link.download = createPdfReportFilename(caseData);
     document.body.appendChild(link);
     link.click();
     // Delay cleanup so the browser can initiate the download

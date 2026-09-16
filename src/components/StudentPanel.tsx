@@ -7944,9 +7944,9 @@ export function StudentPanel({
                     await exportSessionToPDF({
                       session: {
                         ...session,
-                        score: performanceMetrics.scoreEarned || session.score,
-                        totalPossible: performanceMetrics.totalPossible || session.totalPossible,
-                        completedItems: assessmentTracker?.performed?.map(p => p.stepId) || session.completedItems,
+                        score: performanceMetrics.scoreEarned ?? session.score,
+                        totalPossible: performanceMetrics.totalPossible ?? session.totalPossible,
+                        completedItems: assessmentTracker?.performed?.map(p => p.stepId) ?? session.completedItems,
                       },
                       caseData: currentCase,
                       elapsedTime: formatTime(performanceMetrics.totalTime),

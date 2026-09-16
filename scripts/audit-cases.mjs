@@ -527,6 +527,32 @@ const RULES = [
       return findings;
     },
   },
+  // ---- Dispatch demographic consistency ---------------------------------
+  // The pre-brief, scene and exported report all consume patientInfo. When a
+  // dispatch explicitly states a patient's age and sex, it must match that
+  // canonical record or the learner is shown two different patients.
+  {
+    id: 'dispatch-demographic-mismatch',
+    severity: 'ERROR',
+    check: (c) => {
+      const callReason = String(c.dispatchInfo?.callReason || '');
+      const ageThenGender = callReason.match(/\b(\d{1,3})\s*(?:[- ]?year[- ]?old)?\s+(male|female)\b/i);
+      const genderThenAge = callReason.match(/\b(male|female)\s*,?\s*(\d{1,3})\b/i);
+      const match = ageThenGender || genderThenAge;
+      if (!match) return [];
+
+      const dispatchAge = ageThenGender ? Number(match[1]) : Number(match[2]);
+      const dispatchGender = (ageThenGender ? match[2] : match[1]).toLowerCase();
+      const findings = [];
+      if (Math.round(Number(c.patientInfo?.age)) !== dispatchAge) {
+        findings.push({ message: `patientInfo.age=${c.patientInfo?.age} but dispatch call reason states ${dispatchAge}-year-old. Excerpt: "${callReason.slice(0, 140)}".` });
+      }
+      if (String(c.patientInfo?.gender).toLowerCase() !== dispatchGender) {
+        findings.push({ message: `patientInfo.gender=${c.patientInfo?.gender} but dispatch call reason states ${dispatchGender}. Excerpt: "${callReason.slice(0, 140)}".` });
+      }
+      return findings;
+    },
+  },
 
   // ---- Glucose-by-category sanity ---------------------------------------
   // ~60 cases use the hardcoded default BGL 5.4. For most cases that's

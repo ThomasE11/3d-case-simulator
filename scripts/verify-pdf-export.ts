@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { allCases } from '../src/data/cases';
 import { getResourcesForDebriefing } from '../src/data/diversifiedResources';
 import { exportSessionToPDF } from '../src/lib/pdf-export';
-import type { AppliedTreatment, CaseSession, VitalSigns } from '../src/types';
+import type { AppliedTreatment, CaseSession, InstructorAssessmentNote, SimulationObjective, VitalSigns } from '../src/types';
 import type { AssessmentDebriefItem } from '../src/data/assessmentFramework';
 
 async function main() {
@@ -88,12 +88,35 @@ const vitalsHistory: VitalSigns[] = [
   },
 ];
 
+const simulationObjective: SimulationObjective = {
+  id: 'pdf-layout-objective',
+  primaryObjective: 'Recognise life-threatening anaphylaxis, give intramuscular adrenaline without delay, and reassess airway, breathing, circulation and response after every intervention.',
+  skillsFocus: ['Structured ABCDE assessment', 'IM adrenaline site and dose', 'High-flow oxygen and monitoring', 'Closed-loop reassessment and hospital pre-alert'],
+  learningDomain: 'psychomotor',
+  relatedCategories: ['respiratory'],
+  relatedKeywords: ['anaphylaxis'],
+};
+
+const instructorAssessmentNotes: InstructorAssessmentNote[] = [{
+  id: 'pdf-layout-note',
+  timestamp: new Date().toISOString(),
+  category: 'clinical-reasoning',
+  phase: 'primary-survey',
+  finding: 'You recognised the multi-system allergic reaction and correctly prioritised intramuscular adrenaline, oxygenation and repeat airway assessment.',
+  whatWasMissed: 'The post-treatment reassessment did not explicitly document whether the facial swelling, work of breathing and blood pressure had improved before packaging.',
+  whyItMatters: 'Documented reassessment confirms that the intervention is working and guides whether a repeat adrenaline dose or escalation is required.',
+  improvementAction: 'After every treatment, repeat and document a focused ABC assessment, including the airway, respiratory effort, oxygen saturation, pulse and blood pressure.',
+  severity: 'important',
+}];
+
 const blob = await exportSessionToPDF({
   session,
   caseData,
   elapsedTime: '08:42',
   appliedTreatments,
   vitalsHistory,
+  simulationObjective,
+  instructorAssessmentNotes,
   debriefingResources: getResourcesForDebriefing(caseData),
   scoreSummary: {
     basePercentage: 100,
