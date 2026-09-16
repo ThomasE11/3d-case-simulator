@@ -1,0 +1,126 @@
+/**
+ * Patient-history chat completion.
+ *
+ * Shared by the Vercel function (api/history/index.ts) and the Vite dev
+ * middleware, so local dev and production hit identical logic.
+ *
+ * Two providers, both OpenAI-compatible so they share one request shape:
+ *   - Ollama      — when OLLAMA_URL is set. Local or Ollama Cloud. No cost.
+ *   - AI Gateway  — Vercel's, using the AI_GATEWAY_API_KEY already provisioned
+ *                   for TTS. Default model is a small/cheap one.
+ *
+ * Ollama wins when configured, because it is free. Any failure returns null
+ * so the caller falls back to the deterministic history engine.
+ *
+ * ponytail: one fetch, no SDK. Both providers speak /chat/completions.
+ */
+
+type Fetch = typeof fetch;
+
+export type HistoryChatOptions = {
+  systemPrompt: string;
+  question: string;
+  fetchImpl?: Fetch;
+};
+
+/** Patient answers are one or two sentences — this caps a runaway model. */
+const MAX_TOKENS = 120;
+const TIMEOUT_MS = 12_000;
+
+export function resolveProvider(env: NodeJS.ProcessEnv = process.env): {
+  kind: 'ollama' | 'ai-gateway';
+  url: string;
+  model: string;
+  apiKey: string;
+} | null {
+  const ollamaUrl = env.OLLAMA_URL?.trim();
+  if (ollamaUrl) {
+    return {
+      kind: 'ollama',
+      url: `${ollamaUrl.replace(/\/$/, '')}/chat/completions`,
+      model: env.OLLAMA_MODEL?.trim() || 'llama3.2',
+      // Ollama Cloud needs a key; a local server ignores the header.
+      apiKey: env.OLLAMA_API_KEY?.trim() || '',
+    };
+  }
+
+  const gatewayKey = env.AI_GATEWAY_API_KEY?.trim();
+  if (gatewayKey) {
+    // Deliberately NOT AI_GATEWAY_BASE_URL — that one points at the gateway's
+    // v4 speech root for TTS. Chat lives on the OpenAI-compatible v1 route.
+    const url = env.AI_GATEWAY_CHAT_URL?.trim()
+      || 'https://ai-gateway.vercel.sh/v1/chat/completions';
+    return {
+      kind: 'ai-gateway',
+      url,
+      // Small + cheap by default: patient answers are two sentences of
+      // paraphrase over a brief we already wrote. Override per deployment.
+      model: env.AI_GATEWAY_HISTORY_MODEL?.trim() || 'openai/gpt-4o-mini',
+      apiKey: gatewayKey,
+    };
+  }
+
+  return null;
+}
+
+/** Strip anything that breaks the illusion of a person talking. */
+export function sanitiseAnswer(raw: string): string {
+  const cleaned = raw
+    .replace(/^\s*(?:patient|answer|response)\s*:\s*/i, '')
+    .replace(/\*+/g, '')
+    .replace(/^\s*[-•]\s*/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^["'“”](.*)["'“”]$/s, '$1')
+    .trim();
+  // A model that ignored the brevity rule gets cut to its first two sentences
+  // rather than monologuing at a student mid-assessment.
+  const sentences = cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [cleaned];
+  return sentences.slice(0, 2).map(s => s.trim()).filter(Boolean).join(' ');
+}
+
+/**
+ * Ask the configured model for the patient's reply. Returns null on any
+ * miss — unconfigured, unreachable, timed out, empty, or refused — so the
+ * caller keeps its existing deterministic answer.
+ */
+export async function requestPatientAnswer({
+  systemPrompt,
+  question,
+  fetchImpl = fetch,
+}: HistoryChatOptions): Promise<{ answer: string; provider: string } | null> {
+  const provider = resolveProvider();
+  if (!provider) return null;
+
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (provider.apiKey) headers.Authorization = `Bearer ${provider.apiKey}`;
+
+    const upstream = await fetchImpl(provider.url, {
+      method: 'POST',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      headers,
+      body: JSON.stringify({
+        model: provider.model,
+        temperature: 0.7,
+        max_tokens: MAX_TOKENS,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: question },
+        ],
+      }),
+    });
+
+    if (!upstream.ok) return null;
+    const payload = await upstream.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const content = payload.choices?.[0]?.message?.content;
+    if (typeof content !== 'string') return null;
+    const answer = sanitiseAnswer(content);
+    if (!answer) return null;
+    return { answer, provider: provider.kind };
+  } catch {
+    return null;
+  }
+}

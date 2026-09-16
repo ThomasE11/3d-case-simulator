@@ -11,6 +11,7 @@
 import { useState, useMemo } from 'react';
 import type { CaseScenario } from '@/types';
 import { usePatientVoice } from '@/hooks/usePatientVoice';
+import { hasPainfulPalpationFinding } from './palpationReaction';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -670,18 +671,26 @@ export function RegionAssessmentPanel({
                           onClick={() => {
                             if (isRevealed) return;
                             onFindingRevealed(regionId, subRegion.id, action.id);
+                            // Auscultation and percussion play a synthesised
+                            // clinical sound. An in-flight patient line would
+                            // play straight over it, so silence the patient
+                            // before the sound the student is meant to hear.
+                            if (technique === 'auscultate' || technique === 'percuss') {
+                              patientVoice.stop();
+                              return;
+                            }
                             // Patient reacts audibly to provocative
-                            // examinations. We only fire on palpation
-                            // and only when the action label hints at
-                            // something painful — palpating a normal
-                            // limb shouldn't produce a moan. Hook will
-                            // silently no-op if patient is unconscious.
+                            // examinations. Gate on the REVEALED FINDING, not
+                            // the action label: "Tenderness, crepitus, rib
+                            // fractures" is the list of things to look FOR, so
+                            // matching the label made every patient cry out on
+                            // every chest palpation regardless of pathology.
+                            // Hook silently no-ops if patient is unconscious.
                             if (technique === 'palpate') {
-                              const label = action.label.toLowerCase();
-                              const provocative = /tender|pain|fracture|wound|deformity|swelling|bogg|crepitus|step|guard|rebound/.test(label);
-                              const movement = /move|range of motion|rom|flex|extend|rotate/.test(label);
-                              if (movement) patientVoice.react('movement-pain');
-                              else if (provocative) patientVoice.react('tender-palpation');
+                              const finding = getFindings(caseData, regionId, subRegion.id, action.id);
+                              if (!hasPainfulPalpationFinding(finding)) return;
+                              const movement = /\b(?:move|moved|moving|movement|range of motion|rom|flex\w*|extend\w*|rotat\w*)\b/i.test(finding);
+                              patientVoice.react(movement ? 'movement-pain' : 'tender-palpation');
                             }
                           }}
                           disabled={isRevealed}

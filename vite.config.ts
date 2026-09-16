@@ -142,6 +142,28 @@ function ttsProxy(env: Record<string, string>): Plugin {
         }
       })
 
+      // Patient-history LLM. Dev reuses the same handlers the Vercel
+      // functions export, so local and production behave identically. Those
+      // handlers read process.env (as they do on Vercel), but in dev the keys
+      // live in .env.local and only reach us through loadEnv — so mirror them
+      // across once. Never overwrites a real process.env value.
+      for (const key of [
+        'OLLAMA_URL', 'OLLAMA_MODEL', 'OLLAMA_API_KEY',
+        'AI_GATEWAY_API_KEY', 'AI_GATEWAY_CHAT_URL', 'AI_GATEWAY_HISTORY_MODEL',
+      ]) {
+        if (!process.env[key] && env[key]) process.env[key] = env[key]
+      }
+
+      // More specific health path registered first.
+      server.middlewares.use('/api/history/health', async (req, res) => {
+        const { default: health } = await import('./api/history/health')
+        health(req, res)
+      })
+      server.middlewares.use('/api/history', async (req, res) => {
+        const { default: history } = await import('./api/history/index')
+        await history(req, res)
+      })
+
       // Health/config probe — the client uses this to decide whether to route
       // narration through /api/tts. Reflects BOTH engines without exposing any
       // secret material. Registered before /api/tts so the more specific path

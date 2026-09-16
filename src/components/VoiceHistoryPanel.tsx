@@ -44,6 +44,7 @@ import {
   type HistoryCategory,
   type HistoryTurn,
 } from '@/lib/historyTaking';
+import { askPatientModel } from '@/lib/historyLlm';
 
 export interface VoiceHistoryFooterApi {
   /** Speak a line as the patient (no-ops if they cannot vocalise). */
@@ -104,6 +105,10 @@ export function VoiceHistoryPanel({ caseData, currentVitals, isInArrest, applied
   const answerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestVoice = useRef(patientVoice);
   const stopListening = useRef<() => void>(() => {});
+  // A free-text model reply can take longer than the next student question.
+  // Keep a monotonically increasing turn token so an old request cannot speak
+  // over, or rewrite, a newer part of the interview.
+  const questionSequence = useRef(0);
   useEffect(() => { latestVoice.current = patientVoice; }, [patientVoice]);
 
   // Process an incoming question once — classify, fetch response, push to
@@ -111,6 +116,7 @@ export function VoiceHistoryPanel({ caseData, currentVitals, isInArrest, applied
   const processQuestion = useCallback((text: string) => {
     const trimmed = text.trim();
     if (!trimmed || !isActive) return;
+    const questionId = ++questionSequence.current;
     stopListening.current();
     if (answerTimer.current) clearTimeout(answerTimer.current);
     patientVoice.stop();
@@ -168,14 +174,42 @@ export function VoiceHistoryPanel({ caseData, currentVitals, isInArrest, applied
       });
     }
 
-    // Voice the patient's answer aloud
-    if (answer && attribution === 'patient') {
+    const shouldAskHistoryModel = category === 'unknown'
+      && attribution === 'patient'
+      && patientVoice.canVocalize;
+
+    // Voice the deterministic answers aloud. An unknown question waits for
+    // the context-grounded model below: speaking the generic re-prompt first
+    // and then interrupting it with the actual answer sounded like two people
+    // talking at once.
+    if (answer && attribution === 'patient' && !shouldAskHistoryModel) {
       // Small delay so the student sees their bubble appear before the
       // voice starts — feels like the patient pausing to think.
       answerTimer.current = setTimeout(() => {
         answerTimer.current = null;
         latestVoice.current.say(answer!);
       }, 400);
+    }
+
+    // The keyword classifier didn't recognise the phrasing, so the patient is
+    // about to give a generic re-prompt. Ask the model instead — grounded in
+    // this case's own authored facts. Deliberately scoped to 'unknown': every
+    // recognised category keeps its deterministic, test-covered answer.
+    if (shouldAskHistoryModel) {
+      const turnId = answerTurn.id;
+      void askPatientModel(caseData, trimmed).then(modelAnswer => {
+        // A later question, tab change, or case change makes this response
+        // stale. Keep the transcript and mouth animation tied to the current
+        // turn only.
+        if (questionSequence.current !== questionId) return;
+        const spokenAnswer = modelAnswer ?? answer;
+        if (!spokenAnswer) return;
+        if (modelAnswer) {
+          setTurns(prev => prev.map(t => (t.id === turnId ? { ...t, text: modelAnswer } : t)));
+        }
+        latestVoice.current.stop();
+        latestVoice.current.say(spokenAnswer);
+      });
     }
     // For collateral / system messages we deliberately don't speak — the
     // attribution makes more sense as a written note than a synthesised
@@ -225,6 +259,7 @@ export function VoiceHistoryPanel({ caseData, currentVitals, isInArrest, applied
   useEffect(() => {
     if (!isActive) return;
     return () => {
+      questionSequence.current += 1;
       if (answerTimer.current) clearTimeout(answerTimer.current);
       answerTimer.current = null;
       latestVoice.current.stop();
