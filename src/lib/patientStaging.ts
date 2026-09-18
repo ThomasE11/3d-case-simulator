@@ -99,6 +99,8 @@ const FLOOR_PATTERN = new RegExp(
   [
     'on the floor',
     'on the ground',
+    'on the road',
+    'in the kerbside lane',
     '\\bfloor\\b',
     '\\bground\\b',
     '\\bcollapsed\\b',

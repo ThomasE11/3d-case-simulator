@@ -1,0 +1,20 @@
+{
+  "slug": "trauma-008-roadside-mvc",
+  "sceneProfile": "trauma-008-roadside",
+  "glb": "trauma-008-roadside-mvc.glb",
+  "higgsfieldProjectId": "362542eb-eed5-422d-99e4-e3a58f0377c8",
+  "revision": 3,
+  "servesCaseIds": [
+    "trauma-008"
+  ],
+  "environment": "roadside/MVC pedestrian",
+  "objects": [
+    "car_sedan_01",
+    "RoadAsphalt",
+    "Sidewalk",
+    "SkidMark_*",
+    "BumperDeformProxy",
+    "PatientPlant_Roadside"
+  ],
+  "notes": "Mamzar Beach Road pedestrian MVC. Catalog Car Sedan 01 + procedural night road."
+}

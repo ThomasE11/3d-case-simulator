@@ -32,6 +32,7 @@ describe('deriveScenePatientStage', () => {
     expect(deriveScenePatientStage(fakeCase('Sitting on floor, leaning against bed'))).toBe('floor');
     expect(deriveScenePatientStage(fakeCase('Supine', 'Male collapsed at the mall'))).toBe('floor');
     expect(deriveScenePatientStage(fakeCase('Lying on side', 'Motorcyclist down at roadside'))).toBe('floor');
+    expect(deriveScenePatientStage(fakeCase('Supine', 'Pedestrian struck; supine on the road'))).toBe('floor');
   });
 
   it('keeps ambiguous or seated scenes on the stretcher', () => {

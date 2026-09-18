@@ -36,7 +36,7 @@ export function SceneArrivalChyron({
           animate={reducedMotion ? { opacity: 1 } : { opacity: 1, x: 0, filter: 'blur(0px)' }}
           exit={{ opacity: 0, x: -14, filter: 'blur(2px)' }}
           transition={{ duration: reducedMotion ? 0.01 : 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className={`scene-arrival-chyron pointer-events-none fixed bottom-6 left-6 z-40 max-w-[min(24rem,calc(100vw-3rem))] ${className}`}
+          className={`scene-arrival-chyron pointer-events-none fixed left-6 top-24 z-30 max-w-[min(22rem,calc(100vw-3rem))] ${className}`}
         >
           <div className="relative overflow-hidden rounded-lg border border-cyan-300/25 bg-slate-950/82 px-4 py-3 shadow-[0_18px_50px_-18px_rgba(0,0,0,0.9)] backdrop-blur-md">
             {/* Accent hairline — reads as a broadcast lower-third rail. */}

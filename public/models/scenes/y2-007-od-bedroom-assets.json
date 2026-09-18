@@ -1,0 +1,18 @@
+{
+  "slug": "y2-007-od-bedroom",
+  "sceneProfile": "y2-007-od-bedroom",
+  "glb": "y2-007-od-bedroom.glb",
+  "higgsfieldProjectId": "e322ce53-08ff-4171-a05d-f1d50d2324f1",
+  "revision": 3,
+  "servesCaseIds": [
+    "y2-007"
+  ],
+  "environment": "home/bedroom",
+  "objects": [
+    "IntBed01/int_bed_01",
+    "StudentDesk",
+    "Nightstand",
+    "PatientPlant_Bed"
+  ],
+  "notes": "Academic City OD bedroom archetype. Room shell filtered at runtime; bed from catalog Int Bed 01."
+}

@@ -1,0 +1,16 @@
+{
+  "slug": "bathroom-fall",
+  "sceneProfile": "bathroom-fall",
+  "glb": "bathroom-fall.glb",
+  "higgsfieldProjectId": "80420c68-cfc6-48a0-b5f3-02638c0c5d4a",
+  "revision": 2,
+  "servesCaseIds": [],
+  "environment": "home/bathroom",
+  "objects": [
+    "BathtubOuter",
+    "ToiletBase",
+    "SinkCabinet",
+    "PatientPlant_BathFloor"
+  ],
+  "notes": "Elderly bathroom fall archetype. Procedural fixtures (no toilet in catalog)."
+}

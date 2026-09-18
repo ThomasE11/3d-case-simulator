@@ -40,8 +40,14 @@ import {
   type PatientSupportSurface,
 } from '@/lib/patientStaging';
 import { deriveSceneEnvironment, type EnvironmentVariant } from '@/lib/sceneEnvironment';
+import { resolveSceneProfile } from './Environment/sceneProfile';
 import { sceneEntryOrigin } from '@/lib/cinematicPhase';
 import { cameraOrbitSafetyForEnvironment } from '@/lib/cameraOrbitSafety';
+import {
+  fallbackSceneAnchors,
+  plantFromRestAnchor,
+  type SceneAnchorSet,
+} from '@/lib/sceneAnchors';
 import type { LimbSide, SurfaceSampler } from './BodyMesh';
 import { AdaptiveQuality, qualityForTier } from './AdaptiveQuality';
 import { TreatmentBayEnvironment, CameraEntrance } from './Environment';
@@ -567,6 +573,7 @@ function TreatmentBayImmersionLayer({
   showWallMonitor = true,
   seatedSupportLift = 0,
   equipmentGroundY = -0.045,
+  plantOffset,
 }: {
   appliedTreatmentIds: string[];
   active: boolean;
@@ -579,6 +586,7 @@ function TreatmentBayImmersionLayer({
   showWallMonitor?: boolean;
   seatedSupportLift?: number;
   equipmentGroundY?: number;
+  plantOffset?: { x?: number; z?: number };
 }) {
   const equipment = useMemo(
     () => buildTreatmentEquipmentState(appliedTreatmentIds),
@@ -588,7 +596,7 @@ function TreatmentBayImmersionLayer({
   if (!active) return null;
 
   const clinicalPoint = (point: [number, number, number]) =>
-    treatmentBayClinicalToWorld(point, stage, posture, mobility, patientScale, seatedSupportLift);
+    treatmentBayClinicalToWorld(point, stage, posture, mobility, patientScale, seatedSupportLift, plantOffset);
   const fittedFaceSpec = getFittedFaceEquipmentSpec(equipment.oxygen?.mode);
   // Each fitted photo texture already contains a short circuit tail. Continue
   // the world-space tube from that device-specific exit so it reads as one
@@ -2224,9 +2232,11 @@ function siteEquipmentAsset(treatmentId: string): string {
 function BayKitHotspots({
   recommendedTab,
   onOpenKit,
+  showFirstAid = false,
 }: {
   recommendedTab: ManagementTab;
   onOpenKit?: (tab: ManagementTab, search?: string) => void;
+  showFirstAid?: boolean;
 }) {
   if (!onOpenKit) return null;
   const kits: Array<{ key: ManagementTab; label: string; image: string; hint: string; search?: string }> = [
@@ -2235,6 +2245,9 @@ function BayKitHotspots({
     { key: 'breathing', label: 'Oxygen', image: '/equipment-assets/oxygen-cylinder.webp', hint: 'Cylinder → NRB', search: 'Non-Rebreather' },
     { key: 'circulation', label: 'Circulation', image: '/bag-assets/circulation-kit.webp', hint: 'IV · CPR · pads' },
     { key: 'medications', label: 'Meds', image: '/bag-assets/medication-pouch.webp', hint: 'Drugs · doses' },
+    ...(showFirstAid
+      ? [{ key: 'exposure' as const, label: 'First aid', image: '/bag-assets/medication-pouch.webp', hint: 'Cabinet · dressings', search: 'Dressing' }]
+      : []),
   ];
   return (
     <div
@@ -2364,6 +2377,7 @@ function TreatmentEquipmentOverlay({
   patientScale = 1,
   faceAttachment = null,
   seatedSupportLift = 0,
+  plantOffset,
   pilotVolumetricMasks = false,
 }: {
   appliedTreatmentIds: string[];
@@ -2375,6 +2389,7 @@ function TreatmentEquipmentOverlay({
   patientScale?: number;
   faceAttachment?: THREE.Group | null;
   seatedSupportLift?: number;
+  plantOffset?: { x?: number; z?: number };
   pilotVolumetricMasks?: boolean;
 }) {
   const equipment = useMemo(
@@ -2411,13 +2426,13 @@ function TreatmentEquipmentOverlay({
   // frame for airway devices so masks remain fitted after the posture changes.
   const faceAnchor = (x: number, y: number, z: number): [number, number, number] =>
     presentation === 'treatment-bay'
-      ? treatmentBayClinicalToWorld([x, y, z], bayStage, posture, mobility, patientScale, seatedSupportLift)
+      ? treatmentBayClinicalToWorld([x, y, z], bayStage, posture, mobility, patientScale, seatedSupportLift, plantOffset)
       : anchor(x, y, z);
   const faceRotation: [number, number, number] = presentation === 'treatment-bay'
-    ? getTreatmentBayTransform(bayStage, posture, mobility, patientScale).rotation
+    ? getTreatmentBayTransform(bayStage, posture, mobility, patientScale, seatedSupportLift, plantOffset).rotation
     : [0, 0, 0];
   const faceEquipmentScale = presentation === 'treatment-bay'
-    ? getTreatmentBayTransform(bayStage, posture, mobility, patientScale).scale * patientScale
+    ? getTreatmentBayTransform(bayStage, posture, mobility, patientScale, seatedSupportLift, plantOffset).scale * patientScale
     : 1;
   const fittedFaceSpec = getFittedFaceEquipmentSpec(equipment.oxygen?.mode);
   const fittedAnchor = (x: number, y: number, z: number): [number, number, number] =>
@@ -4277,13 +4292,15 @@ function getTreatmentBayCameraFocus(
   patientScale = 1,
   seatedSupportLift = 0,
   environment: EnvironmentVariant = 'clinic',
+  plant?: { x?: number; z?: number },
 ) {
   const cameraScale = Math.max(0.6, Math.min(1, patientScale));
+  const plantX = plant?.x ?? 0;
   if (mobility === 'pacing') {
     // Frame the whole walking lane, not just the starting pose. The patient
     // approaches the camera on each pass; torso-centred seated framing cuts
     // off the head at that end of the route.
-    const target: [number, number, number] = [0.24, 0.72 * patientScale, 0.55];
+    const target: [number, number, number] = [0.24 + plantX, 0.72 * patientScale, 0.55];
     return {
       pos: [target[0], target[1] + 0.3 * cameraScale, target[2] + 3.95 * cameraScale] as [number, number, number],
       target,
@@ -4296,16 +4313,16 @@ function getTreatmentBayCameraFocus(
     // overview. A slightly lower target and longer three-quarter view retain
     // the face while showing knees, ankles, soles and their interaction sites.
     const stageLift = mobility === 'standing' ? 0 : seatedSupportLift;
-    const target: [number, number, number] = [0, 0.70 * patientScale + stageLift, 0.18];
+    const target: [number, number, number] = [plantX, 0.70 * patientScale + stageLift, 0.18];
     return {
       // A slight three-quarter arrival angle makes the forward trunk lean and
       // hands-on-thigh bracing readable immediately. The extra stand-off also
       // keeps the distal legs visible below the persistent care controls.
-      pos: [1.1 * cameraScale, target[1] + 0.36 * cameraScale, target[2] + 3.55 * cameraScale] as [number, number, number],
+      pos: [target[0] + 1.1 * cameraScale, target[1] + 0.36 * cameraScale, target[2] + 3.55 * cameraScale] as [number, number, number],
       target,
     };
   }
-  const target = treatmentBayClinicalToWorld([0, 0.96, -0.05], stage, posture, mobility, patientScale);
+  const target = treatmentBayClinicalToWorld([0, 0.96, -0.05], stage, posture, mobility, patientScale, seatedSupportLift, plant);
   if (posture === 'recovery') {
     const recoveryOffset = stage === 'floor'
       ? [-1.45, 2.25, 1.95]
@@ -5415,7 +5432,40 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
   // until a casualty is selected. Do not render that metadata as a newborn.
   const activePatientAge = caseData.mci?.isMCI ? undefined : caseData.patientInfo?.age;
   const patientScale = patientExpectedHeightMetres(activePatientAge) / 1.8;
-  const seatedSupportLift = caseData.id === 'resp-001' ? RESP001_SEATED_SUPPORT_LIFT : 0;
+  const [sceneAnchors, setSceneAnchors] = useState<SceneAnchorSet | null>(null);
+  const handleSceneAnchorsReady = useCallback((anchors: SceneAnchorSet) => {
+    setSceneAnchors(prev => {
+      if (
+        prev
+        && prev.rest.x === anchors.rest.x
+        && prev.rest.y === anchors.rest.y
+        && prev.rest.z === anchors.rest.z
+        && prev.kit.x === anchors.kit.x
+        && prev.kit.y === anchors.kit.y
+        && prev.kit.z === anchors.kit.z
+        && prev.firstAid.x === anchors.firstAid.x
+        && prev.firstAid.y === anchors.firstAid.y
+        && prev.firstAid.z === anchors.firstAid.z
+      ) {
+        return prev;
+      }
+      return anchors;
+    });
+  }, []);
+  const villaAnchors = useMemo(
+    () => (caseData.id === 'resp-001' ? (sceneAnchors ?? fallbackSceneAnchors()) : null),
+    [caseData.id, sceneAnchors],
+  );
+  const villaPlant = useMemo(
+    () => (villaAnchors ? plantFromRestAnchor(villaAnchors.rest) : null),
+    [villaAnchors],
+  );
+  const seatedSupportLift = villaPlant?.seatedSupportLift
+    ?? (caseData.id === 'resp-001' ? RESP001_SEATED_SUPPORT_LIFT : 0);
+  const plantOffset = useMemo(
+    () => (villaPlant ? { x: villaPlant.x, z: villaPlant.z } : undefined),
+    [villaPlant],
+  );
   // Scene-contextual environment: villa cases render in a living room,
   // street cases at a roadside, mall cases in a public atrium.
   const bayVariant = useMemo(() => deriveSceneEnvironment(caseData), [caseData]);
@@ -5518,19 +5568,19 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
   const overviewCameraFocus = useMemo(
     () => {
       const focus = treatmentBayOverviewEnabled
-        ? getTreatmentBayCameraFocus(bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift, bayVariant)
+        ? getTreatmentBayCameraFocus(bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift, bayVariant, plantOffset)
         : getUprightCameraFocus(patientScale);
       if (caseData.id === 'resp-001' && treatmentBayOverviewEnabled && (patientPosture === 'tripod' || patientPosture === 'seated')) {
         // Orbit around the patient root, not a point 60cm behind the chair.
         // The old target pushed the patient's head off-screen in side views.
-        const depth = getTreatmentBayTransform(bayStage, patientPosture, patientMobility, patientScale).position[2];
+        const depth = getTreatmentBayTransform(bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift, plantOffset).position[2];
         const shift = depth - focus.target[2];
         focus.target[2] = depth;
         focus.pos[2] += shift;
       }
       return focus;
     },
-    [caseData.id, treatmentBayOverviewEnabled, bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift, bayVariant],
+    [caseData.id, treatmentBayOverviewEnabled, bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift, bayVariant, plantOffset],
   );
 
   // OrbitControls target is imperative state. Initialise/reset it only for the
@@ -6798,7 +6848,10 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 patientSeatKind={patientSeatKind}
                 shadowsEnabled={quality.contactShadows}
                 variant={bayVariant}
-                sceneProfile={caseData.id === 'resp-001' ? 'resp-001-villa' : undefined}
+                sceneProfile={resolveSceneProfile(caseData)}
+                onAnchorsReady={caseData.id === 'resp-001' ? handleSceneAnchorsReady : undefined}
+                kitAnchor={villaAnchors?.kit}
+                firstAidAnchor={villaAnchors?.firstAid}
               />
 
               {/* Cinematic ease-in when entering the treatment bay — slight
@@ -6885,12 +6938,15 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 braceHandsOnKnees={caseData.id === 'resp-001'}
                 handGuardRegion={handGuardRegion}
                 mobility={patientMobility}
+                plantOffset={plantOffset}
+                seatedSupportLift={seatedSupportLift}
                 // Lip-sync drive from the patient's TTS analyser.
                 mouthOpenRef={patientVoice.mouthOpenRef}
               />
 
               <TreatmentBayImmersionLayer
                 seatedSupportLift={seatedSupportLift}
+                plantOffset={plantOffset}
                 equipmentGroundY={caseData.id === 'resp-001' ? RESP001_VILLA_RUG_TOP_Y : undefined}
                 faceAttachment={faceAttachment}
                 showWallMonitor={caseData.id !== 'resp-001'}
@@ -6926,10 +6982,6 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 sampler={surfaceSampler}
               />
 
-              <group name="anatomy-support-offset" position-y={treatmentBayMode
-                ? getTreatmentBayTransform(bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift).position[1]
-                  - getTreatmentBayTransform(bayStage, patientPosture, patientMobility, patientScale).position[1]
-                : 0}>
               <AnatomyReferenceLayer
                 visible={anatomyLayer === 'skeleton'}
                 presentation={treatmentBayMode ? 'treatment-bay' : 'upright'}
@@ -6938,8 +6990,9 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 mobility={patientMobility}
                 activeRegion={activeRegion}
                 patientAge={activePatientAge}
+                seatedSupportLift={seatedSupportLift}
+                plantOffset={plantOffset}
               />
-              </group>
 
               {!bedsideConversation.active && <LandmarkMarkers
                 landmarks={caseData.id === 'resp-001' ? RESP001_EXAM_LANDMARKS : EXAM_LANDMARKS}
@@ -7008,6 +7061,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 <TreatmentEquipmentOverlay
                   pilotVolumetricMasks={caseData.id === 'resp-001'}
                   seatedSupportLift={seatedSupportLift}
+                  plantOffset={plantOffset}
                   faceAttachment={faceAttachment}
                   appliedTreatmentIds={appliedTreatmentIds}
                   sampler={surfaceSampler}
@@ -7072,6 +7126,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
             {treatmentBayOverviewEnabled && !activeRegion && !bedsideConversation.active && (
               <BayKitHotspots
                 recommendedTab={recommendedManagementTabForCase(caseData)}
+                showFirstAid={caseData.id === 'resp-001'}
                 onOpenKit={onRequestTreat
                   ? (tab, search) => onRequestTreat({ reason: 'scene-kit', managementTab: tab, search })
                   : undefined}

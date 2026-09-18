@@ -116,6 +116,7 @@ export function getTreatmentBayTransform(
   mobility: PatientMobility = 'recumbent',
   patientScale = 1,
   seatedSupportLift = 0,
+  plant?: { x?: number; z?: number },
 ) {
   if (mobility === 'standing' || mobility === 'pacing') {
     return {
@@ -154,7 +155,7 @@ export function getTreatmentBayTransform(
       ? BAY_SUPPORT_Y[stage] + 0.332 * patientScale
     : stageY;
   return {
-    position: [0, positionY, 0.78] as [number, number, number],
+    position: [plant?.x ?? 0, positionY, plant?.z ?? 0.78] as [number, number, number],
     rotation: [baseRotation + pitchUp, rollSide, 0] as [number, number, number],
     scale: BAY_PATIENT_SCALE,
   };
@@ -167,8 +168,9 @@ export function treatmentBayClinicalToWorld(
   mobility: PatientMobility = 'recumbent',
   patientScale = 1,
   seatedSupportLift = 0,
+  plant?: { x?: number; z?: number },
 ): [number, number, number] {
-  const transform = getTreatmentBayTransform(stage, posture, mobility, patientScale, seatedSupportLift);
+  const transform = getTreatmentBayTransform(stage, posture, mobility, patientScale, seatedSupportLift, plant);
   const projected = new THREE.Vector3(...point)
     .multiplyScalar(patientScale)
     .multiplyScalar(transform.scale)
@@ -316,6 +318,11 @@ interface BodyMeshProps {
    *  vertices so those sites read as the primary cyanosis sign while the
    *  rest of the skin clears as SpO2 recovers. */
   cyanosisLocalStrength?: number;
+  /** Horizontal plant from a scene rest anchor. Defaults keep the authored
+   *  chair sit at x=0, z=0.78. */
+  plantOffset?: { x?: number; z?: number };
+  /** Seat-height correction. When omitted, the resp-001 tripod lift is used. */
+  seatedSupportLift?: number;
 }
 
 /**
@@ -1080,7 +1087,7 @@ function buildSurfaceSampler(root: THREE.Object3D | null, presentationRoot?: THR
  */
 const ASYMMETRIC_CHEST_RESIDUAL = 0.35;
 
-export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guidedMode = false, nextGuidedStep = null, onBlockedClick, onBodyPoint, bodyInjuries, patientGender, patientAge, braceHandsOnKnees = false, handGuardRegion = null, surfaceOpacity = 1, activeFindingMorphs, breathRateRpm = 0, breathingEffort = 0, chestRiseUnilateral = false, breathDepthFactor = 1, onSurfaceSampler, onFaceAttachment, dressed = false, dressedActiveRegion = null, pupilLeftMm = 3.5, pupilRightMm = 3.5, skinTint = null, skinDiaphoretic = false, diaphoresis = 0, jaundice = 0, mottling = 0, unconscious = false, idleCues = null, reduceIdleMotion = false, presentation = 'upright', bayStage = 'stretcher', sss = false, posture = null, mobility = 'recumbent', mouthOpenRef = null, cyanosisLocalStrength = 0 }: BodyMeshProps) {
+export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guidedMode = false, nextGuidedStep = null, onBlockedClick, onBodyPoint, bodyInjuries, patientGender, patientAge, braceHandsOnKnees = false, handGuardRegion = null, surfaceOpacity = 1, activeFindingMorphs, breathRateRpm = 0, breathingEffort = 0, chestRiseUnilateral = false, breathDepthFactor = 1, onSurfaceSampler, onFaceAttachment, dressed = false, dressedActiveRegion = null, pupilLeftMm = 3.5, pupilRightMm = 3.5, skinTint = null, skinDiaphoretic = false, diaphoresis = 0, jaundice = 0, mottling = 0, unconscious = false, idleCues = null, reduceIdleMotion = false, presentation = 'upright', bayStage = 'stretcher', sss = false, posture = null, mobility = 'recumbent', mouthOpenRef = null, cyanosisLocalStrength = 0, plantOffset, seatedSupportLift }: BodyMeshProps) {
   // The path is recomputed per render so a `caseData.patientInfo.gender`
   // change (e.g. user picks a different case) swaps the mesh without
   // remounting the parent. useGLTF caches by URL.
@@ -1140,9 +1147,10 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
   // a THREE.Color every frame (GC pressure under 60fps useFrame).
   const tintTmpRef = useRef(new THREE.Color());
   const treatmentBayPresentation = presentation === 'treatment-bay';
+  const resolvedSeatedLift = seatedSupportLift ?? (braceHandsOnKnees ? RESP001_SEATED_SUPPORT_LIFT : 0);
   const treatmentBayTransform = useMemo(
-    () => getTreatmentBayTransform(bayStage, posture, mobility, patientScale, braceHandsOnKnees ? RESP001_SEATED_SUPPORT_LIFT : 0),
-    [bayStage, mobility, posture, patientScale, braceHandsOnKnees],
+    () => getTreatmentBayTransform(bayStage, posture, mobility, patientScale, resolvedSeatedLift, plantOffset),
+    [bayStage, mobility, posture, patientScale, resolvedSeatedLift, plantOffset],
   );
   // Diaphoresis (sweat sheen): the eased 0..1 scalar the frame loop drives
   // toward the `diaphoresis` prop (fast up ~10 s, slow dry-out ~60 s), plus a

@@ -23,9 +23,15 @@ import { getBayTextures } from './textures';
 import { SceneVariantEnvironment } from './SceneVariant';
 import { KenneyPatientChair } from './KenneyPatientChair';
 import type { EnvironmentVariant } from '@/lib/sceneEnvironment';
-import { isResp001VillaProfile, type SceneProfile } from './sceneProfile';
+import { isResp001VillaProfile, isY2007OdBedroomProfile, type SceneProfile } from './sceneProfile';
 import type { PatientSeatKind, PatientSupportSurface } from '@/lib/patientStaging';
 import { focusRig, resetFocusRig, FOCUS_REST, FOCUS_WIDE } from '@/lib/focusRig';
+import {
+  firstAidMarkerPosition,
+  kitBagLayout,
+  type SceneAnchorPoint,
+  type SceneAnchorSet,
+} from '@/lib/sceneAnchors';
 
 const NO_RAYCAST = () => null;
 
@@ -488,12 +494,14 @@ function PortableMonitor() {
 /** Floor jump bags the crew brings to every scene. Visual anchors for
  *  FIND EQUIPMENT — the interactive open-kit controls live in the bay
  *  hotspot strip (DOM) so OrbitControls never fight bag clicks. */
-function SceneJumpBags() {
-  const bags: Array<{ key: string; label: string; color: string; position: [number, number, number]; rotation: number }> = [
-    { key: 'airway', label: 'A', color: '#f59e0b', position: [1.35, 0, -1.05], rotation: 0.35 },
-    { key: 'breathing', label: 'B', color: '#0ea5e9', position: [1.62, 0, -1.18], rotation: -0.15 },
-    { key: 'circulation', label: 'C', color: '#f43f5e', position: [1.90, 0, -1.05], rotation: 0.45 },
-  ];
+function SceneJumpBags({ kit }: { kit?: SceneAnchorPoint }) {
+  const bags: Array<{ key: string; label: string; color: string; position: [number, number, number]; rotation: number }> = kit
+    ? kitBagLayout(kit)
+    : [
+        { key: 'airway', label: 'A', color: '#f59e0b', position: [1.35, 0, -1.05], rotation: 0.35 },
+        { key: 'breathing', label: 'B', color: '#0ea5e9', position: [1.62, 0, -1.18], rotation: -0.15 },
+        { key: 'circulation', label: 'C', color: '#f43f5e', position: [1.90, 0, -1.05], rotation: 0.45 },
+      ];
   return (
     <group name="scene-jump-bags">
       {bags.map(bag => (
@@ -520,6 +528,30 @@ function SceneJumpBags() {
           </mesh>
         </group>
       ))}
+    </group>
+  );
+}
+
+function FirstAidFindMarker({ firstAid }: { firstAid: SceneAnchorPoint }) {
+  const position = firstAidMarkerPosition(firstAid);
+  return (
+    <group name="first-aid-find-marker" position={position}>
+      <mesh raycast={NO_RAYCAST}>
+        <boxGeometry args={[0.18, 0.12, 0.08]} />
+        <meshStandardMaterial color="#b91c1c" roughness={0.55} metalness={0.12} />
+      </mesh>
+      <mesh position={[0, 0, 0.042]} raycast={NO_RAYCAST}>
+        <planeGeometry args={[0.10, 0.10]} />
+        <meshBasicMaterial color="#f8fafc" />
+      </mesh>
+      <mesh position={[0, 0, 0.043]} raycast={NO_RAYCAST}>
+        <planeGeometry args={[0.07, 0.022]} />
+        <meshBasicMaterial color="#b91c1c" />
+      </mesh>
+      <mesh position={[0, 0, 0.043]} raycast={NO_RAYCAST}>
+        <planeGeometry args={[0.022, 0.07]} />
+        <meshBasicMaterial color="#b91c1c" />
+      </mesh>
     </group>
   );
 }
@@ -720,6 +752,9 @@ export function TreatmentBayEnvironment({
   shadowsEnabled = true,
   variant = 'clinic',
   sceneProfile,
+  onAnchorsReady,
+  kitAnchor,
+  firstAidAnchor,
 }: {
   hideOverhead?: boolean;
   patientSupportSurface?: PatientSupportSurface;
@@ -729,6 +764,9 @@ export function TreatmentBayEnvironment({
   shadowsEnabled?: boolean;
   variant?: EnvironmentVariant;
   sceneProfile?: SceneProfile;
+  onAnchorsReady?: (anchors: SceneAnchorSet) => void;
+  kitAnchor?: SceneAnchorPoint;
+  firstAidAnchor?: SceneAnchorPoint;
 }) {
   const isClinic = variant === 'clinic';
   return (
@@ -749,6 +787,7 @@ export function TreatmentBayEnvironment({
           showPatientSeat={showPatientSeat}
           patientSeatKind={patientSeatKind}
           sceneProfile={sceneProfile}
+          onAnchorsReady={onAnchorsReady}
         />
       )}
       {/* Arrival scenes hide the trolley until the crew loads the patient —
@@ -759,7 +798,8 @@ export function TreatmentBayEnvironment({
       {showPatientSeat && (isClinic || variant === 'industrial' || variant === 'fire' || variant === 'water') && (
         <ClinicalPatientSeat kind={patientSeatKind ?? 'desk'} />
       )}
-      {(patientSupportSurface === 'bed' || patientSupportSurface === 'sofa') && (
+      {(patientSupportSurface === 'bed' || patientSupportSurface === 'sofa')
+        && !isY2007OdBedroomProfile(sceneProfile) && (
         <ScenePatientSupport kind={patientSupportSurface} seated={patientSeated} />
       )}
       {/* Medical equipment is brought by the paramedic in every scene, but the
@@ -768,8 +808,10 @@ export function TreatmentBayEnvironment({
           buried under clinic furniture. */}
       {isClinic ? <MonitorStand /> : <PortableMonitor />}
       {/* Crew jump bags — always on scene so clinicians can spot gear before
-          opening the Treat rail kit panel (FIND EQUIPMENT path). */}
-      <SceneJumpBags />
+          opening the Treat rail kit panel (FIND EQUIPMENT path). Villa cases
+          stage them on KitStagingAnchor / the side table. */}
+      <SceneJumpBags kit={kitAnchor} />
+      {firstAidAnchor && <FirstAidFindMarker firstAid={firstAidAnchor} />}
       {isClinic && (
         <>
           <OxygenTank />

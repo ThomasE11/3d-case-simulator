@@ -1,0 +1,260 @@
+                                  UAE Paramedic Case Generator
+                                                       Session Summary Report
+
+                                                     Generated: 16/09/2026, 07:06:51
+
+
+
+
+Case Information
+Case Title:            Severe Allergic Reaction Restaurant
+Category:              respiratory
+Priority:              CRITICAL
+Complexity:            BASIC
+Year Level:            1st-year
+Patient:               32yo female
+Location:              Seafood restaurant, Al Maryah Island, Abu Dhabi
+
+
+
+
+Dispatch Information
+Call Reason: 32-year-old female difficulty breathing after eating at restaurant, swollen
+face
+Time of Day: evening
+Caller Info: Restaurant manager (anxious)
+
+
+
+
+Initial Vital Signs
+BP: 85/50 | Pulse: 125 bpm | RR: 28/min | SpO2: 93% | GCS: 15/15 | Glucose: 6.2 mmol/L
+
+
+
+
+Performance Summary
+
+
+
+                       Excellent
+            95%        125 / 125 points
+                       Time: 08:42
+
+
+
+  Base score: 100%
+  -5%         Inappropriate: Naloxone 0.4mg — Naloxone used without clear opioid physiology.
+  Adjusted score: 95%
+
+
+
+
+                           Page 1 of 5 | UAE Paramedic Case Generator | Session: pdf-verification-anaphylaxis
+Performance Breakdown
+Overall: Excellent (95%)
+Excellent performance. Systematic, thorough assessment with the decisive intervention given early.
+
+Assessment & Recognition                                                                                          96%
+
+Systematic ABCDE; key findings identified.
+
+Clinical Management                                                                                               94%
+
+Adrenaline-first, oxygen and fluids supported.
+
+Timing & Efficiency                                                                                               90%
+
+Prompt first intervention.
+
+Patient Safety                                                                                                    100%
+
+No contraindicated or allergenic drugs given.
+
+Strengths
+ + Strong systematic assessment (ABCDE).
+ + Interventions improved oxygenation.
+Focus Next
+ > Reassess after each intervention.
+
+
+
+
+Transport & Handover
+Priority                          Lights & Sirens
+Position                          Sitting Upright
+Pre-alert                         Yes Nearest ED
+Working Dx                        Anaphylaxis
+Arrival on scene                  00:18:05
+Departed (handover)               00:26:47
+On-scene time                     08:42
+Time to first Rx                  1:12
+
+
+
+
+Completed Actions
+
+  + Scene Safety & BSI (Critical)
+
+  + Assess airway patency (Critical)
+
+  + Assess breathing rate (Critical)
+
+
+
+
+                             Page 2 of 5 | UAE Paramedic Case Generator | Session: pdf-verification-anaphylaxis
+Key Learning Points
+
+ 1    Anaphylaxis = acute multi-system allergic reaction involving airway/breathing AND/OR circulation skin signs
+      alone are NOT anaphylaxis
+
+ 2    IM adrenaline (0.5mg / 500mcg for adults) is the ONLY first-line life-saving treatment give it IMMEDIATELY
+
+ 3    Inject into the anterolateral thigh (vastus lateralis) NOT the deltoid, NOT subcutaneously
+
+ 4    Adrenaline works within minutes: vasoconstriction (raises BP), bronchodilation (relieves wheeze), reduces
+      oedema
+
+ 5    Can repeat IM adrenaline every 5 minutes if no improvement there is no maximum dose in anaphylaxis
+
+ 6    Antihistamines (chlorphenamine) treat itch and urticaria only they do NOT treat airway or cardiovascular
+      collapse
+
+ 7    Positioning matters: flat + legs up for shock; sitting up if respiratory distress predominates
+
+ 8    ALL anaphylaxis patients MUST go to hospital risk of biphasic reaction (recurrence hours later)
+
+ 9    Common triggers in UAE: shellfish, nuts, bee/wasp stings, medications (antibiotics, NSAIDs)
+
+ 10   Always ask: has the patient used their EpiPen? Do they have one? (This patient left it at home)
+
+ 11   Anaphylaxis vs allergic reaction: if any airway compromise, breathing difficulty, or hypotension -> it is
+      anaphylaxis
+
+
+
+
+Applied Treatments & Interventions
+
+ 1.   IM adrenaline matched to anaphylaxis
+
+      Applied at: 07:06
+
+
+ 2.   Oxygen matched to hypoxia
+
+      Applied at: 07:06
+
+
+ 3.   Bronchodilator matched to wheeze
+
+      Applied at: 07:06
+
+
+ 4.   Naloxone used without clear opioid physiology
+
+      Applied at: 07:06
+
+
+
+
+Management Summary
+
+
+
+
+                          Page 3 of 5 | UAE Paramedic Case Generator | Session: pdf-verification-anaphylaxis
+ Immediate
+  •        Scene safety and BSI
+  •        Remove allergen exposure (move patient away from food)
+  •        Call for help early
+  •        IM Adrenaline 0.5mg (500mcg) into anterolateral thigh THIS IS THE PRIORITY
+  •        High-flow oxygen 15L/min via non-rebreather mask
+  •        Lay patient flat with legs elevated (if tolerated may need to sit up if severe wheeze)
+  •        Monitor airway continuously for deterioration
+
+ Definitive
+  •        Reassess after 5 minutes repeat IM adrenaline if no improvement
+  •        IV access and IV fluid bolus (500ml-1L normal saline)
+  •        Transport to hospital all anaphylaxis patients need observation (biphasic risk)
+  •        Antihistamine (chlorphenamine 10mg IM) adjunct only, NOT a substitute for adrenaline
+  •        Hydrocortisone 200mg IV prevents biphasic reaction (takes hours to work)
+  •        Minimum 6-hour observation in hospital post-anaphylaxis
+
+ Monitoring
+  •        Continuous airway assessment listen for stridor development
+  •        SpO2 continuous monitoring
+  •        Blood pressure every 2-3 minutes initially
+  •        Heart rate and rhythm
+  •        Respiratory rate and work of breathing
+  •        Level of consciousness
+  •        Rash progression or resolution
+  •        Watch for biphasic reaction (can occur up to 72 hours later)
+
+ Transport
+  •        Pre-alert hospital: anaphylaxis, adrenaline given, vital signs
+  •        Transport with ongoing monitoring
+  •        Have second dose of adrenaline ready
+  •        Position: flat with legs elevated OR sitting up if respiratory distress predominates
+  •        Rapid transport do not delay on scene
+
+
+
+
+Vital Signs Summary
+
+                  BP                       HR                 SpO2               RR
+
+ Initial          85/50                    125                93%                28
+
+ Final        110/70                       100                97%                18
+Snapshots recorded: 2
+
+
+
+
+                                 Page 4 of 5 | UAE Paramedic Case Generator | Session: pdf-verification-anaphylaxis
+Common Pitfalls to Avoid
+(!)   DELAYING adrenaline this is the #1 error. Give adrenaline FIRST, not antihistamines
+
+(!)   Giving antihistamines instead of adrenaline antihistamines do NOT treat anaphylaxis
+
+(!)   Wrong route: giving adrenaline IV instead of IM (IV adrenaline can cause fatal arrhythmias in non-arrest patients)
+
+(!)   Wrong site: injecting into deltoid or buttock instead of anterolateral thigh
+
+(!)   Not repeating adrenaline if first dose does not work within 5 minutes
+
+(!)   Standing the patient up this can cause cardiac arrest in anaphylaxis (empty ventricle syndrome)
+
+(!)   Not monitoring the airway angioedema can progress to complete airway obstruction
+
+(!)   Forgetting to remove the allergen (move patient away from the prawns)
+
+(!)   Not transporting to hospital biphasic reactions can be fatal
+
+(!)   Confusing anaphylaxis with panic attack always check for skin signs, wheeze, and hypotension
+
+
+
+
+Further Study Resources
+Guidelines
+  [World Allergy Organization]    World Allergy Organization Anaphylaxis Guidance                                          *
+
+  [Resuscitation Council UK]      Resuscitation Council UK: Anaphylaxis Algorithm                                          *
+
+
+Articles
+  [REBEL EM]                      Anaphylaxis - Evidence Review                                                            *
+
+
+Resources from: NICE, Resuscitation Council UK, Radiopaedia, EMDocs, REBEL EM, ALiEM, EM Cases, EMCrit.
+
+
+
+
+                               Page 5 of 5 | UAE Paramedic Case Generator | Session: pdf-verification-anaphylaxis
+

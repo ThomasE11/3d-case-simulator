@@ -14,6 +14,8 @@ interface AnatomyReferenceLayerProps {
   mobility?: PatientMobility;
   activeRegion?: string | null;
   patientAge?: number;
+  seatedSupportLift?: number;
+  plantOffset?: { x?: number; z?: number };
 }
 
 function boneMatchesRegion(name: string, region: string | null): boolean {
@@ -34,7 +36,7 @@ function boneMatchesRegion(name: string, region: string | null): boolean {
   return true;
 }
 
-export function AnatomyReferenceLayer({ visible, presentation = 'upright', stage = 'stretcher', posture = null, mobility = 'recumbent', activeRegion = null, patientAge }: AnatomyReferenceLayerProps) {
+export function AnatomyReferenceLayer({ visible, presentation = 'upright', stage = 'stretcher', posture = null, mobility = 'recumbent', activeRegion = null, patientAge, seatedSupportLift = 0, plantOffset }: AnatomyReferenceLayerProps) {
   const { scene } = useGLTF('/models/open3d-skeleton.glb');
   const patientScale = patientExpectedHeightMetres(patientAge) / 1.8;
 
@@ -88,7 +90,7 @@ export function AnatomyReferenceLayer({ visible, presentation = 'upright', stage
   if (!visible) return null;
 
   const bayTransform = presentation === 'treatment-bay'
-    ? getTreatmentBayTransform(stage, posture, mobility, patientScale)
+    ? getTreatmentBayTransform(stage, posture, mobility, patientScale, seatedSupportLift, plantOffset)
     : { position: [0, 0, 0] as [number, number, number], rotation: [0, 0, 0] as [number, number, number], scale: 1 };
   const groupPosition: [number, number, number] = [
     bayTransform.position[0],

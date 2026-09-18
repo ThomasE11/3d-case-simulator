@@ -23,7 +23,16 @@ import { RESP001_VILLA_ENTRY, RESP001_VILLA_EXTERIOR, RESP001_VILLA_SHELL } from
 import { getVillaTextures } from './textures';
 import { KenneyPatientChair } from './KenneyPatientChair';
 import { Resp001VillaDressing } from './Resp001VillaDressing';
-import { isResp001VillaProfile, type SceneProfile } from './sceneProfile';
+import {
+  isResp001VillaProfile,
+  isY2007OdBedroomProfile,
+  isTrauma008RoadsideProfile,
+  isBathroomFallProfile,
+  type SceneProfile,
+} from './sceneProfile';
+import { ArchetypeSceneDressing } from './ArchetypeSceneDressing';
+import { SCENE_ARCHETYPES } from './sceneRegistry';
+import type { SceneAnchorSet } from '@/lib/sceneAnchors';
 
 const NO_RAYCAST = () => null;
 
@@ -388,15 +397,22 @@ function HomeScene({
   showPatientSeat,
   patientSeatKind,
   sceneProfile,
+  onAnchorsReady,
 }: {
   hideOverhead: boolean;
   shadowsEnabled: boolean;
   showPatientSeat: boolean;
   patientSeatKind?: PatientSeatKind;
   sceneProfile?: SceneProfile;
+  onAnchorsReady?: (anchors: SceneAnchorSet) => void;
 }) {
   const tex = getVillaTextures();
   const hasResp001Dressing = isResp001VillaProfile(sceneProfile);
+  const archetype =
+    (isY2007OdBedroomProfile(sceneProfile) || isBathroomFallProfile(sceneProfile))
+      ? SCENE_ARCHETYPES.find(e => e.profile === sceneProfile)
+      : undefined;
+  const hideGenericHomeFurniture = hasResp001Dressing || Boolean(archetype);
   const roomFrontZ = hasResp001Dressing ? RESP001_VILLA_SHELL.frontZ : ROOM.frontZ;
   // The original shared shell is intentionally centred at z=0. Preserve it
   // exactly for other cases; only the pilot gets the extended physical room.
@@ -420,7 +436,15 @@ function HomeScene({
 
       {hasResp001Dressing ? (
         <Suspense fallback={null}>
-          <Resp001VillaDressing shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} />
+          <Resp001VillaDressing
+            shadowsEnabled={shadowsEnabled}
+            showPatientSeat={showPatientSeat}
+            onAnchorsReady={onAnchorsReady}
+          />
+        </Suspense>
+      ) : archetype ? (
+        <Suspense fallback={null}>
+          <ArchetypeSceneDressing entry={archetype} shadowsEnabled={shadowsEnabled} />
         </Suspense>
       ) : (
         <>
@@ -648,7 +672,7 @@ function HomeScene({
       </group>
 
       {/* Generic sofa stays unchanged for every unprofiled home case. */}
-      {!hasResp001Dressing && <group position={[-1.65, 0, ROOM.backZ + 0.55]}>
+      {!hideGenericHomeFurniture && <group position={[-1.65, 0, ROOM.backZ + 0.55]}>
         {/* Seat base */}
         <mesh position={[0, 0.24, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
           <boxGeometry args={[1.7, 0.34, 0.75]} />
@@ -677,14 +701,14 @@ function HomeScene({
 
       {/* Kenney dining chair, scaled onto the seated pelvis plant. The
           previous box-pan + slab backrest read as a crate, not furniture. */}
-      {showPatientSeat && !hasResp001Dressing && (
+      {showPatientSeat && !hideGenericHomeFurniture && (
         <Suspense fallback={null}>
           <KenneyPatientChair kind={patientSeatKind ?? 'dining'} name="home-patient-chair" />
         </Suspense>
       )}
 
       {/* Generic table stays unchanged for every unprofiled home case. */}
-      {!hasResp001Dressing && <group position={[-1.75, 0, 1.3]} rotation={[0, 0.4, 0]}>
+      {!hideGenericHomeFurniture && <group position={[-1.75, 0, 1.3]} rotation={[0, 0.4, 0]}>
         <mesh position={[0, 0.33, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
           <boxGeometry args={[0.95, 0.05, 0.55]} />
           <meshStandardMaterial color="#5a3d25" roughness={0.35} metalness={0.05} />
@@ -1371,7 +1395,10 @@ function WreckedSedan() {
   );
 }
 
-function RoadsideScene({ shadowsEnabled, showPatientSeat }: { shadowsEnabled: boolean; showPatientSeat: boolean }) {
+function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile }: { shadowsEnabled: boolean; showPatientSeat: boolean; sceneProfile?: SceneProfile }) {
+  const traumaDressing = isTrauma008RoadsideProfile(sceneProfile)
+    ? SCENE_ARCHETYPES.find(e => e.profile === 'trauma-008-roadside')
+    : undefined;
   return (
     <group>
       <OutdoorSky zenith="#8cb6d4" horizon="#e8d3ba" />
@@ -1417,13 +1444,17 @@ function RoadsideScene({ shadowsEnabled, showPatientSeat }: { shadowsEnabled: bo
           <meshStandardMaterial color="#fffbe8" emissive="#fff6d0" emissiveIntensity={2.2} side={THREE.DoubleSide} />
         </mesh>
       ))}
-      {/* Kenney CC0 sedan + debris — reads as a vehicle, not a grey box. */}
+      {/* Real sedan when trauma-008 archetype is wired; otherwise Kenney CC0 wreck. */}
       <Suspense fallback={null}>
-        <WreckedSedan />
+        {traumaDressing ? (
+          <ArchetypeSceneDressing entry={traumaDressing} shadowsEnabled={shadowsEnabled} />
+        ) : (
+          <WreckedSedan />
+        )}
       </Suspense>
 
-      {/* Downed motorcycle — lying on its side, left of the patient */}
-      <group name="downed-motorcycle" position={[-3.6, 0, 1.6]} rotation={[0, 1.1, Math.PI / 2 - 0.1]}>
+      {/* Downed motorcycle — generic roadside only. Pedestrian MVC already has the sedan. */}
+      {!traumaDressing && <group name="downed-motorcycle" position={[-3.6, 0, 1.6]} rotation={[0, 1.1, Math.PI / 2 - 0.1]}>
         {/* Frame */}
         <mesh position={[0, 0.15, 0]} castShadow raycast={NO_RAYCAST}>
           <cylinderGeometry args={[0.06, 0.06, 1.8, 10]} />
@@ -1446,7 +1477,7 @@ function RoadsideScene({ shadowsEnabled, showPatientSeat }: { shadowsEnabled: bo
           <cylinderGeometry args={[0.025, 0.025, 0.5, 8]} />
           <meshStandardMaterial color="#3a3a3a" metalness={0.6} roughness={0.4} />
         </mesh>
-      </group>
+      </group>}
 
       {/* Debris scattered across the road — small low-poly shards */}
       {[
@@ -1511,6 +1542,7 @@ export function SceneVariantEnvironment({
   showPatientSeat,
   patientSeatKind,
   sceneProfile,
+  onAnchorsReady,
 }: {
   variant: Exclude<EnvironmentVariant, 'clinic'>;
   hideOverhead: boolean;
@@ -1518,18 +1550,20 @@ export function SceneVariantEnvironment({
   showPatientSeat: boolean;
   patientSeatKind?: PatientSeatKind;
   sceneProfile?: SceneProfile;
+  onAnchorsReady?: (anchors: SceneAnchorSet) => void;
 }) {
-  if (variant === 'home') return <HomeScene hideOverhead={hideOverhead} shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} patientSeatKind={patientSeatKind} sceneProfile={sceneProfile} />;
+  if (variant === 'home') return <HomeScene hideOverhead={hideOverhead} shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} patientSeatKind={patientSeatKind} sceneProfile={sceneProfile} onAnchorsReady={onAnchorsReady} />;
   if (variant === 'public') return <PublicScene hideOverhead={hideOverhead} shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} />;
   if (variant === 'industrial') return <IndustrialScene shadowsEnabled={shadowsEnabled} />;
   if (variant === 'fire') return <FireScene shadowsEnabled={shadowsEnabled} />;
   if (variant === 'water') return <WaterScene shadowsEnabled={shadowsEnabled} />;
   if (variant === 'heat') return <HeatScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} />;
   if (variant === 'agricultural') return <AgriculturalScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} />;
-  return <RoadsideScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} />;
+  return <RoadsideScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} sceneProfile={sceneProfile} />;
 }
 
 useGLTF.preload('/models/props/kenney-sedan.glb');
 useGLTF.preload('/models/props/kenney-debris-bumper.glb');
 useGLTF.preload('/models/props/kenney-debris-door.glb');
 useGLTF.preload('/models/vehicle-patient-seat.glb');
+SCENE_ARCHETYPES.forEach(e => useGLTF.preload(e.glbUrl));
