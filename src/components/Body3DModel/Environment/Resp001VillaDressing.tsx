@@ -1,11 +1,22 @@
 import { useEffect, useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
-import { resp001VillaMeshVisible } from './sceneProfile';
+import { archetypeMeshVisible, resp001VillaMeshVisible, SCENE_ARCHETYPES } from './sceneProfile';
 import { extractSceneAnchors, type SceneAnchorSet } from '@/lib/sceneAnchors';
 
 const VILLA_DRESSING_URL = '/models/scenes/resp-001-villa-dressing.glb';
 const NO_RAYCAST = () => null;
+const RESP001_ENTRY = SCENE_ARCHETYPES.find(entry => entry.profile === 'resp-001-villa')!;
+
+function ancestorNames(object: THREE.Object3D): string[] {
+  const names: string[] = [];
+  let current: THREE.Object3D | null = object;
+  while (current) {
+    if (current.name) names.push(current.name);
+    current = current.parent;
+  }
+  return names;
+}
 
 /**
  * Case-specific furniture and narrative dressing for severe asthma.
@@ -34,7 +45,9 @@ export function Resp001VillaDressing({
     clone.traverse(object => {
       object.raycast = NO_RAYCAST;
       if (object instanceof THREE.Mesh) {
-        object.visible = resp001VillaMeshVisible(object.name, showPatientSeat);
+        const keepSeat = resp001VillaMeshVisible(object.name, showPatientSeat);
+        const keepShell = archetypeMeshVisible(ancestorNames(object), RESP001_ENTRY);
+        object.visible = keepSeat && keepShell;
         object.castShadow = shadowsEnabled;
         object.receiveShadow = true;
       }

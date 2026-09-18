@@ -14,13 +14,15 @@ export interface CameraOrbitSafety {
  * becoming a scenic card in the patient-facing view.
  */
 export const RESP001_VILLA_SHELL = {
-  halfWidth: 3.25,
-  backZ: -2.6,
+  // Rev7 sofa / kit / first-aid sit outside the shared 3.25 m home box
+  // (PatientRest x=-1.1, kit x=3.6, first-aid x=4.2 z=-3.2, ficus x=-4.65).
+  halfWidth: 5.6,
+  backZ: -4.2,
   frontZ: 5.25,
   floorY: -0.05,
-  ceilingY: 2.7,
+  ceilingY: 2.85,
   wallDepth: 0.06,
-  overviewTarget: { x: 0, y: 0.751, z: 0.78 },
+  overviewTarget: { x: -1.1, y: 1.12, z: -0.24 },
 } as const;
 
 /**
@@ -65,7 +67,7 @@ const OPEN_SCENE: CameraOrbitSafety = {
 
 // Shared villa room front is open at z=+2.8. The resp-001 profile adds a
 // physical front wall at RESP001_VILLA_SHELL.frontZ, beyond the camera orbit.
-// Back wall: z=-2.6; hall: z=-5.4; side walls: x=±3.25.
+// Back wall: z=-4.2; hall: z=-6.2 on the right; side walls: x=±5.6.
 
 /**
  * Keep a first-person camera inside authored indoor shells.

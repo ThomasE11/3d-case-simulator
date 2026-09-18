@@ -320,19 +320,25 @@ function Resp001VillaArrivalExterior() {
 /** Warm UAE daylight entering through the villa window. A RectAreaLight gives
  *  the broad, soft window wash; the existing spot remains the single shadow
  *  caster so the patient still gets a readable key shadow on the floor. */
-function WindowAreaLight() {
+function WindowAreaLight({
+  backZ = ROOM.backZ,
+  lookAtTarget = [0, 0.9, 0],
+}: {
+  backZ?: number;
+  lookAtTarget?: readonly [number, number, number];
+}) {
   const ref = useRef<THREE.RectAreaLight>(null);
   useEffect(() => {
     ensureRectAreaLightUniforms();
     // RectAreaLight is a Light, so lookAt points its emitting face (-Z) at
     // the patient rather than out through the glass.
-    ref.current?.lookAt(0, 0.9, 0);
-  }, []);
+    ref.current?.lookAt(lookAtTarget[0], lookAtTarget[1], lookAtTarget[2]);
+  }, [lookAtTarget]);
   return (
     <rectAreaLight
       ref={ref}
       args={['#ffd7a6', 4.2, 1.9, 1.25]}
-      position={[-1.45, 1.58, ROOM.backZ + 0.1]}
+      position={[-1.45, 1.58, backZ + 0.1]}
     />
   );
 }
@@ -340,7 +346,17 @@ function WindowAreaLight() {
 // Dust motes drifting through the window beam. Kept separate from the bay
 // motes so the villa beam reads as daylight, not surgical-light dust.
 const HOME_DUST_HEIGHT = 1.9;
-function HomeDustMotes({ count = 90, opacity = 0.26, size = 0.012 }: { count?: number; opacity?: number; size?: number }) {
+function HomeDustMotes({
+  count = 90,
+  opacity = 0.26,
+  size = 0.012,
+  backZ = ROOM.backZ,
+}: {
+  count?: number;
+  opacity?: number;
+  size?: number;
+  backZ?: number;
+}) {
   const pointsRef = useRef<THREE.Points>(null);
   const data = useMemo(() => {
     const base = new Float32Array(count * 3);
@@ -348,12 +364,12 @@ function HomeDustMotes({ count = 90, opacity = 0.26, size = 0.012 }: { count?: n
     for (let i = 0; i < count; i++) {
       base[i * 3] = -1.45 + (Math.random() - 0.5) * 1.5;
       base[i * 3 + 1] = 0.25 + Math.random() * HOME_DUST_HEIGHT;
-      base[i * 3 + 2] = ROOM.backZ + 0.35 + Math.random() * 1.8;
+      base[i * 3 + 2] = backZ + 0.35 + Math.random() * 1.8;
       seed[i * 2] = Math.random() * Math.PI * 2;
       seed[i * 2 + 1] = 0.01 + Math.random() * 0.03;
     }
     return { base, seed, positions: base.slice() };
-  }, [count]);
+  }, [backZ, count]);
 
   useFrame(({ clock }) => {
     const points = pointsRef.current;
@@ -413,18 +429,25 @@ function HomeScene({
       ? SCENE_ARCHETYPES.find(e => e.profile === sceneProfile)
       : undefined;
   const hideGenericHomeFurniture = hasResp001Dressing || Boolean(archetype);
+  const roomHalfW = hasResp001Dressing ? RESP001_VILLA_SHELL.halfWidth : ROOM.halfW;
+  const roomBackZ = hasResp001Dressing ? RESP001_VILLA_SHELL.backZ : ROOM.backZ;
   const roomFrontZ = hasResp001Dressing ? RESP001_VILLA_SHELL.frontZ : ROOM.frontZ;
+  const roomHeight = hasResp001Dressing ? RESP001_VILLA_SHELL.ceilingY : ROOM.height;
   // The original shared shell is intentionally centred at z=0. Preserve it
-  // exactly for other cases; only the pilot gets the extended physical room.
-  const roomDepth = hasResp001Dressing ? roomFrontZ - ROOM.backZ : ROOM.frontZ - ROOM.backZ;
-  const roomCentreZ = hasResp001Dressing ? (ROOM.backZ + roomFrontZ) / 2 : 0;
+  // exactly for other cases; only the pilot gets the extended physical room
+  // that encloses the rev7 sofa / kit table / first-aid cabinet.
+  const roomDepth = roomFrontZ - roomBackZ;
+  const roomCentreZ = hasResp001Dressing ? (roomBackZ + roomFrontZ) / 2 : 0;
   const entryHalfWidth = RESP001_VILLA_ENTRY.openingWidth / 2;
-  const frontWallHeight = ROOM.height;
+  const frontWallHeight = roomHeight;
+  const windowLookAt = hasResp001Dressing
+    ? ([RESP001_VILLA_SHELL.overviewTarget.x, 0.9, RESP001_VILLA_SHELL.overviewTarget.z] as const)
+    : ([0, 0.9, 0] as const);
   return (
     <group>
       {/* Oak floor */}
       <mesh name={hasResp001Dressing ? 'resp001-villa-floor' : undefined} position={[0, -0.05, roomCentreZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
-        <planeGeometry args={[ROOM.halfW * 2, roomDepth]} />
+        <planeGeometry args={[roomHalfW * 2, roomDepth]} />
         <meshStandardMaterial
           map={tex.wood.map}
           normalMap={tex.wood.normalMap}
@@ -464,26 +487,26 @@ function HomeScene({
           painting a dark rectangle on the old wall preserved the stage-box
           silhouette and supplied no parallax when the student orbited. */}
       {([
-        [(-ROOM.halfW + HALL.leftX) / 2, HALL.leftX + ROOM.halfW],
-        [(HALL.rightX + ROOM.halfW) / 2, ROOM.halfW - HALL.rightX],
+        [(-roomHalfW + HALL.leftX) / 2, HALL.leftX + roomHalfW],
+        [(HALL.rightX + roomHalfW) / 2, roomHalfW - HALL.rightX],
       ] as const).map(([x, width]) => (
-        <mesh key={`back-wall-${x}`} position={[x, ROOM.height / 2 - 0.05, ROOM.backZ]} receiveShadow raycast={NO_RAYCAST}>
-          <boxGeometry args={[width, ROOM.height, 0.06]} />
+        <mesh key={`back-wall-${x}`} position={[x, roomHeight / 2 - 0.05, roomBackZ]} receiveShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[width, roomHeight, 0.06]} />
           <meshStandardMaterial map={tex.plaster.map} normalMap={tex.plaster.normalMap} normalScale={[0.5, 0.5]} roughness={0.92} />
         </mesh>
       ))}
       <mesh
-        position={[(HALL.leftX + HALL.rightX) / 2, HALL.openingHeight + (ROOM.height - HALL.openingHeight) / 2 - 0.05, ROOM.backZ]}
+        position={[(HALL.leftX + HALL.rightX) / 2, HALL.openingHeight + (roomHeight - HALL.openingHeight) / 2 - 0.05, roomBackZ]}
         receiveShadow
         raycast={NO_RAYCAST}
       >
-        <boxGeometry args={[HALL.rightX - HALL.leftX, ROOM.height - HALL.openingHeight, 0.06]} />
+        <boxGeometry args={[HALL.rightX - HALL.leftX, roomHeight - HALL.openingHeight, 0.06]} />
         <meshStandardMaterial map={tex.plaster.map} normalMap={tex.plaster.normalMap} normalScale={[0.5, 0.5]} roughness={0.92} />
       </mesh>
       {/* Side walls */}
-      {[-ROOM.halfW, ROOM.halfW].map((x) => (
-        <mesh key={`wall-${x}`} name={hasResp001Dressing ? `resp001-villa-side-wall-${x < 0 ? 'left' : 'right'}` : undefined} position={[x, ROOM.height / 2 - 0.05, roomCentreZ]} receiveShadow raycast={NO_RAYCAST}>
-          <boxGeometry args={[0.06, ROOM.height, roomDepth]} />
+      {[-roomHalfW, roomHalfW].map((x) => (
+        <mesh key={`wall-${x}`} name={hasResp001Dressing ? `resp001-villa-side-wall-${x < 0 ? 'left' : 'right'}` : undefined} position={[x, roomHeight / 2 - 0.05, roomCentreZ]} receiveShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.06, roomHeight, roomDepth]} />
           <meshStandardMaterial map={tex.plaster.map} normalMap={tex.plaster.normalMap} normalScale={[0.5, 0.5]} roughness={0.92} />
         </mesh>
       ))}
@@ -494,8 +517,8 @@ function HomeScene({
               front plane made a sealed box, with the arrival origin stranded
               in an unexplained void beyond it. */}
           {([
-            [-(ROOM.halfW + entryHalfWidth) / 2, ROOM.halfW - entryHalfWidth],
-            [(ROOM.halfW + entryHalfWidth) / 2, ROOM.halfW - entryHalfWidth],
+            [-(roomHalfW + entryHalfWidth) / 2, roomHalfW - entryHalfWidth],
+            [(roomHalfW + entryHalfWidth) / 2, roomHalfW - entryHalfWidth],
           ] as const).map(([x, width], index) => (
             <mesh
               key={`resp001-villa-front-wall-${index}`}
@@ -523,8 +546,8 @@ function HomeScene({
             <meshStandardMaterial color="#eee1cf" roughness={0.66} />
           </mesh>
           {([
-            [-(ROOM.halfW + entryHalfWidth) / 2, ROOM.halfW - entryHalfWidth],
-            [(ROOM.halfW + entryHalfWidth) / 2, ROOM.halfW - entryHalfWidth],
+            [-(roomHalfW + entryHalfWidth) / 2, roomHalfW - entryHalfWidth],
+            [(roomHalfW + entryHalfWidth) / 2, roomHalfW - entryHalfWidth],
           ] as const).map(([x, width], index) => (
             <mesh key={`resp001-villa-front-skirting-${index}`} position={[x, 0.05, roomFrontZ - 0.04]} raycast={NO_RAYCAST}>
               <boxGeometry args={[width, 0.14, 0.02]} />
@@ -548,15 +571,15 @@ function HomeScene({
 
       {/* Skirting boards — broken around the doorway rather than bridging it. */}
       {([
-        [(-ROOM.halfW + HALL.leftX) / 2, HALL.leftX + ROOM.halfW],
-        [(HALL.rightX + ROOM.halfW) / 2, ROOM.halfW - HALL.rightX],
+        [(-roomHalfW + HALL.leftX) / 2, HALL.leftX + roomHalfW],
+        [(HALL.rightX + roomHalfW) / 2, roomHalfW - HALL.rightX],
       ] as const).map(([x, width]) => (
-        <mesh key={`back-skirt-${x}`} position={[x, 0.05, ROOM.backZ + 0.04]} raycast={NO_RAYCAST}>
+        <mesh key={`back-skirt-${x}`} position={[x, 0.05, roomBackZ + 0.04]} raycast={NO_RAYCAST}>
           <boxGeometry args={[width, 0.14, 0.02]} />
           <meshStandardMaterial color="#e8ddc8" roughness={0.7} />
         </mesh>
       ))}
-      {[-ROOM.halfW + 0.04, ROOM.halfW - 0.04].map((x) => (
+      {[-roomHalfW + 0.04, roomHalfW - 0.04].map((x) => (
         <mesh key={`skirt-${x}`} position={[x, 0.05, roomCentreZ]} raycast={NO_RAYCAST}>
           <boxGeometry args={[0.02, 0.14, roomDepth]} />
           <meshStandardMaterial color="#e8ddc8" roughness={0.7} />
@@ -566,31 +589,31 @@ function HomeScene({
       {/* Adjoining hallway: continued timber floor, side walls and a distant
           interior door create real depth instead of a flat scenic backdrop. */}
       <mesh
-        position={[(HALL.leftX + HALL.rightX) / 2, -0.049, (ROOM.backZ + HALL.backZ) / 2]}
+        position={[(HALL.leftX + HALL.rightX) / 2, -0.049, (roomBackZ + HALL.backZ) / 2]}
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
         raycast={NO_RAYCAST}
       >
-        <planeGeometry args={[HALL.rightX - HALL.leftX, ROOM.backZ - HALL.backZ]} />
+        <planeGeometry args={[HALL.rightX - HALL.leftX, roomBackZ - HALL.backZ]} />
         <meshStandardMaterial map={tex.wood.map} normalMap={tex.wood.normalMap} normalScale={[0.55, 0.55]} roughness={0.5} />
       </mesh>
       {[HALL.leftX, HALL.rightX].map((x) => (
         <mesh
           key={`hall-wall-${x}`}
-          position={[x, ROOM.height / 2 - 0.05, (ROOM.backZ + HALL.backZ) / 2]}
+          position={[x, roomHeight / 2 - 0.05, (roomBackZ + HALL.backZ) / 2]}
           receiveShadow
           raycast={NO_RAYCAST}
         >
-          <boxGeometry args={[0.06, ROOM.height, ROOM.backZ - HALL.backZ]} />
+          <boxGeometry args={[0.06, roomHeight, roomBackZ - HALL.backZ]} />
           <meshStandardMaterial map={tex.plaster.map} normalMap={tex.plaster.normalMap} normalScale={[0.45, 0.45]} roughness={0.92} />
         </mesh>
       ))}
       <mesh
-        position={[(HALL.leftX + HALL.rightX) / 2, ROOM.height / 2 - 0.05, HALL.backZ]}
+        position={[(HALL.leftX + HALL.rightX) / 2, roomHeight / 2 - 0.05, HALL.backZ]}
         receiveShadow
         raycast={NO_RAYCAST}
       >
-        <boxGeometry args={[HALL.rightX - HALL.leftX, ROOM.height, 0.06]} />
+        <boxGeometry args={[HALL.rightX - HALL.leftX, roomHeight, 0.06]} />
         <meshStandardMaterial map={tex.plaster.map} normalMap={tex.plaster.normalMap} normalScale={[0.45, 0.45]} roughness={0.92} />
       </mesh>
       <group position={[(HALL.leftX + HALL.rightX) / 2, 1.02, HALL.backZ + 0.05]}>
@@ -611,20 +634,20 @@ function HomeScene({
       </group>
       {([HALL.leftX, HALL.rightX] as const).map((x) => (
         <group key={`door-trim-${x}`}>
-          <mesh position={[x, HALL.openingHeight / 2, ROOM.backZ + 0.055]} raycast={NO_RAYCAST}>
+          <mesh position={[x, HALL.openingHeight / 2, roomBackZ + 0.055]} raycast={NO_RAYCAST}>
             <boxGeometry args={[0.09, HALL.openingHeight, 0.08]} />
             <meshStandardMaterial color="#eee1cf" roughness={0.66} />
           </mesh>
         </group>
       ))}
-      <mesh position={[(HALL.leftX + HALL.rightX) / 2, HALL.openingHeight, ROOM.backZ + 0.055]} raycast={NO_RAYCAST}>
+      <mesh position={[(HALL.leftX + HALL.rightX) / 2, HALL.openingHeight, roomBackZ + 0.055]} raycast={NO_RAYCAST}>
         <boxGeometry args={[HALL.rightX - HALL.leftX + 0.18, 0.09, 0.08]} />
         <meshStandardMaterial color="#eee1cf" roughness={0.66} />
       </mesh>
 
       {/* Window on the back wall — glass + parallax exterior + frame.
           The far-plane sits a little behind the glass so it reads as depth. */}
-      <group position={[-1.45, 1.5, ROOM.backZ + 0.04]}>
+      <group position={[-1.45, 1.5, roomBackZ + 0.04]}>
         {/* Exterior view (emissive photo). Falls back to a warm glow plane. */}
         <group position={[0, 0, -0.12]}>
           {hasResp001Dressing ? (
@@ -659,7 +682,7 @@ function HomeScene({
       </group>
 
       {/* Wall-mounted AC unit — top of the back wall, right side */}
-      <group position={[1.6, 2.42, ROOM.backZ + 0.09]}>
+      <group position={[1.6, 2.42, roomBackZ + 0.09]}>
         <mesh castShadow raycast={NO_RAYCAST}>
           <boxGeometry args={[0.95, 0.3, 0.18]} />
           <meshStandardMaterial color="#f4f6f8" roughness={0.55} metalness={0.05} />
@@ -739,8 +762,8 @@ function HomeScene({
       </group>
 
       {(!hideOverhead || hasResp001Dressing) && (
-        <mesh name={hasResp001Dressing ? 'resp001-villa-ceiling' : undefined} position={[0, ROOM.height - 0.05, roomCentreZ]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
-          <planeGeometry args={[ROOM.halfW * 2, roomDepth]} />
+        <mesh name={hasResp001Dressing ? 'resp001-villa-ceiling' : undefined} position={[0, roomHeight - 0.05, roomCentreZ]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
+          <planeGeometry args={[roomHalfW * 2, roomDepth]} />
           <meshStandardMaterial color="#f1e9da" roughness={0.9} />
         </mesh>
       )}
@@ -749,13 +772,13 @@ function HomeScene({
           a warm spot remains the single shadow caster; the floor lamp adds a
           practical pool and the AC gives a cool top-fill so the room reads
           like a villa interior instead of a clinic bay. */}
-      <WindowAreaLight />
+      <WindowAreaLight backZ={roomBackZ} lookAtTarget={windowLookAt} />
       {hasResp001Dressing
-        ? <HomeDustMotes count={24} opacity={0.08} size={0.006} />
+        ? <HomeDustMotes count={24} opacity={0.08} size={0.006} backZ={roomBackZ} />
         : <HomeDustMotes />}
-      <KeyLight color="#ffe0b8" intensity={5.6} position={[-1.45, 2.35, ROOM.backZ + 0.55]} shadowsEnabled={shadowsEnabled} />
-      <pointLight position={[-1.45, 1.6, ROOM.backZ + 0.3]} intensity={2.6} distance={6} decay={2} color="#fff0d2" />
-      <pointLight position={[1.6, 2.18, ROOM.backZ + 0.35]} intensity={1.15} distance={4.5} decay={2} color="#cfe0ff" />
+      <KeyLight color="#ffe0b8" intensity={5.6} position={[-1.45, 2.35, roomBackZ + 0.55]} shadowsEnabled={shadowsEnabled} />
+      <pointLight position={[-1.45, 1.6, roomBackZ + 0.3]} intensity={2.6} distance={6} decay={2} color="#fff0d2" />
+      <pointLight position={[1.6, 2.18, roomBackZ + 0.35]} intensity={1.15} distance={4.5} decay={2} color="#cfe0ff" />
       <pointLight position={[1.6, 1.8, HALL.backZ + 0.45]} intensity={1.1} distance={4} decay={2} color="#ffe5bf" />
       <pointLight position={[1.0, 1.0, 1.6]} intensity={0.85} distance={4.5} decay={2} color="#ffd9b0" />
       <hemisphereLight args={['#fff1dc', '#4a382c', 0.16]} />

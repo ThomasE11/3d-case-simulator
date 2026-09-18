@@ -13,19 +13,24 @@ export type SceneAnchorSet = {
 };
 
 /**
- * Calibrated against the chair-kit `asthma_chair_seat_cushion` that ships in
- * `public/models/scenes/resp-001-villa-dressing.glb`. Named empties from a
- * later Jutsu drop (PatientRestAnchor at cushion top ≈ 0.91 m) override these
- * at runtime without a second wiring pass.
+ * Morph calibration from the original chair-kit sit: soles hang
+ * `RESP001_SEAT_FORWARD` metres in front of the rest empty, and a 0.051 m
+ * support lift plants the pelvis on a 0.541 m cushion. Jutsu rev7 keeps that
+ * relationship and only changes the rest empty (sofa top ≈ 0.91 m).
+ *
+ * Do NOT derive seat-forward from the rest Z — a sofa at z=-0.52 would shove
+ * the patient 1.3 m into the coffee table.
  */
-export const RESP001_CALIBRATED_REST: SceneAnchorPoint = { x: 0, y: 0.541, z: 0.5 };
-export const RESP001_CALIBRATED_KIT: SceneAnchorPoint = { x: 1.28, y: 0.58, z: 0.05 };
-export const RESP001_CALIBRATED_FIRST_AID: SceneAnchorPoint = { x: 2.91, y: 0.38, z: -0.35 };
-export const RESP001_CALIBRATED_ROOT_Z = 0.78;
-export const RESP001_SEAT_FORWARD = RESP001_CALIBRATED_ROOT_Z - RESP001_CALIBRATED_REST.z;
+export const RESP001_NATIVE_SEAT_Y = 0.541;
+export const RESP001_SEAT_FORWARD = 0.28;
+export const RESP001_CALIBRATED_REST: SceneAnchorPoint = { x: -1.1, y: 0.91, z: -0.52 };
+export const RESP001_CALIBRATED_KIT: SceneAnchorPoint = { x: 3.6, y: 0.565, z: 0.4 };
+export const RESP001_CALIBRATED_FIRST_AID: SceneAnchorPoint = { x: 4.2, y: 0.67, z: -3.2 };
+export const RESP001_CALIBRATED_ROOT_Z = RESP001_CALIBRATED_REST.z + RESP001_SEAT_FORWARD;
 
 const REST_NAMES = [
   'PatientRestAnchor',
+  'Sofa_cushion_1',
   'Sofa cushion 1',
   'asthma_chair_seat_cushion',
   'villa_sofa_seat_1',
@@ -75,9 +80,9 @@ export function fallbackSceneAnchors(): SceneAnchorSet {
     rest: { ...RESP001_CALIBRATED_REST },
     kit: { ...RESP001_CALIBRATED_KIT },
     firstAid: { ...RESP001_CALIBRATED_FIRST_AID },
-    restSource: 'calibrated-chair-cushion',
-    kitSource: 'calibrated-side-table',
-    firstAidSource: 'calibrated-media-console',
+    restSource: 'calibrated-patient-rest',
+    kitSource: 'calibrated-kit-staging',
+    firstAidSource: 'calibrated-first-aid',
   };
 }
 
@@ -98,9 +103,9 @@ export function extractSceneAnchors(root: THREE.Object3D): SceneAnchorSet {
     rest,
     kit,
     firstAid,
-    restSource: restHit?.name ?? 'calibrated-chair-cushion',
-    kitSource: kitHit?.name ?? 'calibrated-side-table',
-    firstAidSource: firstAidHit?.name ?? 'calibrated-media-console',
+    restSource: restHit?.name ?? 'calibrated-patient-rest',
+    kitSource: kitHit?.name ?? 'calibrated-kit-staging',
+    firstAidSource: firstAidHit?.name ?? 'calibrated-first-aid',
   };
 }
 
@@ -112,7 +117,7 @@ export function plantFromRestAnchor(rest: SceneAnchorPoint): {
   return {
     x: rest.x,
     z: rest.z + RESP001_SEAT_FORWARD,
-    seatedSupportLift: RESP001_SEATED_SUPPORT_LIFT + (rest.y - RESP001_CALIBRATED_REST.y),
+    seatedSupportLift: RESP001_SEATED_SUPPORT_LIFT + (rest.y - RESP001_NATIVE_SEAT_Y),
   };
 }
 

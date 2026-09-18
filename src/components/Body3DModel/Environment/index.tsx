@@ -799,7 +799,8 @@ export function TreatmentBayEnvironment({
         <ClinicalPatientSeat kind={patientSeatKind ?? 'desk'} />
       )}
       {(patientSupportSurface === 'bed' || patientSupportSurface === 'sofa')
-        && !isY2007OdBedroomProfile(sceneProfile) && (
+        && !isY2007OdBedroomProfile(sceneProfile)
+        && !isResp001VillaProfile(sceneProfile) && (
         <ScenePatientSupport kind={patientSupportSurface} seated={patientSeated} />
       )}
       {/* Medical equipment is brought by the paramedic in every scene, but the

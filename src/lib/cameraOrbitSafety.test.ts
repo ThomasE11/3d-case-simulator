@@ -12,7 +12,7 @@ describe('cameraOrbitSafetyForEnvironment', () => {
 
     expect(home.minAzimuthAngle).toBe(-Math.PI / 4);
     expect(home.maxAzimuthAngle).toBe(Math.PI / 4);
-    expect(home.maxDistance * Math.sin(home.maxAzimuthAngle)).toBeLessThan(3.25);
+    expect(home.maxDistance * Math.sin(home.maxAzimuthAngle)).toBeLessThan(RESP001_VILLA_SHELL.halfWidth);
   });
 
   it('fits the resp-001 overview orbit inside its physical villa shell', () => {

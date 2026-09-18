@@ -21,16 +21,18 @@ function namedEmpty(name: string, x: number, y: number, z: number) {
 }
 
 describe('resp-001 scene anchors', () => {
-  it('keeps the calibrated chair plant on the authored cushion', () => {
+  it('plants the patient on the authored sofa rest, not the old chair origin', () => {
     const plant = plantFromRestAnchor(RESP001_CALIBRATED_REST);
-    expect(plant.x).toBeCloseTo(0);
+    expect(plant.x).toBeCloseTo(RESP001_CALIBRATED_REST.x);
     expect(plant.z).toBeCloseTo(RESP001_CALIBRATED_ROOT_Z);
-    expect(plant.seatedSupportLift).toBeCloseTo(RESP001_SEATED_SUPPORT_LIFT);
+    expect(plant.seatedSupportLift).toBeCloseTo(
+      RESP001_SEATED_SUPPORT_LIFT + (RESP001_CALIBRATED_REST.y - 0.541),
+    );
 
     const transform = getTreatmentBayTransform('floor', 'tripod', 'seated', 1, plant.seatedSupportLift, plant);
-    expect(transform.position[0]).toBeCloseTo(0);
-    expect(transform.position[2]).toBeCloseTo(0.78);
-    expect(transform.position[1]).toBeCloseTo(-0.3672 + RESP001_SEATED_SUPPORT_LIFT);
+    expect(transform.position[0]).toBeCloseTo(RESP001_CALIBRATED_REST.x);
+    expect(transform.position[2]).toBeCloseTo(RESP001_CALIBRATED_ROOT_Z);
+    expect(transform.position[1]).toBeCloseTo(-0.3672 + plant.seatedSupportLift);
   });
 
   it('synthesises named empties from live furniture when Jutsu empties are absent', () => {
@@ -74,6 +76,6 @@ describe('resp-001 scene anchors', () => {
   it('falls back to the chair-kit calibration when the GLB has no furniture names', () => {
     const anchors = extractSceneAnchors(new THREE.Group());
     expect(anchors).toEqual(fallbackSceneAnchors());
-    expect(anchors.restSource).toBe('calibrated-chair-cushion');
+    expect(anchors.restSource).toBe('calibrated-patient-rest');
   });
 });

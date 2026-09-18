@@ -24,6 +24,18 @@ describe('sceneProfile', () => {
     expect(resp001VillaMeshVisible('asthma_rug', false)).toBe(true);
   });
 
+  it('hides Jutsu room-shell meshes so HomeScene walls are not doubled', () => {
+    const villa = SCENE_ARCHETYPES.find(entry => entry.profile === 'resp-001-villa');
+    expect(villa).toBeDefined();
+    expect(villa!.revision).toBe(7);
+    expect(archetypeMeshVisible(['Sofa_cushion_1'], villa!)).toBe(true);
+    expect(archetypeMeshVisible(['side_table'], villa!)).toBe(true);
+    expect(archetypeMeshVisible(['first_aid_cabinet'], villa!)).toBe(true);
+    expect(archetypeMeshVisible(['Back_plaster'], villa!)).toBe(false);
+    expect(archetypeMeshVisible(['Travertine_floor'], villa!)).toBe(false);
+    expect(archetypeMeshVisible(['Left_return'], villa!)).toBe(false);
+  });
+
   it('resolves P0 archetypes by case id', () => {
     expect(resolveSceneProfile({ id: 'resp-001' } as any)).toBe('resp-001-villa');
     expect(resolveSceneProfile({ id: 'y2-007' } as any)).toBe('y2-007-od-bedroom');
