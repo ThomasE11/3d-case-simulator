@@ -8,11 +8,14 @@
  * auscultation findings as vitals evolve.
  *
  * Gating:
- *  - Only mounts for the home/villa variant — clinic/public/roadside keep
- *    their own (existing) soundscape behaviour.
- *  - Respects the global voice-enabled preference the same way narration
- *    does; if the student muted voice, the room stays silent too.
- *  - Tears down fully on unmount (stop + disconnect + listener detach).
+ * - Mounts for every rendered environment variant. The home/villa variant
+ *    keeps its dedicated roomTone + AC hum + patient breath stack; every
+ *    outdoor variant additionally gets a synthesized scene bed (traffic,
+ *    water, fire crackle, worksite rumble) so the scene sounds like the
+ *    place it draws instead of being silent.
+ * - Respects the global voice-enabled preference the same way narration
+ *    does; if the student muted voice, the whole soundscape goes silent.
+ * - Tears down fully on unmount (stop + disconnect + listener detach).
  */
 
 import { useEffect, useRef } from 'react';
@@ -58,9 +61,10 @@ export function AmbientAudioLayer({
   const [patientX, patientY, patientZ] = patientPosition;
 
   useEffect(() => {
-    if (!active || variant !== 'home') return undefined;
+    if (!active) return undefined;
     const state = createAmbientAudio({
       enabled: getVoiceEnabledPreference(),
+      variant,
       patientPosition: [patientX, patientY, patientZ],
     });
     stateRef.current = state;

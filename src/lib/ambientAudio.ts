@@ -23,12 +23,14 @@
 
 import * as THREE from 'three';
 import { registerAudioContextForUnlock } from '@/data/clinicalSounds';
+import type { EnvironmentVariant } from '@/lib/sceneEnvironment';
 
 export type AmbientBreathKind = 'wheeze' | 'stridor' | 'clear' | 'none';
 export type AmbientAudioPosition = readonly [number, number, number];
 
 export interface AmbientAudioOptions {
   enabled?: boolean;
+  variant?: EnvironmentVariant;
   patientPosition?: AmbientAudioPosition;
 }
 
@@ -36,6 +38,7 @@ export interface AmbientAudioState {
   listener: THREE.AudioListener;
   roomTone: THREE.Audio;
   ac: THREE.PositionalAudio;
+  bed: THREE.Audio;
   patient: THREE.PositionalAudio;
   setPatientBreath(kind: AmbientBreathKind, rpm: number): void;
   setPatientPosition(position: AmbientAudioPosition): void;
@@ -50,6 +53,116 @@ const AC_HUM_SECONDS = 4;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+/** Procedural ambient bed for the non-villa scene variants.
+ *
+ * Phase C3 of the realism overhaul: every rendered environment should sound
+ * like the place it draws. The villa already has room tone + AC hum + patient
+ * breath; the outdoor variants were silent. Each of these is synthesized in
+ * an AudioBuffer at startup — no audio assets to ship or license.
+ *
+ * The bed is intentionally simple: a low-passed pink-noise air layer plus one
+ * or two characteristic tones (traffic, water, wind, fire crackle, worksite
+ * clang). It never competes with the patient breath emitter or the
+ * auscultation sounds — it sits under them, and the volume is set so the
+ * student can hear it without it ever being the loudest thing in the scene.
+ */
+export function makeSceneBedBuffer(ctx: AudioContext, variant: EnvironmentVariant): AudioBuffer {
+  const sr = ctx.sampleRate;
+  const seconds = 8;
+  const length = Math.max(1, Math.floor(sr * seconds));
+  const buffer = ctx.createBuffer(1, length, sr);
+  const data = buffer.getChannelData(0);
+  const noise = pinkNoise(length);
+
+  let air = 0;
+  let rumble = 0;
+  let bed = 0;
+  for (let i = 0; i < length; i++) {
+    const t = i / sr;
+    // Shared air bed: low-passed pink noise, the common denominator of every
+    // outdoor scene. The variant-specific content layers on top.
+    air += 0.012 * (noise[i] - air);
+    const swell = 0.55 + 0.45 * Math.sin((2 * Math.PI * t) / 7 + noise[i] * 0.4);
+
+    switch (variant) {
+      case 'clinic': {
+        // Quiet. The treatment bay already carries its own ambience; this
+        // buffer is unused for the clinic variant but exported for symmetry.
+        bed = air * swell * 0.04;
+        break;
+      }
+      case 'home': {
+        // Villa room tone is handled by the dedicated roomTone buffer; this
+        // path is not taken for the home variant either.
+        bed = air * swell * 0.06;
+        break;
+      }
+      case 'roadside': {
+        // Distant traffic: a slow low-frequency swell plus a faint
+        // high-frequency hiss of tyres on asphalt.
+        rumble += 0.02 * (noise[i] - rumble);
+        const tyre = air * 0.4;
+        bed = rumble * swell * 0.5 + tyre * 0.18;
+        break;
+      }
+      case 'public': {
+        // Indoor public venue — distant murmur of voices, modelled as a
+        // soft pink-noise swell with a gentle low-frequency room tone.
+        rumble += 0.015 * (noise[i] - rumble);
+        bed = rumble * swell * 0.32 + air * 0.1;
+        break;
+      }
+      case 'industrial': {
+        // Worksites carry a constant distant machinery rumble plus a faint
+        // high-pitched whine from a generator or compressor.
+        rumble += 0.025 * (noise[i] - rumble);
+        const whine = Math.sin(2 * Math.PI * 180 * t) * 0.03
+          + Math.sin(2 * Math.PI * 360 * t) * 0.012;
+        bed = rumble * swell * 0.45 + whine;
+        break;
+      }
+      case 'fire': {
+        // Residual fire: low rumble from the smouldering structure plus a
+        // soft crackle band. The scene already renders animated smoke; the
+        // audio gives the embers a voice without needing a flame prop.
+        rumble += 0.02 * (noise[i] - rumble);
+        const crackle = Math.max(0, noise[i]) * 0.12;
+        bed = rumble * swell * 0.5 + crackle;
+        break;
+      }
+      case 'water': {
+        // Water rescue — gentle lapping against the shore / apron, with a
+        // faint distant surf swell. The scene renders the water surface; the
+        // audio gives it motion.
+        rumble += 0.018 * (noise[i] - rumble);
+        const lap = Math.sin(2 * Math.PI * 0.35 * t + noise[i] * 1.5) * 0.05
+          + Math.sin(2 * Math.PI * 0.7 * t) * 0.025;
+        bed = rumble * swell * 0.4 + lap;
+        break;
+      }
+      case 'heat': {
+        // Heat exposure — hot shimmer: a low rumble plus a faint high hiss
+        // of hot air. The scene renders the shimmer; the audio adds the
+        // oppressive stillness.
+        rumble += 0.015 * (noise[i] - rumble);
+        const shimmer = air * 0.3;
+        bed = rumble * swell * 0.4 + shimmer;
+        break;
+      }
+      case 'agricultural': {
+        // Farm field — wind across open ground plus distant livestock.
+        rumble += 0.018 * (noise[i] - rumble);
+        const wind = air * 0.35;
+        bed = rumble * swell * 0.38 + wind;
+        break;
+      }
+    }
+    data[i] = bed;
+  }
+  normalize(data, 0.35);
+  return buffer;
 }
 
 /** Paul Kellet-style pink noise, roughly -3 dB/octave. */
@@ -173,6 +286,7 @@ function makeBreathBuffer(ctx: AudioContext, kind: Exclude<AmbientBreathKind, 'n
 const VOLUME = {
   roomTone: 0.045,
   ac: 0.11,
+  bed: 0.05,
   wheeze: 0.34,
   stridor: 0.34,
   clear: 0.16,
@@ -180,6 +294,7 @@ const VOLUME = {
 
 export function createAmbientAudio({
   enabled: initiallyEnabled = true,
+  variant = 'home',
   patientPosition = DEFAULT_AMBIENT_PATIENT_POSITION,
 }: AmbientAudioOptions = {}): AmbientAudioState {
   const listener = new THREE.AudioListener();
@@ -208,6 +323,17 @@ export function createAmbientAudio({
   ac.setVolume(initiallyEnabled ? VOLUME.ac : 0);
   ac.play();
 
+  // Scene bed: the variant-specific ambient layer. The villa keeps its own
+  // roomTone+AC stack; every outdoor variant gets a synthesized bed so the
+  // scene sounds like the place it draws instead of being silent.
+  const bed = new THREE.Audio(listener);
+  bed.name = `scene-bed-${variant}`;
+  bed.userData.audioRole = 'scene-bed';
+  bed.setBuffer(makeSceneBedBuffer(ctx, variant));
+  bed.setLoop(true);
+  bed.setVolume(initiallyEnabled ? VOLUME.bed : 0);
+  bed.play();
+
   const patient = new THREE.PositionalAudio(listener);
   patient.name = 'patient-breath';
   patient.userData.audioRole = 'patient-breath';
@@ -228,6 +354,7 @@ export function createAmbientAudio({
     enabled = on;
     roomTone.setVolume(on ? VOLUME.roomTone : 0);
     ac.setVolume(on ? VOLUME.ac : 0);
+    bed.setVolume(on ? VOLUME.bed : 0);
     if (patient.buffer) patient.setVolume(on ? patientVolumeFor(currentKind) : 0);
   };
 
@@ -259,7 +386,7 @@ export function createAmbientAudio({
 
   const dispose = (): void => {
     document.removeEventListener('visibilitychange', onVisibility);
-    for (const audio of [roomTone, ac, patient] as const) {
+    for (const audio of [roomTone, ac, bed, patient] as const) {
       try {
         if (audio.isPlaying) audio.stop();
         audio.disconnect();
@@ -279,6 +406,7 @@ export function createAmbientAudio({
     listener,
     roomTone,
     ac,
+    bed,
     patient,
     setPatientBreath,
     setPatientPosition,
