@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { LipSeam } from './lipSeamTable';
 
 /**
  * Resp-001-only replacement geometry for the shipped `viseme_open` target.
@@ -6,6 +7,12 @@ import * as THREE from 'three';
  * This is amplitude-reactive articulation: one measured audio envelope opens
  * the lips through the existing morph slot. It does not claim
  * phoneme, word, or syllable alignment; there is no transcript timing input.
+ *
+ * The vermilion band is derived from each mesh's own measured mouth seam
+ * (lipSeamForCrown), so the articulation lands on the real mouth of whatever
+ * GLB is loaded — adult male, adult female, adolescent, child, toddler or
+ * infant, male or female. The adult male row reproduces the old hardcoded
+ * band exactly, so existing behaviour is unchanged.
  */
 export const RESP001_LIP_ARTICULATION_MORPH = 'viseme_open';
 
@@ -25,28 +32,71 @@ export type Resp001LipSide = -1 | 0 | 1;
  * differ, so reusing the male band would land the movement on the wrong part
  * of the face).
  */
+/** The ten shipped patient meshes whose mouth seam was measured. The
+ * legacy `patient.glb` is excluded even though it shares the adult male
+ * crown, because its seam was never calibrated. */
+const MEASURED_SEAM_MODELS = new Set([
+  '/models/patient-male.glb',
+  '/models/patient-female.glb',
+  '/models/patient-adolescent-male.glb',
+  '/models/patient-adolescent-female.glb',
+  '/models/patient-child-male.glb',
+  '/models/patient-child-female.glb',
+  '/models/patient-toddler-male.glb',
+  '/models/patient-toddler-female.glb',
+  '/models/patient-infant-male.glb',
+  '/models/patient-infant-female.glb',
+]);
+
+/**
+ * Whether the corrected articulation should replace the shipped `viseme_open`
+ * target for this mesh. The gate is crown-aware: every Patient mesh whose
+ * mouth seam was measured gets the corrected morph, and every mesh without a
+ * measured seam (no Patient node, no viseme_open, or an uncalibrated crown)
+ * keeps its shipped morph. The adult male row reproduces the old hardcoded
+ * band exactly, so its behaviour is unchanged.
+ */
 export function shouldApplyCorrectedLipArticulation(
   modelPath: string,
   meshName: string,
+  crown: number,
 ): boolean {
-  return modelPath === '/models/patient-male.glb' && meshName === 'Patient';
+  return MEASURED_SEAM_MODELS.has(modelPath)
+    && meshName === 'Patient'
+    && Number.isFinite(crown)
+    && crown > 0;
 }
 
-const LIP_X_FULL = 0.020;
-const LIP_X_OUTER = 0.028;
-const LIP_Y_MIN = 1.536;
-const LIP_Y_FULL_MIN = 1.538;
-// A 4.2 mm lip excursion cannot taper to zero over the previous 2 mm band:
-// its deformation gradient reverses the surface. Carry the supporting skin
-// over 20 mm, below the vermilion, while leaving the far chin/neck untouched.
-const LOWER_LIP_SUPPORT_Y_MIN = 1.518;
-const LIP_Y_FULL_MAX = 1.5485;
-const LIP_Y_MAX = 1.5585;
-const LIP_SEAM_Y_MAX = 1.5515;
-const LIP_Z_MIN = 0.138;
-const LIP_Z_FULL = 0.145;
-const LIP_SPLIT_LOW = 1.5425;
-const LIP_SPLIT_HIGH = 1.544;
+/** Reference (adult male) band extents, in the mesh's own local frame. The
+ * deformation thresholds scale these by the band's crown ratio, so the adult
+ * male row reproduces them exactly and every other mesh tracks its own size.
+ *
+ * These are the OLD hardcoded band, kept verbatim so the adult male mesh
+ * behaves exactly as before this change. The centre (1.54725) is exported from
+ * lipSeamTable as REF_Y_CENTER; the extents below are the old LIP_Y_MIN/MAX,
+ * LIP_X_OUTER, LIP_Z_MIN and the support/full thresholds authored as fixed
+ * offsets around that centre. */
+const REF_Y_MIN = 1.536;
+const REF_Y_MAX = 1.5585;
+const REF_Y_CENTER = 1.54725;
+const REF_Y_HALF = (REF_Y_MAX - REF_Y_MIN) / 2; // 0.01125
+const REF_X_OUTER = 0.028;
+const REF_X_FULL = 0.020;
+const REF_Z_MIN = 0.138;
+const REF_Z_FULL = 0.145;
+const REF_SUPPORT_Y_MIN = 1.518;
+const REF_FULL_MIN = 1.538;
+const REF_FULL_MAX = 1.5485;
+const REF_SPLIT_LOW = 1.5425;
+const REF_SPLIT_HIGH = 1.544;
+
+/** Reference (adult male) band, used by the 2-arg predicate form. */
+const REF_BAND: LipSeam = {
+  yCenter: REF_Y_CENTER,
+  yHalf: REF_Y_HALF,
+  xMax: REF_X_OUTER,
+  zMin: REF_Z_MIN,
+};
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
@@ -59,7 +109,13 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
 }
 
 /**
- * Relative morph delta in the male Patient mesh's local Three.js frame.
+ * Relative morph delta for a vertex, in the mesh's own local frame.
+ *
+ * The thresholds are the reference (adult male) extents scaled by the band's
+ * crown ratio, so the same deformation lands on the vermilion of whatever
+ * GLB is loaded. The adult male band reproduces the old hardcoded values
+ * exactly; every other mesh tracks its own measured mouth.
+ *
  * The vermilion and the skin immediately beneath it move together. Distant
  * cheek, philtrum, chin, and neck vertices remain at the authored positions.
  */
@@ -68,11 +124,13 @@ export function resp001LipArticulationDelta(
   y: number,
   z: number,
   seamSide: Resp001LipSide = 0,
+  band: LipSeam = REF_BAND,
 ): readonly [x: number, y: number, z: number] {
-  const lateral = 1 - smoothstep(LIP_X_FULL, LIP_X_OUTER, Math.abs(x));
-  const vertical = smoothstep(LOWER_LIP_SUPPORT_Y_MIN, LIP_Y_FULL_MIN, y)
-    * (1 - smoothstep(LIP_Y_FULL_MAX, LIP_Y_MAX, y));
-  const anterior = smoothstep(LIP_Z_MIN, LIP_Z_FULL, z);
+  const scale = band.yHalf / REF_BAND.yHalf;
+  const lateral = 1 - smoothstep(REF_X_FULL * scale, REF_X_OUTER * scale, Math.abs(x));
+  const vertical = smoothstep(REF_SUPPORT_Y_MIN * scale, REF_FULL_MIN * scale, y)
+    * (1 - smoothstep(REF_FULL_MAX * scale, REF_Y_MAX * scale, y));
+  const anterior = smoothstep(REF_Z_MIN * scale, REF_Z_FULL * scale, z);
   const coverage = lateral * vertical * anterior;
   if (coverage <= 0) return [0, 0, 0];
 
@@ -84,7 +142,7 @@ export function resp001LipArticulationDelta(
     ? 1
     : seamSide < 0
       ? 0
-      : smoothstep(LIP_SPLIT_LOW, LIP_SPLIT_HIGH, y);
+      : smoothstep(REF_SPLIT_LOW * scale, REF_SPLIT_HIGH * scale, y);
   const yDelta = (-0.0042 + upper * 0.0058) * coverage;
   const zDelta = (-0.0008 + upper * 0.0013) * coverage;
   return [0, yDelta, zDelta];
@@ -101,11 +159,11 @@ function edgeKey(a: number, b: number): string {
   return a < b ? `${a}:${b}` : `${b}:${a}`;
 }
 
-function isMouthSeamCandidate(position: THREE.BufferAttribute, index: number): boolean {
-  return Math.abs(position.getX(index)) <= LIP_X_OUTER
-    && position.getY(index) >= LIP_Y_MIN
-    && position.getY(index) <= LIP_SEAM_Y_MAX
-    && position.getZ(index) >= LIP_Z_MIN;
+function isMouthSeamCandidate(position: THREE.BufferAttribute, index: number, band: LipSeam): boolean {
+  return Math.abs(position.getX(index)) <= band.xMax
+    && position.getY(index) >= band.yCenter - band.yHalf
+    && position.getY(index) <= band.yCenter + band.yHalf
+    && position.getZ(index) >= band.zMin;
 }
 
 function correctedNormalDelta(
@@ -160,6 +218,7 @@ function correctedNormalDelta(
  */
 export function classifyResp001LipSeamSides(
   geometry: THREE.BufferGeometry,
+  band: LipSeam = REF_BAND,
 ): Int8Array {
   const position = geometry.getAttribute('position');
   const index = geometry.getIndex();
@@ -189,8 +248,8 @@ export function classifyResp001LipSeamSides(
 
   const boundary = [...edges.values()].filter(edge => (
     edge.count === 1
-    && isMouthSeamCandidate(position as THREE.BufferAttribute, edge.a)
-    && isMouthSeamCandidate(position as THREE.BufferAttribute, edge.b)
+    && isMouthSeamCandidate(position as THREE.BufferAttribute, edge.a, band)
+    && isMouthSeamCandidate(position as THREE.BufferAttribute, edge.b, band)
   ));
   const neighbours = new Map<number, Set<number>>();
   for (const edge of boundary) {
@@ -251,9 +310,11 @@ export function classifyResp001LipSeamSides(
   // Seed discovery stays restricted to the measured aperture. The curled lip
   // surface extends above it: carry its identity through the full 10 mm top
   // support taper instead of switching back to a height guess at the seed ROI.
-  const isLipSupport = (vertex: number) => Math.abs(position.getX(vertex)) <= LIP_X_OUTER
-    && position.getY(vertex) >= LIP_Y_MIN && position.getY(vertex) <= LIP_Y_MAX
-    && position.getZ(vertex) >= LIP_Z_MIN;
+  const scale = band.yHalf / REF_BAND.yHalf;
+  const isLipSupport = (vertex: number) => Math.abs(position.getX(vertex)) <= REF_X_OUTER * scale
+    && position.getY(vertex) >= REF_Y_MIN * scale
+    && position.getY(vertex) <= REF_Y_MAX * scale
+    && position.getZ(vertex) >= REF_Z_MIN * scale;
   for (const edge of edges.values()) {
     if (!isLipSupport(edge.a) || !isLipSupport(edge.b)) continue;
     if (!surface.has(edge.a)) surface.set(edge.a, new Set());
@@ -301,33 +362,38 @@ export function classifyResp001LipSeamSides(
 export function withResp001LipArticulationMorph(
   source: THREE.BufferGeometry,
   explicitVisemeIndex?: number,
+  band: LipSeam = REF_BAND,
 ): THREE.BufferGeometry {
-  const geometry = source.clone();
-  const position = geometry.getAttribute('position');
+  const position = source.getAttribute('position');
   if (!position || position.itemSize !== 3) {
     throw new Error('resp-001 lip articulation requires a vec3 position attribute');
   }
 
-  const existing = geometry.morphAttributes.position ?? [];
-  if (!geometry.morphTargetsRelative) {
+  const existing = source.morphAttributes.position ?? [];
+  if (!source.morphTargetsRelative) {
     throw new Error('resp-001 lip articulation requires relative morph targets');
   }
   const visemeIndex = explicitVisemeIndex ?? existing.findIndex(
     attribute => attribute.name === RESP001_LIP_ARTICULATION_MORPH,
   );
   if (!Number.isInteger(visemeIndex) || visemeIndex < 0 || visemeIndex >= existing.length) {
-    throw new Error('resp-001 lip articulation requires a valid viseme_open morph index');
+    // No viseme_open target to replace: nothing to articulate. Return the
+    // source unchanged so the caller keeps the shipped morph rather than
+    // cloning and painting on an empty slot.
+    return source;
   }
 
+  const geometry = source.clone();
   let seamSides: Int8Array;
   try {
-    seamSides = classifyResp001LipSeamSides(geometry);
+    seamSides = classifyResp001LipSeamSides(geometry, band);
   } catch {
     // The mouth seam was not found in the calibrated band (for example a
     // pediatric or otherwise uncalibrated mesh slipped past the caller's gate).
-    // Return the clone unchanged so the patient keeps its shipped morph rather
-    // than crashing the whole render. Articulation is cosmetic; the exam wins.
-    return geometry;
+    // Return the source unchanged so the patient keeps its shipped morph
+    // rather than crashing the whole render. Articulation is cosmetic; the
+    // exam wins.
+    return source;
   }
   const deltas = new Float32Array(position.count * 3);
   for (let index = 0; index < position.count; index++) {
@@ -336,6 +402,7 @@ export function withResp001LipArticulationMorph(
       position.getY(index),
       position.getZ(index),
       seamSides[index] as Resp001LipSide,
+      band,
     );
     const offset = index * 3;
     deltas[offset] = dx;

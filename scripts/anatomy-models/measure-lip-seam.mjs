@@ -97,15 +97,44 @@ async function measure(path) {
     components.push(comp);
   }
 
-  console.log(`\n=== ${path} ===  crown=${maxY.toFixed(4)}  boundaryFaceComponents=${components.length}`);
+  // The mouth seam is the widest anterior boundary component in the face
+  // region. Report its extents and the body crown so callers can calibrate a
+  // per-mesh articulation band.
+  let seam = null;
   for (const comp of components) {
     const ys = comp.map(i => P[i*3+1]);
     const xs = comp.map(i => P[i*3]);
     const zs = comp.map(i => P[i*3+2]);
     const spanX = Math.max(...xs) - Math.min(...xs);
-    console.log(`  comp: verts=${comp.length}  Y [${Math.min(...ys).toFixed(4)}, ${Math.max(...ys).toFixed(4)}]  ` +
-      `spanX=${spanX.toFixed(4)}  X [${Math.min(...xs).toFixed(4)}, ${Math.max(...xs).toFixed(4)}]  Z [${Math.min(...zs).toFixed(4)}, ${Math.max(...zs).toFixed(4)}]`);
+    if (spanX < 0.030) continue;
+    const yCenter = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const yHalf = (Math.max(...ys) - Math.min(...ys)) / 2;
+    if (!seam || spanX > seam.spanX) {
+      seam = {
+        crown: maxY,
+        yCenter,
+        yHalf,
+        xMax: Math.max(...xs),
+        zMin: Math.min(...zs),
+        spanX,
+      };
+    }
   }
+
+  if (process.env.LIP_SEAM_JSON) {
+    console.log(JSON.stringify({ path, crown: maxY, seam }));
+  } else {
+    console.log(`\n=== ${path} ===  crown=${maxY.toFixed(4)}  boundaryFaceComponents=${components.length}`);
+    for (const comp of components) {
+      const ys = comp.map(i => P[i*3+1]);
+      const xs = comp.map(i => P[i*3]);
+      const zs = comp.map(i => P[i*3+2]);
+      const spanX = Math.max(...xs) - Math.min(...xs);
+      console.log(`  comp: verts=${comp.length}  Y [${Math.min(...ys).toFixed(4)}, ${Math.max(...ys).toFixed(4)}]  ` +
+        `spanX=${spanX.toFixed(4)}  X [${Math.min(...xs).toFixed(4)}, ${Math.max(...xs).toFixed(4)}]  Z [${Math.min(...zs).toFixed(4)}, ${Math.max(...zs).toFixed(4)}]`);
+    }
+  }
+  return seam;
 }
 
 for (const p of process.argv.slice(2)) { await measure(p); }

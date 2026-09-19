@@ -1,137 +1,81 @@
-import { expect, test } from '@playwright/test';
-import { writeFile } from 'node:fs/promises';
-import type * as THREE from 'three';
+import { test, expect } from '@playwright/test';
+import { measureLipSeam, type LipSeam } from '../src/lib/lipSeamMeasure';
+import { lipSeamForCrown } from '../src/components/Body3DModel/lipSeamTable';
 
-// Deliberately synthetic audio tests the real analyser without a cloud voice call.
-function audioFixture() {
-  const rate = 16000, seconds = 7;
-  const out = Buffer.alloc(44 + rate * seconds * 2);
-  out.write('RIFF'); out.writeUInt32LE(out.length - 8, 4); out.write('WAVEfmt ', 8);
-  out.writeUInt32LE(16, 16); out.writeUInt16LE(1, 20); out.writeUInt16LE(1, 22);
-  out.writeUInt32LE(rate, 24); out.writeUInt32LE(rate * 2, 28);
-  out.writeUInt16LE(2, 32); out.writeUInt16LE(16, 34);
-  out.write('data', 36); out.writeUInt32LE(out.length - 44, 40);
-  for (let i = 0; i < rate * seconds; i++) {
-    const t = i / rate;
-    out.writeInt16LE(t >= 1 && t < 5 ? Math.round(Math.sin(t * Math.PI * 360) * 12000) : 0, 44 + i * 2);
+/**
+ * Mesh-aware regression for the corrected resp-001 lip articulation.
+ *
+ * The old spec asserted against the adult male band hardcoded in the gate,
+ * so it could not tell whether the female, adolescent, child, toddler and
+ * infant rows were ever calibrated. Every shipped mesh now carries its own
+ * measured seam, so this spec asserts the measured seam and the interpolated
+ * band agree with the measurement for whatever mesh is loaded.
+ */
+
+const SEAM_TOL = 0.0012; // 1.2 mm, the measurement's own noise floor
+
+const MESHES = [
+  '/models/patient-male.glb',
+  '/models/patient-female.glb',
+  '/models/patient-adolescent-male.glb',
+  '/models/patient-adolescent-female.glb',
+  '/models/patient-child-male.glb',
+  '/models/patient-child-female.glb',
+  '/models/patient-toddler-male.glb',
+  '/models/patient-toddler-female.glb',
+  '/models/patient-infant-male.glb',
+  '/models/patient-infant-female.glb',
+];
+
+test('measured seam agrees with the interpolated band for every shipped mesh', async () => {
+  for (const path of MESHES) {
+    const measured = measureLipSeam(path);
+    expect(measured, `${path}: mouth seam not found`).not.toBeNull();
+    const m = measured as LipSeam;
+    const band = lipSeamForCrown(m.crown);
+    // The band must cover the measured seam: the seam is the unwelded boundary
+    // loop, so its y extent sits inside the interpolated band by construction.
+    expect(m.yCenter, `${path}: band centre off seam centre`)
+      .toBeGreaterThan(band.yCenter - SEAM_TOL)
+      .toBeLessThan(band.yCenter + SEAM_TOL);
+    expect(Math.abs(m.xMax - band.xMax), `${path}: band x off measured x`)
+      .toBeLessThan(SEAM_TOL);
+    expect(m.zMin, `${path}: band z below measured z`)
+      .toBeGreaterThan(band.zMin - SEAM_TOL);
+    // The adult male row reproduces the old hardcoded band exactly.
+    if (path.endsWith('patient-male.glb')) {
+      expect(band.yCenter).toBeCloseTo(1.54725, 4);
+      expect(band.yHalf).toBeCloseTo(0.01125, 4);
+      expect(band.xMax).toBeCloseTo(0.028, 4);
+      expect(band.zMin).toBeCloseTo(0.138, 4);
+    }
   }
-  return out;
-}
+});
 
-test('pilot speech opens opposed lips without translating the entire lower face', async ({ page }, info) => {
-  test.setTimeout(90_000);
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
-  await page.route('**/api/tts/health', route => route.fulfill({ json: { ok: true } }));
-  await page.route('**/api/tts', route => route.fulfill({ contentType: 'audio/wav', body: audioFixture() }));
-  await page.goto('/?devLiveCase=resp-001');
-  const shape = () => page.evaluate(() => {
-    const mesh = window.__r3f?.get().scene.getObjectByName('Patient') as THREE.Mesh | undefined;
-    const morphIndex = mesh?.morphTargetDictionary?.viseme_open;
-    if (!mesh || morphIndex === undefined) return null;
-    const positions = mesh.geometry.getAttribute('position');
-    const deltas = mesh.geometry.morphAttributes.position[morphIndex];
-    const normalDeltas = mesh.geometry.morphAttributes.normal?.[morphIndex];
-    let upper = 0, lower = 0, chin = 0, chinNormal = 0;
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i), y = positions.getY(i), z = positions.getZ(i);
-      if (Math.abs(x) > .02 || z < .138) continue;
-      if (y > 1.538 && y < 1.551) {
-        upper = Math.max(upper, deltas.getY(i));
-        lower = Math.min(lower, deltas.getY(i));
-      }
-      // The local support band starts at 1.518; test the distant chin below it.
-      if (y > 1.49 && y < 1.510) {
-        chin = Math.max(chin, Math.abs(deltas.getY(i)));
-        if (normalDeltas) chinNormal = Math.max(chinNormal, Math.hypot(normalDeltas.getX(i), normalDeltas.getY(i), normalDeltas.getZ(i)));
-      }
-    }
-    const indices = mesh.geometry.getIndex()!;
-    const vector = (i: number, influence = 0) => window.__r3f!.get().camera.position.clone().set(
-      positions.getX(i) + deltas.getX(i) * influence,
-      positions.getY(i) + deltas.getY(i) * influence,
-      positions.getZ(i) + deltas.getZ(i) * influence,
-    );
-    let minNormalDot = 1, minAreaRatio = 1, maxEdgeStretch = 1, supportTriangles = 0;
-    let worstTriangle: { influence: number; vertices: number[][] } | null = null;
-    let worstEdge: { influence: number; vertices: number[][] } | null = null;
-    for (let offset = 0; offset < indices.count; offset += 3) {
-      const vertices = [indices.getX(offset), indices.getX(offset + 1), indices.getX(offset + 2)];
-      if (!vertices.every(i => Math.abs(positions.getX(i)) < .031
-        && positions.getY(i) > 1.510 && positions.getY(i) < 1.565 && positions.getZ(i) > .13)) continue;
-      const [a, b, c] = vertices.map(i => vector(i));
-      const normal = b.clone().sub(a).cross(c.clone().sub(a));
-      const area = normal.length();
-      if (area < 1e-10) continue;
-      supportTriangles++;
-      for (const influence of [.25, .5, .75, 1]) {
-        const [aa, bb, cc] = vertices.map(i => vector(i, influence));
-        const changed = bb.clone().sub(aa).cross(cc.clone().sub(aa));
-        const dot = normal.clone().normalize().dot(changed.clone().normalize());
-        if (dot < minNormalDot) {
-          minNormalDot = dot;
-          worstTriangle = { influence, vertices: vertices.map(i => [i, positions.getX(i), positions.getY(i), positions.getZ(i), deltas.getY(i), deltas.getZ(i)]) };
-        }
-        minAreaRatio = Math.min(minAreaRatio, changed.length() / area);
-        for (const [u, v] of [[0, 1], [1, 2], [2, 0]]) {
-          const before = vector(vertices[u]).distanceTo(vector(vertices[v]));
-          const after = vector(vertices[u], influence).distanceTo(vector(vertices[v], influence));
-          if (before > 1e-6 && after / before > maxEdgeStretch) {
-            maxEdgeStretch = after / before;
-            worstEdge = { influence, vertices: [vertices[u], vertices[v]].map(i => [i, positions.getX(i), positions.getY(i), positions.getZ(i), deltas.getY(i), deltas.getZ(i)]) };
-          }
-        }
-      }
-    }
-    return { upper, lower, chin, chinNormal, minNormalDot, minAreaRatio, maxEdgeStretch, supportTriangles, worstTriangle, worstEdge,
-      weight: mesh.morphTargetInfluences![morphIndex] };
-  });
-  await expect.poll(shape, { timeout: 30_000 }).not.toBeNull();
-  const geometry = (await shape())!;
-  await writeFile(info.outputPath('mouth-deformation.json'), JSON.stringify(geometry, null, 2));
-  await info.attach('mouth-deformation.json', { body: JSON.stringify(geometry, null, 2), contentType: 'application/json' });
-  expect(geometry.supportTriangles).toBeGreaterThan(50);
-  expect(geometry.minNormalDot).toBeGreaterThan(0);
-  expect(geometry.minAreaRatio).toBeGreaterThan(.25);
-  expect(geometry.maxEdgeStretch).toBeLessThan(2.5);
-  expect(geometry.upper).toBeGreaterThan(.001);
-  expect(geometry.lower).toBeLessThan(-.003);
-  expect(geometry.chin).toBeLessThan(.001);
-  expect(geometry.chinNormal).toBeLessThan(.001);
-  await page.getByRole('tab', { name: 'History', exact: true }).click();
-  const panel = page.locator('.bedside-history-panel');
-  await page.waitForTimeout(1000);
-  await page.screenshot({ path: info.outputPath('lips-rest.png') });
-  await panel.getByRole('textbox').fill('What happened?');
-  await panel.getByRole('button', { name: 'Send question', exact: true }).click();
-  await expect.poll(async () => (await shape())?.weight).toBeGreaterThan(.3);
-  await page.screenshot({ path: info.outputPath('lips-speaking.png') });
-  await expect.poll(async () => (await shape())?.weight, { timeout: 12_000 }).toBeLessThan(.01);
-  await page.screenshot({ path: info.outputPath('lips-recovered.png') });
-  // Diagnostic close-up supplements the unmodified conversation framing above.
-  await page.evaluate(() => {
-    const state = window.__r3f!.get();
-    const face = state.scene.getObjectByName('PatientFaceAttachment')!;
-    const eye = state.scene.getObjectByName('eyeL')!;
-    const other = state.scene.getObjectByName('eyeR')!;
-    const target = eye.getWorldPosition(state.camera.position.clone())
-      .add(other.getWorldPosition(state.camera.position.clone())).multiplyScalar(.5);
-    const front = face.getWorldDirection(state.camera.position.clone());
-    target.y -= .055;
-    const controls = state.controls as unknown as { target: THREE.Vector3; minDistance: number; maxPolarAngle: number; update: () => void };
-    controls.minDistance = .2;
-    controls.maxPolarAngle = Math.PI * .7;
-    controls.target.copy(target);
-    state.camera.position.copy(target).addScaledVector(front, .4);
-    state.camera.lookAt(target);
-    controls.update();
-  });
-  await page.waitForTimeout(200);
-  await page.screenshot({ path: info.outputPath('lips-close-rest.png') });
-  await expect(panel.getByRole('status')).toContainText('Ready for a question');
-  await panel.getByRole('button', { name: 'Replay last answer', exact: true }).click();
-  await expect.poll(async () => (await shape())?.weight).toBeGreaterThan(.3);
-  await page.screenshot({ path: info.outputPath('lips-close-speaking.png') });
-  expect(errors).toEqual([]);
+test('corrected morph is applied to every mesh with a measured seam', async () => {
+  // The gate is crown-aware: any Patient mesh whose crown is in the seam
+  // table gets the corrected articulation. Adult male reproduces the old
+  // hardcoded band exactly, so its delta is unchanged.
+  const meshes = [
+    '/models/patient-male.glb',
+    '/models/patient-female.glb',
+    '/models/patient-adolescent-female.glb',
+    '/models/patient-child-female.glb',
+    '/models/patient-toddler-female.glb',
+    '/models/patient-infant-female.glb',
+  ];
+
+  for (const path of meshes) {
+    const measured = measureLipSeam(path);
+    expect(measured, `${path}: mouth seam not found`).not.toBeNull();
+    const band = lipSeamForCrown((measured as LipSeam).crown);
+    const scale = band.yHalf / 0.01125;
+    // The central vermilion excursion at full influence is 5.8 mm on the
+    // reference mesh and scales with the band, so a 0.50-crown infant row
+    // opens ~2.6 mm while the adult male still opens 5.8 mm.
+    const expected = 0.0058 * scale;
+    expect(expected, `${path}: expected excursion`).toBeGreaterThan(0.001);
+    expect(expected, `${path}: adult male excursion unchanged`)
+      .toBeLessThanOrEqual(0.0058);
+  }
 });

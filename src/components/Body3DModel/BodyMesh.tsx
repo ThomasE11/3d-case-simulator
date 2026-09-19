@@ -40,6 +40,7 @@ import { patientWalkingPath } from '@/lib/patientWalkingPath';
 import { tripodHandBraceSweep, TRIPOD_BRACE_CALIBRATION } from '@/lib/tripodHandBrace';
 import { skinDetailProfileForPilot, type SkinDetailProfile } from './resp001SkinDetail';
 import { shouldApplyCorrectedLipArticulation, withResp001LipArticulationMorph } from './resp001LipArticulation';
+import { lipSeamForCrown } from './lipSeamTable';
 import { createEyeMorphFollower } from './eyeMorphFollow';
 import {
   patientSkeletalAction,
@@ -1197,15 +1198,31 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
+        // Crown (head top in the exam frame): the measured mouth seam sits a
+        // fixed fraction below it, so each mesh's own crown calibrates the
+        // articulation band. Adult male = 1.81 reproduces the old hardcoded
+        // band exactly; every other mesh tracks its own measured size. The
+        // seam table is keyed on the body's own maxY (what
+        // measure-lip-seam.mjs reports), so read the same quantity here rather
+        // than the head region's extent.
+        const posAttr2 = (mesh.geometry as THREE.BufferGeometry).attributes.position;
+        let crownMax = -Infinity;
+        for (let i = 0; i < posAttr2.count; i++) {
+          const yv = posAttr2.getY(i);
+          if (yv > crownMax) crownMax = yv;
+        }
+        const crown = Number.isFinite(crownMax) ? crownMax : 0;
         // Replace the malformed mouth delta locally; never mutate the GLTF
-        // cache. The corrected articulation is calibrated to the male mesh, so
-        // every male case (not only the resp-001 pilot) speaks with the
-        // measured 5.8 mm vermilion excursion instead of the shipped 50 mm
-        // lower-face viseme. Female/legacy meshes keep their shipped morph.
-        if (shouldApplyCorrectedLipArticulation(modelPath, mesh.name)) {
+        // cache. The corrected articulation is calibrated to each mesh's own
+        // measured mouth seam, so every Patient mesh with a measured seam speaks
+        // with a 5.8 mm vermilion excursion instead of the shipped 50 mm
+        // lower-face viseme. The adult male row reproduces the old hardcoded
+        // band exactly, so its behaviour is unchanged.
+        const lipBand = lipSeamForCrown(crown);
+        if (shouldApplyCorrectedLipArticulation(modelPath, mesh.name, crown)) {
           const influences = mesh.morphTargetInfluences?.slice();
           const dictionary = mesh.morphTargetDictionary;
-          mesh.geometry = withResp001LipArticulationMorph(mesh.geometry, dictionary?.viseme_open);
+          mesh.geometry = withResp001LipArticulationMorph(mesh.geometry, dictionary?.viseme_open, lipBand);
           mesh.updateMorphTargets();
           mesh.morphTargetDictionary = dictionary;
           if (influences) mesh.morphTargetInfluences = influences;
