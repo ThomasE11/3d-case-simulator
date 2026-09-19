@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import { requestGatewaySpeech } from './gatewaySpeech';
+import { requestGatewaySpeech } from './gatewaySpeech.js';
 
 type VoiceRole = 'dispatcher' | 'patient' | 'narrator';
 type PatientVoiceProfile = { gender?: 'male' | 'female' };
