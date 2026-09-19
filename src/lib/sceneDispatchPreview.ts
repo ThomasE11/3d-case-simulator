@@ -76,6 +76,36 @@ export function buildSceneExpectationLine(caseData: CaseScenario): string {
   return desc || location || 'Scene details pending';
 }
 
+/**
+ * Access / extrication knowledge the student must weigh before entering.
+ *
+ * The scene-safety step asks "what would stop me here?" and currently only
+ * reads `sceneInfo.accessIssues` — authored, dispatch-side knowledge. The
+ * generated arrival layer carries its own access/extrication block (real
+ * obstacles implied by the scene: slippery floor, active machinery, fallen
+ * debris). Folding it in means the student's entry decision is informed by
+ * the same layer that describes what they will walk into.
+ *
+ * Returns a flat list of access-issue strings; the caller renders them.
+ */
+export function sceneAccessFromIntroduction(caseData: CaseScenario): string[] {
+  const intro = sceneIntroductionFor(caseData);
+  const access = intro?.accessExtrication;
+  if (!access) return [];
+  const issues = Array.isArray(access.accessIssues) ? access.accessIssues : [];
+  const note = access.note?.trim();
+  return [...issues, note ? `Note: ${note}` : ''].filter(Boolean);
+}
+
+/**
+ * Whether the generated arrival layer says the patient cannot be left in
+ * place — i.e. extrication is required before treatment can proceed. Used by
+ * the entry gate to flag a scene where the student must plan a carry/step.
+ */
+export function sceneRequiresExtrication(caseData: CaseScenario): boolean {
+  return Boolean(sceneIntroductionFor(caseData)?.accessExtrication?.extricationNeeded);
+}
+
 export const SCENE_PREVIEW_LABEL = 'Scene preview';
 export const SCENE_PREVIEW_HINT =
   'What you will walk into. Read before you press Enter Scene — the scene itself is discovered on approach, not told.';

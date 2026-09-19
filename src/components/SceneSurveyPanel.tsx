@@ -28,6 +28,7 @@ import { useVoiceNarration } from '@/hooks/useVoiceNarration';
 import { caseSceneNeedsPatientOverlay, inferSceneImage } from '@/lib/sceneImageSelection';
 import { patientAgeBand, patientAgeScale } from '@/lib/patientAgePresentation';
 import { dispatchAccessNotes, mandatoryScenePpe, visibleSceneHazards } from '@/lib/sceneSafety';
+import { sceneAccessFromIntroduction, sceneRequiresExtrication } from '@/lib/sceneDispatchPreview';
 import {
   Shield, AlertTriangle, Eye, HardHat, Stethoscope, ArrowRight,
   ArrowLeft, CheckCircle2, Volume2, VolumeX, Flame, Zap, CloudRain,
@@ -1923,6 +1924,11 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
 
   const hazardHotspots = useMemo(() => buildHazardHotspots(caseData), [caseData]);
   const accessNotes = useMemo(() => dispatchAccessNotes(caseData), [caseData]);
+  // Access / extrication knowledge from the generated arrival layer — the
+  // same layer that describes what the student will walk into. Folded into
+  // the entry decision alongside the dispatch-side access notes.
+  const introAccessNotes = useMemo(() => sceneAccessFromIntroduction(caseData), [caseData]);
+  const requiresExtrication = useMemo(() => sceneRequiresExtrication(caseData), [caseData]);
   const mandatoryPpe = useMemo(() => mandatoryScenePpe(caseData), [caseData]);
   const [step, setStep] = useState<Step>('approach');
   const [hazardsIdentified, setHazardsIdentified] = useState<string[]>([]);
@@ -2153,6 +2159,30 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+            {introAccessNotes.length > 0 && (
+              <div className="rounded-xl border border-cyan-200/60 bg-cyan-50/70 px-3.5 py-3 dark:border-cyan-900/60 dark:bg-cyan-950/20">
+                <div className="flex items-center gap-2 text-xs font-semibold text-cyan-900 dark:text-cyan-100">
+                  <Footprints className="h-3.5 w-3.5" /> What you will walk into
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">From the scene arrival layer — real obstacles implied by the scene itself.</p>
+                <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                  {introAccessNotes.map((note) => (
+                    <li key={note} className="flex items-start gap-1.5 text-xs text-foreground/80">
+                      <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-cyan-600" />
+                      <span>{note}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {requiresExtrication && (
+              <div className="rounded-xl border border-rose-200/70 bg-rose-50/60 px-3.5 py-3 dark:border-rose-900/60 dark:bg-rose-950/15">
+                <div className="flex items-center gap-2 text-xs font-semibold text-rose-950 dark:text-rose-100">
+                  <AlertTriangle className="h-3.5 w-3.5" /> Extrication required
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">The patient cannot be left in place. Plan a carry, step, or lift before you make contact — treatment starts after movement.</p>
               </div>
             )}
             {hazardHotspots.length > 0 && (

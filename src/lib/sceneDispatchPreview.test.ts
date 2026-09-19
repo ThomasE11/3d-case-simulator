@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildSceneDispatchPreview, buildSceneExpectationLine } from '@/lib/sceneDispatchPreview';
+import { buildSceneDispatchPreview, buildSceneExpectationLine, sceneAccessFromIntroduction, sceneRequiresExtrication } from '@/lib/sceneDispatchPreview';
 import type { CaseScenario } from '@/types';
 
 const baseCase = {
@@ -79,5 +79,48 @@ describe('buildSceneExpectationLine', () => {
     const line = buildSceneExpectationLine(c);
     expect(line).toContain('Clinic, Al Ain');
     expect(line).toContain('Examination room');
+  });
+});
+
+describe('sceneAccessFromIntroduction', () => {
+  it('returns an empty array when the case has no generated introduction', () => {
+    const c = {
+      ...baseCase,
+      id: 'basic-001',
+      sceneInfo: { description: 'Villa living room', environment: 'home' },
+    } as unknown as CaseScenario;
+    expect(sceneAccessFromIntroduction(c)).toEqual([]);
+  });
+
+  it('flattens access issues and the extrication note into one list', () => {
+    const c = { ...baseCase, id: 'resp-001' } as unknown as CaseScenario;
+    const notes = sceneAccessFromIntroduction(c);
+    expect(Array.isArray(notes)).toBe(true);
+    // resp-001's generated intro has an empty accessIssues array and no note,
+    // so the result is empty — the function is additive, not a substitute.
+    expect(notes.length).toBe(0);
+  });
+
+  it('returns real obstacles for a scene that has them', () => {
+    const c = { ...baseCase, id: 'trauma-003' } as unknown as CaseScenario;
+    const notes = sceneAccessFromIntroduction(c);
+    expect(notes.length).toBeGreaterThan(0);
+    expect(notes.some((n) => /glass|debris|traffic/i.test(n))).toBe(true);
+  });
+});
+
+describe('sceneRequiresExtrication', () => {
+  it('returns false when no introduction exists', () => {
+    const c = {
+      ...baseCase,
+      id: 'basic-001',
+      sceneInfo: { description: 'Villa living room', environment: 'home' },
+    } as unknown as CaseScenario;
+    expect(sceneRequiresExtrication(c)).toBe(false);
+  });
+
+  it('returns false when the intro marks extrication as not needed', () => {
+    const c = { ...baseCase, id: 'resp-001' } as unknown as CaseScenario;
+    expect(sceneRequiresExtrication(c)).toBe(false);
   });
 });
