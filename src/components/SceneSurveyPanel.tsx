@@ -20,6 +20,7 @@ import type { CaseScenario } from '@/types';
 import { inferAnatomy, inferInjuries, type BodyInjury } from '@/lib/injuryMap';
 import { getSceneTimeLabel, getScenePatientDescriptor } from '@/lib/sceneNarrative';
 import { SceneSensoryStrip } from '@/components/SceneSensoryStrip';
+import { sceneIntroductionFor } from '@/lib/sceneIntroductions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -292,9 +293,19 @@ export function buildArrivalSentence(c: CaseScenario): string {
  * The spoken arrival narration. Deliberately minimal — the presenting patient,
  * the location, and who's present. No environment/scene-description dump and
  * no hazard list (hazards are for the student to scan, not to be told).
+ *
+ * When a case has a generated scene introduction, the first-person arrival
+ * narrative is read aloud as the opening beat so the student hears what the
+ * paramedic actually stepped into — not just the dispatch shorthand.
  */
 function buildApproachNarration(c: CaseScenario): string {
-  const parts: string[] = [buildArrivalSentence(c)];
+  const parts: string[] = [];
+  const intro = sceneIntroductionFor(c);
+  if (intro?.arrivalNarrative) {
+    parts.push(intro.arrivalNarrative.trim().replace(/\.$/, ''));
+  } else {
+    parts.push(buildArrivalSentence(c));
+  }
   if (c.dispatchInfo?.location) parts.push(`You're at ${c.dispatchInfo.location.replace(/\.$/, '')}.`);
   // bystanders strings already read as a sentence ("Partner and restaurant
   // staff present, other diners observing") — emit as-is, don't append "present".
