@@ -142,8 +142,15 @@ async function framebuffer(page, pose, options = {}) {
       });
     }
 
-    if (opts.composer && typeof state.advance === 'function') {
+    // Always route through the live composer when one exists. A raw
+    // `gl.render` bypasses the ACES tone map + exposure, so every non-cinematic
+    // frame came out near-black (mean ≈ 3-6/255) — the smoke check only looked
+    // at file size and waved it through. `advance` runs the full post-processing
+    // chain and is what the student actually sees.
+    if (typeof state.advance === 'function') {
       state.advance(performance.now(), true);
+    } else if (opts.composer) {
+      gl.render(scene, camera);
     } else {
       gl.render(scene, camera);
     }

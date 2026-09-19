@@ -150,8 +150,6 @@ function readForcedSpo2(): number | null {
     return null;
   }
 }
-const CAPTURE_FORCED_SPO2: number | null = readForcedSpo2();
-
 /** Helper: is this a limb region ID? */
 const isLimbRegion = (id: string): boolean =>
   id === 'right-arm' || id === 'left-arm' || id === 'right-leg' || id === 'left-leg';
@@ -5510,10 +5508,18 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
 
   // Capture/dev-only SpO2 override so the harness can pin 85 vs 94 without
   // mutating the live treatment engine. Production builds never set it.
+  // Read live inside the memo, not from the module-level CAPTURE_FORCED_SPO2
+  // constant: that constant is evaluated at module load, which is BEFORE
+  // Playwright's addInitScript writes sessionStorage. Every capture page
+  // therefore loaded with spo2=null and the two cyanosis frames rendered
+  // identically (mean delta 0.01/255 across the whole face panel).
   const effectiveVitals = useMemo<Partial<VitalSigns> | undefined>(() => {
     const base = vitals ?? caseData.vitalSignsProgression?.initial;
-    if (import.meta.env.DEV && CAPTURE_FORCED_SPO2 != null && Number.isFinite(CAPTURE_FORCED_SPO2)) {
-      return { ...base, spo2: CAPTURE_FORCED_SPO2 };
+    if (import.meta.env.DEV) {
+      const forced = readForcedSpo2();
+      if (forced != null && Number.isFinite(forced)) {
+        return { ...base, spo2: forced };
+      }
     }
     return base;
   }, [vitals, caseData.vitalSignsProgression?.initial]);
