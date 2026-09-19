@@ -1,5 +1,5 @@
 import type { CaseScenario } from '@/types';
-import { sceneAccessFromIntroduction } from '@/lib/sceneDispatchPreview';
+import { sceneIntroAccessIssues } from '@/lib/sceneDispatchPreview';
 
 function uniqueMeaningful(values: Array<string | undefined>): string[] {
   const seen = new Set<string>();
@@ -26,13 +26,17 @@ export function visibleSceneHazards(caseData: CaseScenario): string[] {
  * dedupes, so the hazard hotspots on the image and the access panel on the
  * entry gate read ONE source of truth. Falls back to authored hazards only
  * when no introduction exists.
+ *
+ * Only the raw access-issue strings are folded — not the intro's free-text
+ * note, which is navigational guidance ("requires careful navigation around
+ * debris"), not a hazard the student scans for.
  */
 export function unifiedSceneHazards(caseData: CaseScenario): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const hazard of [
     ...visibleSceneHazards(caseData),
-    ...sceneAccessFromIntroduction(caseData),
+    ...sceneIntroAccessIssues(caseData),
   ]) {
     const key = hazard.trim().toLowerCase();
     if (!key || seen.has(key)) continue;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { visibleSceneHazards, unifiedSceneHazards } from '@/lib/sceneSafety';
-import { sceneAccessFromIntroduction } from '@/lib/sceneDispatchPreview';
+import { sceneAccessFromIntroduction, sceneIntroAccessIssues } from '@/lib/sceneDispatchPreview';
 import type { CaseScenario } from '@/types';
 
 const base = {
@@ -31,6 +31,28 @@ describe('visibleSceneHazards', () => {
   });
 });
 
+describe('sceneIntroAccessIssues', () => {
+  it('returns only the raw access-issue strings, never the free-text note', () => {
+    const c = { ...base, id: 'trauma-003' } as unknown as CaseScenario;
+    const raw = sceneIntroAccessIssues(c);
+    const withNote = sceneAccessFromIntroduction(c);
+    // The note ("Patient is accessible but requires careful navigation
+    // around debris.") is navigational guidance, not a scan hazard — it
+    // must NOT appear in the raw list.
+    expect(raw.some((h) => h.toLowerCase().includes('navigation'))).toBe(false);
+    expect(raw).toEqual([
+      'Broken glass and debris on pavement near the wound',
+      'Passing traffic creating a safety hazard',
+    ]);
+    // sceneAccessFromIntroduction keeps the note for the entry-gate panel.
+    expect(withNote.some((h) => h.toLowerCase().includes('navigation'))).toBe(true);
+  });
+
+  it('returns an empty array when the case has no generated introduction', () => {
+    expect(sceneIntroAccessIssues(base)).toEqual([]);
+  });
+});
+
 describe('unifiedSceneHazards', () => {
   it('falls back to authored hazards when no introduction exists', () => {
     const c = { ...base, sceneInfo: { ...base.sceneInfo, hazards: ['Broken glass'] } };
@@ -43,11 +65,17 @@ describe('unifiedSceneHazards', () => {
     // list must contain both, deduped.
     const c = { ...base, id: 'trauma-003' } as unknown as CaseScenario;
     const unified = unifiedSceneHazards(c);
-    const access = sceneAccessFromIntroduction(c);
+    const access = sceneIntroAccessIssues(c);
     expect(unified.length).toBeGreaterThanOrEqual(access.length);
     for (const issue of access) {
       expect(unified.some((h) => h.toLowerCase().includes(issue.toLowerCase().slice(0, 12)))).toBe(true);
     }
+  });
+
+  it('does not fold the intro free-text note as a scan hazard', () => {
+    const c = { ...base, id: 'trauma-003' } as unknown as CaseScenario;
+    const unified = unifiedSceneHazards(c);
+    expect(unified.some((h) => h.toLowerCase().includes('navigation'))).toBe(false);
   });
 
   it('dedupes authored hazards that duplicate an intro access issue', () => {

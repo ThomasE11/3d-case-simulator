@@ -98,6 +98,22 @@ export function sceneAccessFromIntroduction(caseData: CaseScenario): string[] {
 }
 
 /**
+ * Raw access-issue strings from the generated introduction — the obstacle
+ * list only, without the free-text note. Used by the scene-survey hazard
+ * scan, where the note ("requires careful navigation around debris") is
+ * navigational guidance rather than a hazard the student identifies in the
+ * image. `sceneAccessFromIntroduction` keeps the note for the entry-gate
+ * panel, which is a different task.
+ */
+export function sceneIntroAccessIssues(caseData: CaseScenario): string[] {
+  const intro = sceneIntroductionFor(caseData);
+  const access = intro?.accessExtrication;
+  if (!access) return [];
+  return (Array.isArray(access.accessIssues) ? access.accessIssues : [])
+    .filter((value): value is string => Boolean(value?.trim()));
+}
+
+/**
  * Whether the generated arrival layer says the patient cannot be left in
  * place — i.e. extrication is required before treatment can proceed. Used by
  * the entry gate to flag a scene where the student must plan a carry/step.
