@@ -159,6 +159,7 @@ async function chat(prompt) {
       model: MODEL,
       stream: false,
       format: 'json',
+      think: false,
       messages: [
         { role: 'system', content: SYSTEM },
         { role: 'user', content: prompt },
