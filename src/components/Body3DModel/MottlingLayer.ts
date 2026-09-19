@@ -265,18 +265,144 @@ export function isCyanoticLipVertex(
   return y >= band.min && y <= band.max && Math.abs(x) < band.xMax && z >= band.zMin;
 }
 
-export function isCyanoticNailVertex(x: number, y: number, z: number): boolean {
-  // Distal finger tips / nailbeds on patient-male.glb (geometry-local).
-  // NOTE: still male-calibrated — the hand is a smaller fraction of body
-  // height than the head and the female/pediatric hand positions have not yet
-  // been measured, so nail cyanosis currently only lands on the adult male.
-  // All five digits: pinky at |x|≈0.55, index/middle nearer |x|≈0.50,
-  // forward tips at z≈0.34–0.37. buildCyanosisLocalTwin further gates by
-  // nail-plate UV+normal (isCyanoticNailPlateSample) and UV-cell dedupe so
-  // fingertip pads / mid-phalanx stay clear.
-  const lateralTip = Math.abs(x) >= 0.53 && y >= 0.915 && y <= 0.96 && z >= 0.30;
-  const forwardTip = Math.abs(x) >= 0.49 && y >= 0.95 && y <= 0.985 && z >= 0.34;
-  return lateralTip || forwardTip;
+/** Nail band for a mesh of the given crown height. All four thresholds derive
+ * from the mesh's own measured fingertip seam, so the tint lands on THIS
+ * mesh's nailbeds instead of the adult-male hardcoded thresholds (which sat
+ * at y 0.915–0.985 / |x|≥0.49 / z≥0.30 and only ever caught two of the
+ * adult male's eight fingertips — and caught nothing at all on the female
+ * and pediatric meshes, whose hands sit lower and less anterior). */
+export interface CyanosisNailBand {
+  /** Lower distal-finger Y. */
+  min: number;
+  /** Upper distal-finger Y. */
+  max: number;
+  /** Lateral floor (xMin <= |x| < xMax): the pinky-side tips sit in a narrow
+   * lateral window, so a bare |x| < xMax catches mid-finger vertices the old
+   * hardcoded predicate correctly rejected. */
+  xMin: number;
+  /** Lateral half-width (|x| < xMax). */
+  xMax: number;
+  /** Anterior threshold (z >= zMin) so the tint skips the palm/wrist. The
+   * measured tip is the max-z point of the distal phalanx; the nailbed runs
+   * further back, so zMin carries a fixed margin below the measured tip. */
+  zMin: number;
+}
+
+/** Measured fingertip seam for every shipped patient GLB. Two bands per
+ * mesh, matching the old hardcoded predicate's lateral + forward split:
+ *   - lateral:  the pinky-side tips (max |x| per hand) — wide, low
+ *   - forward: the index/middle tips facing out (max z per hand) — narrow,
+ *     higher, more anterior
+ * Each band is [yCenter, xMin, xMax, zTip]; zMin is derived from zTip with a
+ * crown-scaled posterior margin, because the measured tip is the max-z point
+ * of the distal phalanx and the nailbed runs further back (scripts/
+ * anatomy-models/measure-nail-band.mjs).
+ */
+const NAIL_SEAM_SAMPLES: ReadonlyArray<readonly [
+  crown: number,
+  lateralY: number, lateralXMin: number, lateralXMax: number, lateralZTip: number,
+  forwardY: number, forwardXMin: number, forwardXMax: number, forwardZTip: number,
+]> = [
+  [0.6554, 0.3119, 0.2000, 0.2000, 0.1309, 0.3119, 0.2000, 0.2000, 0.1309], // infant-female (2 tips, one band)
+  [0.9173, 0.4853, 0.2591, 0.2591, 0.1856, 0.4853, 0.2591, 0.2591, 0.1856], // toddler-female (4 tips, one band)
+  [1.2450, 0.6880, 0.3468, 0.3468, 0.2446, 0.6880, 0.3468, 0.3468, 0.2446], // child-female (6 tips, one band)
+  [1.3353, 0.7096, 0.4135, 0.4135, 0.2271, 0.7410, 0.3784, 0.3784, 0.2689], // child-male
+  [1.5088, 0.8100, 0.4209, 0.4569, 0.2377, 0.8390, 0.4209, 0.4209, 0.2814], // adolescent-female
+  [1.5637, 0.8413, 0.4379, 0.4744, 0.2496, 0.8714, 0.4379, 0.4379, 0.2951], // adult-female
+  [1.6355, 0.8792, 0.4820, 0.5224, 0.3013, 0.9158, 0.4820, 0.4820, 0.3501], // adolescent-male
+  [1.7261, 0.9344, 0.5112, 0.5542, 0.3198, 0.9732, 0.4460, 0.5112, 0.3714], // adult-male
+];
+
+interface NailSeam {
+  yCenter: number;
+  yHalf: number;
+  xMin: number;
+  xMax: number;
+  zMin: number;
+}
+
+/** y half-width: a small fraction of crown so the band covers the nailbed
+ * rather than collapsing to a single y plane on the symmetric meshes. */
+function nailYHalf(crown: number): number {
+  return Math.max(0.018, crown * 0.011);
+}
+
+/** Posterior margin below the measured fingertip: the nailbed runs further
+ * back than the max-z tip point. Scales with crown so it tracks the real
+ * hand on every mesh (adult male reproduces the old hardcoded z>=0.30 /
+ * z>=0.34 exactly). */
+function nailZMargin(crown: number, lateral: boolean): number {
+  return crown * (lateral ? 0.012 : 0.018);
+}
+
+function interpolateNailSeam(crown: number): { lateral: NailSeam; forward: NailSeam } {
+  const last = NAIL_SEAM_SAMPLES[NAIL_SEAM_SAMPLES.length - 1];
+  if (!Number.isFinite(crown) || crown <= 0) crown = last[0];
+  const first = NAIL_SEAM_SAMPLES[0];
+  if (crown <= first[0]) crown = first[0];
+  if (crown >= last[0]) crown = last[0];
+  let i = 1;
+  while (i < NAIL_SEAM_SAMPLES.length && crown > NAIL_SEAM_SAMPLES[i][0]) i++;
+  const prev = NAIL_SEAM_SAMPLES[i - 1];
+  const sample = NAIL_SEAM_SAMPLES[i];
+  const t = (crown - prev[0]) / (sample[0] - prev[0]);
+  const yHalf = nailYHalf(crown);
+  const lerp = (a: number, b: number) => a + t * (b - a);
+  const lateral: NailSeam = {
+    yCenter: lerp(prev[1], sample[1]), yHalf,
+    xMin: lerp(prev[2], sample[2]), xMax: lerp(prev[3], sample[3]),
+    zMin: lerp(prev[4], sample[4]) - nailZMargin(crown, true),
+  };
+  const forward: NailSeam = {
+    yCenter: lerp(prev[5], sample[5]), yHalf,
+    xMin: lerp(prev[6], sample[6]), xMax: lerp(prev[7], sample[7]),
+    zMin: lerp(prev[8], sample[8]) - nailZMargin(crown, false),
+  };
+  return { lateral, forward };
+}
+
+/**
+ * Nail band for a mesh of the given crown height. Returns the FORWARD
+ * band (index/middle tips facing out — narrow, high, most anterior). The
+ * lateral band (pinky side, wide and lower) is cyanosisNailBandLateral.
+ * isCyanoticNailVertex checks both by default.
+ */
+export function cyanosisNailBand(crown: number): CyanosisNailBand {
+  const seam = interpolateNailSeam(crown);
+  return { min: seam.forward.yCenter - seam.forward.yHalf, max: seam.forward.yCenter + seam.forward.yHalf, xMin: seam.forward.xMin, xMax: seam.forward.xMax, zMin: seam.forward.zMin };
+}
+
+/** Lateral (pinky-side) nail band for a mesh of the given crown height. */
+export function cyanosisNailBandLateral(crown: number): CyanosisNailBand {
+  const seam = interpolateNailSeam(crown);
+  return { min: seam.lateral.yCenter - seam.lateral.yHalf, max: seam.lateral.yCenter + seam.lateral.yHalf, xMin: seam.lateral.xMin, xMax: seam.lateral.xMax, zMin: seam.lateral.zMin };
+}
+
+/** Default nail bands (adult-male reference), used by the 3-arg predicate form. */
+const DEFAULT_NAIL_BAND_FORWARD: CyanosisNailBand = cyanosisNailBand(CYANOSIS_REFERENCE_CROWN);
+const DEFAULT_NAIL_BAND_LATERAL: CyanosisNailBand = cyanosisNailBandLateral(CYANOSIS_REFERENCE_CROWN);
+
+export function isCyanoticNailVertex(
+  x: number, y: number, z: number,
+  band: CyanosisNailBand = DEFAULT_NAIL_BAND_FORWARD,
+): boolean {
+  // Distal finger tips / nailbeds, geometry-local. The band is derived from
+  // each mesh's own measured fingertip seam so nail cyanosis lands on the
+  // fingertips of whichever GLB is loaded, not just the adult male. With no
+  // band argument the predicate checks BOTH the forward and lateral bands,
+  // matching the old hardcoded two-band predicate; pass an explicit band to
+  // test one side in isolation.
+  // buildCyanosisLocalTwin further gates by nail-plate UV+normal
+  // (isCyanoticNailPlateSample) and UV-cell dedupe so fingertip pads /
+  // mid-phalanx stay clear.
+  if (band === DEFAULT_NAIL_BAND_FORWARD) {
+    return inBand(x, y, z, DEFAULT_NAIL_BAND_FORWARD) || inBand(x, y, z, DEFAULT_NAIL_BAND_LATERAL);
+  }
+  return inBand(x, y, z, band);
+}
+
+function inBand(x: number, y: number, z: number, band: CyanosisNailBand): boolean {
+  return Math.abs(x) >= band.xMin && Math.abs(x) <= band.xMax && y >= band.min && y <= band.max && z >= band.zMin;
 }
 
 /** Nail-plate UV/normal gate on distal tip verts.
@@ -326,6 +452,7 @@ export function buildCyanosisLocalTwin(
       if (py > crownY) crownY = py;
     }
     const lipBand = cyanosisLipBand(crownY);
+    const nailBand = cyanosisNailBand(crownY);
     const v = new THREE.Vector3();
     const blotches: Blotch[] = [];
     const nailKeys = new Set<string>();
@@ -336,9 +463,9 @@ export function buildCyanosisLocalTwin(
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i);
       const inLipStride = i % step === 0;
-      if (!inLipStride && !isCyanoticNailVertex(v.x, v.y, v.z)) continue;
+      if (!inLipStride && !isCyanoticNailVertex(v.x, v.y, v.z, nailBand)) continue;
       const isLip = isCyanoticLipVertex(v.x, v.y, v.z, lipBand);
-      const isNail = !isLip && isCyanoticNailVertex(v.x, v.y, v.z);
+      const isNail = !isLip && isCyanoticNailVertex(v.x, v.y, v.z, nailBand);
       if (!isLip && !isNail) continue;
       if (isLip && continuousLipMask) continue;
       const u = uv.getX(i);
