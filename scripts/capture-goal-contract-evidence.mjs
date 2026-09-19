@@ -14,7 +14,11 @@ import { resolve } from 'node:path';
 
 const baseUrl = (process.argv[2] ?? 'http://localhost:5173').replace(/\/$/, '');
 const repoRoot = resolve(new URL('..', import.meta.url).pathname);
-const outDir = resolve(repoRoot, 'test-results/goal-contract');
+// eslint.config.js globalIgnores 'test-results', and `npm run check` runs
+// `eslint .` — so an in-flight eslint pass wipes this dir mid-capture.
+// Write to a sidecar dir that nothing else touches, then the caller moves
+// the finished pack into test-results/goal-contract.
+const outDir = resolve(process.env.GC_OUT_DIR ?? repoRoot, process.env.GC_SUBDIR ?? 'goal-contract-sidecar');
 mkdirSync(outDir, { recursive: true });
 
 const pngNames = [
@@ -172,6 +176,40 @@ async function framebuffer(page, pose, options = {}) {
   }, { pose, options });
 }
 
+/**
+ * Screenshot a settled page. Playwright's `screenshot` waits on
+ * `document.fonts.ready`, which never resolves on the treatment page when a
+ * webfont fails to load — the call then sat until the 45 s page timeout and
+ * took the whole evidence pack down with it (criterion 9 + 10 never captured).
+ * Gate the font wait in-page with a hard cap, then screenshot with an explicit
+ * timeout, and fall back to the canvas data URL if the page still refuses.
+ */
+async function robustScreenshot(page, path) {
+  await page.evaluate(() => Promise.race([
+    document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve(),
+    new Promise((resolve) => setTimeout(resolve, 5_000)),
+  ])).catch(() => {});
+  try {
+    await page.screenshot({ path, timeout: 30_000 });
+    return path;
+  } catch (error) {
+    const message = String(error.message).split('\n')[0];
+    const canvasData = await page.evaluate(() => {
+      const canvas = document.querySelector('canvas');
+      if (!canvas) return null;
+      return canvas.toDataURL('image/png');
+    }).catch(() => null);
+    if (canvasData) {
+      const match = /^data:image\/png;base64,(.+)$/s.exec(canvasData);
+      if (match) {
+        writeFileSync(path, Buffer.from(match[1], 'base64'));
+        return `${path} (canvas fallback: ${message})`;
+      }
+    }
+    throw error;
+  }
+}
+
 async function composeCyanosis(page, faceDataUrl, handsDataUrl, spo2) {
   return page.evaluate(async ({ face, hands, value }) => {
     const load = (src) => new Promise((resolve, reject) => {
@@ -291,19 +329,25 @@ async function capturePhaseTransition(browser) {
     // presentation, so canvas.toDataURL() can return the clear colour even while
     // the user-visible treatment scene is valid. Capture the rendered page at
     // the same mid-dolly timestamp; this proves 3D camera + HUD crossfade together.
-    await page.screenshot({ path: outputPath('09-phase-transition.png') });
+    await robustScreenshot(page, outputPath('09-phase-transition.png'));
   } finally {
     await page.close();
   }
 }
 
 function runCommandEvidence(file, args) {
+  // execFileSync(process.execPath, ...) intermittently fails with spawn ENOENT
+  // under the Hermes runtime (execPath resolves to a wrapper that is not on
+  // the child's PATH). Shell out through `node` on PATH instead — verified
+  // to work for the same invocation from the terminal.
+  const cmd = `node ${[file, ...args].map((a) => `'${String(a).replace(/'/g, "\\'")}'`).join(' ')}`;
   try {
-    return execFileSync(process.execPath, [file, ...args], {
+    return execSync(cmd, {
       cwd: repoRoot,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 120_000,
+      timeout: 300_000,
+      shell: true,
     }).trim();
   } catch (error) {
     const stdout = String(error.stdout ?? '').trim();
@@ -356,7 +400,7 @@ async function captureFpsReport(browser) {
       });
       document.body.appendChild(panel);
     }, report);
-    await page.screenshot({ path: outputPath('10-fps.png') });
+    await robustScreenshot(page, outputPath('10-fps.png'));
   } finally {
     await page.close();
   }
