@@ -6,8 +6,10 @@ import { resolveProxyVoice } from '../../vite.config';
 describe('server TTS patient voice profile', () => {
   it('keeps the existing female defaults and opts into male voices explicitly', () => {
     expect(resolveTtsVoice('elevenlabs', 'patient')).toBe('21m00Tcm4TlvDq8ikWAM');
+    expect(resolveTtsVoice('elevenlabs', 'patient', { gender: 'female' })).toBe('21m00Tcm4TlvDq8ikWAM');
     expect(resolveTtsVoice('elevenlabs', 'patient', { gender: 'male' })).toBe('pNInz6obpgDQGcFmaJgB');
     expect(resolveTtsVoice('ai-gateway', 'patient')).toBe('shimmer');
+    expect(resolveTtsVoice('ai-gateway', 'patient', { gender: 'female' })).toBe('shimmer');
     expect(resolveTtsVoice('ai-gateway', 'patient', { gender: 'male' })).toBe('onyx');
   });
 

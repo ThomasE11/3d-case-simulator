@@ -101,6 +101,7 @@ export function VoiceHistoryPanel({ caseData, currentVitals, isInArrest, applied
   const canAskBystander = sceneHasAskableBystander(caseData);
   const [preferredTarget, setAskTarget] = useState<'patient' | 'bystander'>('patient');
   const askTarget = !patientVoice.canVocalize && canAskBystander ? 'bystander' : preferredTarget;
+  const askingBystander = askTarget === 'bystander' && canAskBystander;
   const responseContext = patientVoice.communication.responseContext;
   const answerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestVoice = useRef(patientVoice);
@@ -137,7 +138,6 @@ export function VoiceHistoryPanel({ caseData, currentVitals, isInArrest, applied
       ? pickCollateralVoice(caseData.sceneInfo?.bystanders ?? '')
       : 'Bystander';
     let speaker = 'Patient';
-    const askingBystander = askTarget === 'bystander' && canAskBystander;
     if (askingBystander) {
       answer = generateCollateralResponse(caseData, category);
       attribution = 'system';
@@ -214,7 +214,7 @@ export function VoiceHistoryPanel({ caseData, currentVitals, isInArrest, applied
     // For collateral / system messages we deliberately don't speak — the
     // attribution makes more sense as a written note than a synthesised
     // bystander voice (we don't have a voice per bystander).
-  }, [askTarget, canAskBystander, caseData, responseContext, patientVoice, isActive]);
+  }, [askingBystander, canAskBystander, caseData, responseContext, patientVoice, isActive]);
 
   // Report newly-obtained categories to the parent from an EFFECT (not during
   // render). A ref tracks what's already been reported so each fires once.
@@ -452,7 +452,7 @@ export function VoiceHistoryPanel({ caseData, currentVitals, isInArrest, applied
             </span>
           ) : (
             <span className="text-xs text-muted-foreground">
-              Speak or type — ask the patient anything you'd ask in real practice
+              Speak or type — ask the {askingBystander ? 'bystander' : 'patient'} anything you'd ask in real practice
             </span>
           )}
           {patientVoice.isSpeaking && (
@@ -497,7 +497,7 @@ export function VoiceHistoryPanel({ caseData, currentVitals, isInArrest, applied
           >
             <input
               type="text"
-              aria-label={t('bedside.question')}
+              aria-label={askingBystander ? 'Your question to the bystander' : t('bedside.question')}
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
               placeholder='e.g. "Any allergies?" · "Where is the pain?" · "What happened?"'

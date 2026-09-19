@@ -51,9 +51,11 @@ function pickLine(lines: string[]): string {
   return lines[Math.floor(Math.random() * lines.length)];
 }
 
-/** Keep voice identity overrides tied to a named realism slice. */
-export function patientVoiceProfileForCase(caseId: string): PatientVoiceProfile | undefined {
-  return caseId === 'resp-001' ? { gender: 'male' } : undefined;
+/** Keep the spoken patient identity aligned with the authored demographics. */
+export function patientVoiceProfileForCase(
+  caseData: Pick<CaseScenario, 'patientInfo'>,
+): PatientVoiceProfile {
+  return { gender: caseData.patientInfo.gender };
 }
 
 /**
@@ -64,7 +66,7 @@ export function usePatientVoice(caseData: CaseScenario, live: PatientCommunicati
   const narration = useVoiceNarration();
   const communication = derivePatientCommunication(caseData, live);
   const { canVocalize } = communication;
-  const voiceProfile = patientVoiceProfileForCase(caseData.id);
+  const voiceProfile = patientVoiceProfileForCase(caseData);
   const playbackStatus = narration.playbackRole === 'patient'
     ? narration.playbackStatus
     : 'idle';

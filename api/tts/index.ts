@@ -175,8 +175,9 @@ export default async function handler(req: BodyCarrier, res: ServerResponse) {
   }
 
   const role = normaliseRole(body.role);
-  const patientVoice = body.patientVoice?.gender === 'male'
-    ? { gender: 'male' as const }
+  const requestedPatientGender = body.patientVoice?.gender;
+  const patientVoice = requestedPatientGender === 'male' || requestedPatientGender === 'female'
+    ? { gender: requestedPatientGender }
     : undefined;
 
   // Fall-through order: ElevenLabs (primary) → Vercel AI Gateway (mid-tier) →
