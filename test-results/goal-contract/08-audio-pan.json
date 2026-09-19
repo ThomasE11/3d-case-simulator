@@ -1,0 +1,57 @@
+{
+  "introspectable": true,
+  "note": "Real THREE.PositionalAudio emitters backed by WebAudio PannerNodes were found; the AudioListener followed the orbiting camera.",
+  "audioContextState": "suspended",
+  "interceptedCreatePannerCount": 4,
+  "listenerOrbit": {
+    "before": [
+      -0.1,
+      1.48,
+      3.94
+    ],
+    "after": [
+      -2.25,
+      1.45,
+      2.15
+    ],
+    "moved": true
+  },
+  "positionalEmitters": [
+    {
+      "objectType": "Audio",
+      "name": "villa-ac-hum",
+      "role": "environment-ac",
+      "position": [
+        1.5,
+        2.2,
+        -1.8
+      ],
+      "pannerNode": "PannerNode",
+      "panningModel": "HRTF",
+      "distanceModel": "inverse",
+      "refDistance": 0.9,
+      "maxDistance": 8,
+      "rolloffFactor": 1.6,
+      "connectedSource": true,
+      "isPlaying": true
+    },
+    {
+      "objectType": "Audio",
+      "name": "patient-breath",
+      "role": "patient-breath",
+      "position": [
+        0,
+        1.415,
+        0.78
+      ],
+      "pannerNode": "PannerNode",
+      "panningModel": "HRTF",
+      "distanceModel": "inverse",
+      "refDistance": 0.55,
+      "maxDistance": 7,
+      "rolloffFactor": 1.8,
+      "connectedSource": true,
+      "isPlaying": true
+    }
+  ]
+}
