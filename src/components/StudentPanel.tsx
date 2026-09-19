@@ -4851,30 +4851,44 @@ export function StudentPanel({
           >
             {/* PHASE 1: Case Selection */}
             {phase === 'select' && (
-          <div className="mx-auto max-w-6xl animate-fade-in space-y-5 sm:space-y-6">
-            <div className="flex flex-col gap-4 rounded-[28px] border border-white/60 bg-white/70 p-4 shadow-[0_24px_80px_-50px_rgba(15,23,42,0.45)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/55 sm:p-5 lg:flex-row lg:items-end lg:justify-between">
-              <div className="space-y-3">
+          <div className="mx-auto max-w-6xl animate-fade-in space-y-4 sm:space-y-5">
+            <div className="flex flex-col gap-4 rounded-[24px] border border-white/60 bg-white/75 p-4 shadow-[0_22px_70px_-50px_rgba(15,23,42,0.45)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/60 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-2">
                 <div className="inline-flex items-center gap-2 rounded-full border border-brand-500/20 bg-brand-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-brand-700 dark:text-brand-300">
                   <Activity className="h-3.5 w-3.5" />
-                  {t('landing.practice', 'Practice')}
+                  Mission setup
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-4xl">Choose the next patient encounter</h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                    {t('encounter.setup', 'Choose your training level and a presentation. Customise the focus if you need to, then take the call.')}
+                  <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Choose the next patient encounter</h2>
+                  <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                    {t('encounter.setup', 'Set the challenge, review the dispatch, then enter the scene.')}
                   </p>
                 </div>
               </div>
-
+              <div className="grid grid-cols-3 gap-2 lg:min-w-[390px]" aria-label="Mission setup progress">
+                {[
+                  { step: '01', label: 'Mode', value: selectionModeOptions.find(option => option.mode === selectionMode)?.label ?? 'Full scenario' },
+                  { step: '02', label: 'Level', value: yearLevels.find(year => year.value === selectedYear)?.label ?? '3rd Year' },
+                  { step: '03', label: 'Cases', value: `${baseMissionCases.length} ready` },
+                ].map(item => (
+                  <div key={item.step} className="rounded-2xl border border-border/45 bg-white/65 px-3 py-2.5 dark:bg-white/[0.05]">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                      <span className="text-brand-600 dark:text-brand-300">{item.step}</span>
+                      {item.label}
+                    </div>
+                    <div className="mt-1 truncate text-xs font-bold text-foreground">{item.value}</div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.85fr)]">
-              <div className="space-y-5">
-                <div className="rounded-[24px] border border-white/60 bg-white/65 p-4 shadow-[0_18px_70px_-55px_rgba(15,23,42,0.5)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/50 sm:p-5">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(350px,0.86fr)]">
+              <div className="space-y-4">
+                <div className="rounded-[24px] border border-white/60 bg-white/70 p-4 shadow-[0_18px_70px_-55px_rgba(15,23,42,0.5)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/50 sm:p-5">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">Route</p>
-                      <h3 className="mt-1 text-lg font-bold tracking-tight">How do you want to train?</h3>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">Build your mission</p>
+                      <h3 className="mt-1 text-lg font-bold tracking-tight">How do you want to practise?</h3>
                     </div>
                     {isGenerating && <Loader2 className="h-5 w-5 animate-spin text-brand-500" />}
                   </div>
@@ -4884,14 +4898,19 @@ export function StudentPanel({
                         key={mode}
                         aria-pressed={selectionMode === mode}
                         onClick={() => setSelectionMode(mode)}
-                        className={`group flex min-h-[104px] flex-col items-start justify-between rounded-2xl border p-3 text-left transition-all duration-300 ${
+                        className={`group flex min-h-[88px] flex-col items-start justify-between rounded-2xl border p-3 text-left transition-all duration-300 ${
                           selectionMode === mode
                             ? 'border-brand-500/70 bg-brand-500/10 text-brand-700 shadow-lg shadow-brand-500/10 ring-2 ring-brand-500/15 dark:text-brand-300'
                             : 'border-border/50 bg-white/50 text-muted-foreground hover:border-brand-400/50 hover:bg-white/80 hover:text-foreground dark:bg-white/[0.04] dark:hover:bg-white/[0.08]'
                         }`}
                       >
-                        <span className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${selectionMode === mode ? 'bg-brand-500 text-white' : 'bg-muted text-muted-foreground group-hover:bg-brand-500/10 group-hover:text-brand-600'}`}>
-                          <ModeIcon className="h-4 w-4" />
+                        <span className="flex w-full items-start justify-between gap-2">
+                          <span className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${selectionMode === mode ? 'bg-brand-500 text-white' : 'bg-muted text-muted-foreground group-hover:bg-brand-500/10 group-hover:text-brand-600'}`}>
+                            <ModeIcon className="h-4 w-4" />
+                          </span>
+                          {mode === 'standard' && (
+                            <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300">Recommended</span>
+                          )}
                         </span>
                         <span>
                           <span className="block text-sm font-bold">{label}</span>
@@ -4900,14 +4919,14 @@ export function StudentPanel({
                       </button>
                     ))}
                   </div>
-                </div>
-
-                <div className="rounded-[24px] border border-white/60 bg-white/65 p-4 shadow-[0_18px_70px_-55px_rgba(15,23,42,0.5)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/50 sm:p-5">
-                  <div className="mb-3 flex items-center gap-2">
-                    <GraduationCap className="h-4 w-4 text-brand-500" />
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">Cohort</p>
-                      <h3 className="text-base font-bold tracking-tight">Training level</h3>
+                  <div className="my-4 h-px bg-border/45" />
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4 text-brand-500" />
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Training level</p>
+                        <p className="text-xs text-muted-foreground">Cases include prerequisite skills from earlier years.</p>
+                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -4916,7 +4935,7 @@ export function StudentPanel({
                         key={year.value}
                         aria-pressed={selectedYear === year.value}
                         onClick={() => setSelectedYear(year.value as StudentYear)}
-                        className={`flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-semibold transition-all duration-300 ${
+                        className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all duration-300 ${
                           selectedYear === year.value
                             ? 'border-brand-500 bg-brand-500 text-white shadow-lg shadow-brand-500/20'
                             : 'border-border/50 bg-white/55 text-muted-foreground hover:border-brand-400/50 hover:bg-white/80 hover:text-foreground dark:bg-white/[0.04]'
@@ -4931,13 +4950,13 @@ export function StudentPanel({
 
                 {selectionMode === 'standard' && (
                   <div className="space-y-5 animate-fade-in">
-                    <div className="rounded-[24px] border border-white/60 bg-white/65 p-4 shadow-[0_18px_70px_-55px_rgba(15,23,42,0.5)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/50 sm:p-5">
+                    <div className="rounded-[24px] border border-white/60 bg-white/70 p-4 shadow-[0_18px_70px_-55px_rgba(15,23,42,0.5)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/50">
                       <div className="mb-3 flex items-center justify-between gap-3">
                         <div>
                           <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">Presentation</p>
-                          <h3 className="text-base font-bold tracking-tight">Clinical category</h3>
+                          <h3 className="text-base font-bold tracking-tight">Choose the clinical challenge</h3>
                         </div>
-                        <Badge variant="secondary" className="rounded-full">{baseMissionCases.length} available</Badge>
+                        <Badge variant="secondary" className="rounded-full px-3">{baseMissionCases.length} cases ready</Badge>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <button
@@ -5142,11 +5161,22 @@ export function StudentPanel({
                 )}
               </div>
 
-              <aside className="rounded-[28px] border border-white/60 bg-slate-950 p-4 text-white shadow-[0_24px_90px_-45px_rgba(15,23,42,0.75)] dark:border-white/10 sm:p-5 lg:sticky lg:top-24 lg:self-start">
+              <aside className="overflow-hidden rounded-[28px] border border-white/60 bg-slate-950 text-white shadow-[0_24px_90px_-45px_rgba(15,23,42,0.75)] dark:border-white/10 lg:sticky lg:top-24 lg:self-start">
+                <div className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-cyan-400/15 via-transparent to-emerald-400/10 px-4 py-3 sm:px-5">
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-100/80">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-60" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-300" />
+                    </span>
+                    Dispatch ready
+                  </div>
+                  <span className="text-[10px] font-semibold text-white/45">Matched to your selections</span>
+                </div>
+                <div className="p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-cyan-200/70">Launch preview</p>
-                    <h3 className="mt-1 text-xl font-bold tracking-tight">Your next call</h3>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-cyan-200/70">Dispatch preview</p>
+                    <h3 className="mt-1 text-xl font-bold tracking-tight">Review before responding</h3>
                   </div>
                   <div className="flex items-center gap-2">
                     {selectionMode === 'standard' && missionCandidateCases.length > 1 && (
@@ -5167,7 +5197,7 @@ export function StudentPanel({
                 </div>
 
                 {missionPreviewCase ? (
-                  <div className="mt-5 space-y-5">
+                  <div className="mt-4 space-y-4">
                     <div className="rounded-3xl border border-white/10 bg-white/[0.07] p-4 shadow-inner">
                       <div className="mb-3 flex flex-wrap gap-2">
                         <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/75">{missionPreviewCase.priority}</span>
@@ -5175,7 +5205,10 @@ export function StudentPanel({
                         <span className="rounded-full bg-cyan-300/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-100">{missionDurationLabel}</span>
                       </div>
                       <h4 className="text-lg font-bold leading-tight text-white">{getStudentCaseTitle(missionPreviewCase)}</h4>
-                      <p className="mt-3 text-sm leading-relaxed text-slate-200">{missionPreviewCase.dispatchInfo?.location}</p>
+                      <div className="mt-3 flex items-start gap-2 text-sm leading-relaxed text-slate-200">
+                        <Shield className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200/80" />
+                        <span>{missionPreviewCase.dispatchInfo?.location}</span>
+                      </div>
                     </div>
 
                     {selectionMode === 'standard' ? (
@@ -5183,12 +5216,12 @@ export function StudentPanel({
                         onClick={generateCase}
                         disabled={isGenerating || missionCandidateCases.length === 0}
                         size="lg"
-                        className="w-full gap-2 rounded-2xl border-0 bg-cyan-400 py-6 text-base font-bold text-slate-950 shadow-xl shadow-cyan-950/40 transition-all hover:-translate-y-0.5 hover:bg-cyan-300"
+                        className="w-full gap-2 rounded-2xl border-0 bg-cyan-400 py-6 text-base font-bold text-slate-950 shadow-xl shadow-cyan-950/40 transition-all hover:-translate-y-0.5 hover:bg-cyan-300 focus-visible:ring-4 focus-visible:ring-cyan-200/40"
                       >
                         {isGenerating ? (
                           <><Loader2 className="h-5 w-5 animate-spin" /> Building mission...</>
                         ) : (
-                          <><Sparkles className="h-5 w-5" /> Launch smart case</>
+                          <><Ambulance className="h-5 w-5" /> Start this case <ArrowRight className="h-4 w-4" /></>
                         )}
                       </Button>
                     ) : (
@@ -5224,8 +5257,9 @@ export function StudentPanel({
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 text-sm leading-relaxed text-white/65">
-                      <span className="font-semibold text-white">Smart random:</span> matching {cohortScopeLabel}, {missionCategoryLabel}, {skillFocus === 'any' ? 'balanced skills' : skillFocus}, and {equipmentFocus === 'any' ? 'any kit' : equipmentFocus}.
+                    <div className="flex gap-2 rounded-2xl border border-white/10 bg-white/[0.06] p-3 text-xs leading-relaxed text-white/65">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-200" />
+                      <span><span className="font-semibold text-white">Why this case:</span> matched to {cohortScopeLabel}, {missionCategoryLabel}, {skillFocus === 'any' ? 'balanced clinical skills' : skillFocus}, and {equipmentFocus === 'any' ? 'the full kit range' : equipmentFocus}.</span>
                       {missionFilterFallback && <span className="block pt-2 text-amber-100/90">No exact kit/skill match was found, so the pool safely widened to the selected cohort and presentation.</span>}
                     </div>
 
@@ -5253,6 +5287,7 @@ export function StudentPanel({
                     No cases match this cohort yet. Choose another year level or presentation.
                   </div>
                 )}
+                </div>
               </aside>
             </div>
           </div>

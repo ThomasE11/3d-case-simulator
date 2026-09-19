@@ -1,7 +1,7 @@
 {
   "bedside": { "title": "Bedside conversation", "prompt": "Ask a short question. Watch his face and breathing as he answers.", "question": "Your question to the patient", "ready": "Ready for a question", "speaking": "Patient speaking", "written": "Written collateral history", "loading": "Preparing the patient's voice…", "error": "Voice could not play. Read the answer or replay it.", "muted": "Voice muted", "enable": "Enable patient voice", "mute": "Mute patient voice", "replay": "Replay last answer" },
   "measurementControls": { "respiratory_rate": "Measure respiratory rate", "blood_pressure": "Measure blood pressure", "temperature": "Measure temperature", "end_tidal_CO2": "Measure end-tidal CO2", "oxygen_saturation": "Measure oxygen saturation", "heart_rate": "Measure heart rate", "GCS": "Measure GCS", "blood_glucose": "Measure blood glucose" },
-  "encounter": { "setup": "Choose your training level and a presentation. Customise the focus if you need to, then take the call.", "customise": "Customise practice" },
+  "encounter": { "setup": "Set the challenge, review the dispatch, then enter the scene.", "customise": "Customise practice" },
   "landing": {
     "eyebrow": "Practice for the moments that matter",
     "title": "Your next patient. Your next decision.",

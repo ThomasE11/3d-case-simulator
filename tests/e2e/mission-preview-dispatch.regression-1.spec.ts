@@ -18,7 +18,7 @@ test('launches the exact case shown in the mission preview', async ({ page }) =>
   const expectedTitle = (await previewTitle.textContent())?.trim();
   expect(expectedTitle).toBeTruthy();
 
-  await page.getByRole('button', { name: /Launch smart case/i }).click();
+  await page.getByRole('button', { name: /Start this case/i }).click();
 
   await expect(page.getByRole('heading', { name: expectedTitle!, exact: true })).toBeVisible({ timeout: 15_000 });
 });
