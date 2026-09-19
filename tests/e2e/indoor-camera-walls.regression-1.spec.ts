@@ -23,14 +23,13 @@ test('the resp-001 camera remains inside its physical villa shell', async ({ pag
     const rightWall = state.scene.getObjectByName('resp001-villa-side-wall-right');
     const floor = state.scene.getObjectByName('resp001-villa-floor');
     const ceiling = state.scene.getObjectByName('resp001-villa-ceiling');
-    if (!frontWall || !leftWall || !rightWall || !floor || !ceiling) return null;
+    if (!frontWall || !leftWall || !rightWall || !floor) return null;
 
     const makeVector = () => state.camera.position.clone().set(0, 0, 0);
     const frontPosition = frontWall.getWorldPosition(makeVector());
     const leftPosition = leftWall.getWorldPosition(makeVector());
     const rightPosition = rightWall.getWorldPosition(makeVector());
     const floorPosition = floor.getWorldPosition(makeVector());
-    const ceilingPosition = ceiling.getWorldPosition(makeVector());
     const frontHalfDepth = frontWall.geometry.parameters.depth / 2;
     const sideHalfWidth = leftWall.geometry.parameters.width / 2;
     return {
@@ -44,38 +43,35 @@ test('the resp-001 camera remains inside its physical villa shell', async ({ pag
       leftInnerX: leftPosition.x + sideHalfWidth,
       rightInnerX: rightPosition.x - sideHalfWidth,
       floorY: floorPosition.y,
-      ceilingY: ceilingPosition.y,
+      hasCeiling: Boolean(ceiling),
     };
   }, null, { timeout: 30_000 }).then(handle => handle.jsonValue());
 
   expect(Math.abs(result.angle)).toBeLessThanOrEqual(Math.PI / 4 + 0.001);
-  expect(result.distance).toBeLessThanOrEqual(4 + 0.001);
+  expect(result.distance).toBeLessThanOrEqual(4.6 + 0.001);
   expect(result.cameraZ).toBeGreaterThan(result.targetZ);
   expect(result.cameraZ).toBeLessThan(result.frontInnerZ);
   expect(result.cameraX).toBeGreaterThan(result.leftInnerX);
   expect(result.cameraX).toBeLessThan(result.rightInnerX);
   expect(result.cameraY).toBeGreaterThan(result.floorY);
-  expect(result.cameraY).toBeLessThan(result.ceilingY);
+  expect(result.hasCeiling).toBe(false);
 
   const highOrbit = await page.evaluate(() => {
     const rootState = window.__r3f;
     const state = rootState?.get?.() ?? rootState;
     const controls = state.controls;
-    const sideWall = state.scene.getObjectByName('resp001-villa-side-wall-left');
     const target = controls.target;
     state.camera.position.set(target.x, target.y + 7, target.z + 0.01);
     controls.update();
-    const wallPosition = sideWall.getWorldPosition(state.camera.position.clone().set(0, 0, 0));
     return {
       cameraY: state.camera.position.y,
       maxPolarAngle: controls.maxPolarAngle,
       minPolarAngle: controls.minPolarAngle,
-      wallTopY: wallPosition.y + sideWall.geometry.parameters.height / 2,
     };
   });
-  expect(highOrbit.minPolarAngle).toBeCloseTo(Math.PI / 2 - 0.12, 5);
-  expect(highOrbit.maxPolarAngle).toBeCloseTo(Math.PI / 2 + 0.1, 5);
-  expect(highOrbit.cameraY).toBeLessThan(highOrbit.wallTopY);
+  expect(highOrbit.minPolarAngle).toBeCloseTo(Math.PI * 0.20, 5);
+  expect(highOrbit.maxPolarAngle).toBeCloseTo(Math.PI / 2 - 0.04, 5);
+  expect(highOrbit.cameraY).toBeGreaterThan(2.85);
   await expect(page.getByRole('button', { name: 'Posterior', exact: true })).toHaveCount(0);
   await expect(logRoll).toBeVisible();
 

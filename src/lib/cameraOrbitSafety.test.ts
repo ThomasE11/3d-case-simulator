@@ -17,18 +17,18 @@ describe('cameraOrbitSafetyForEnvironment', () => {
 
   it('fits the resp-001 overview orbit inside its physical villa shell', () => {
     const home = cameraOrbitSafetyForEnvironment('home');
-    const { overviewTarget, halfWidth, frontZ, floorY, ceilingY, wallDepth } = RESP001_VILLA_SHELL;
-    // The safe polar interval crosses eye level, so maxDistance is the largest
-    // possible horizontal radius and therefore the conservative front extent.
+    const { overviewTarget, halfWidth, frontZ, floorY, wallDepth } = RESP001_VILLA_SHELL;
+    // Horizontal reach contracts as the camera rises. The treatment view hides
+    // the ceiling so a top-down examination is possible without clipping it.
     const maxCameraZ = overviewTarget.z + home.maxDistance;
     const maxCameraX = overviewTarget.x + home.maxDistance * Math.sin(home.maxAzimuthAngle);
-    const maxCameraY = overviewTarget.y + home.maxDistance * Math.cos(home.minPolarAngle);
     const minCameraY = overviewTarget.y + home.maxDistance * Math.cos(home.maxPolarAngle);
 
     expect(maxCameraZ).toBeLessThan(frontZ - wallDepth / 2);
     expect(Math.abs(maxCameraX)).toBeLessThan(halfWidth - wallDepth / 2);
-    expect(maxCameraY).toBeLessThan(ceilingY);
     expect(minCameraY).toBeGreaterThan(floorY);
+    expect(home.minPolarAngle).toBeLessThan(Math.PI / 4);
+    expect(home.maxPolarAngle).toBeLessThan(Math.PI / 2);
   });
 
   it('keeps the resp-001 arrival landing outside the shell without widening the student orbit', () => {

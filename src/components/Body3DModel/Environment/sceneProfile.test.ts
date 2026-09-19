@@ -31,6 +31,8 @@ describe('sceneProfile', () => {
     expect(archetypeMeshVisible(['Sofa_cushion_1'], villa!)).toBe(true);
     expect(archetypeMeshVisible(['side_table'], villa!)).toBe(true);
     expect(archetypeMeshVisible(['first_aid_cabinet'], villa!)).toBe(true);
+    expect(archetypeMeshVisible(['Coffee_table_top'], villa!)).toBe(false);
+    expect(archetypeMeshVisible(['Coffee_table_leg002'], villa!)).toBe(false);
     expect(archetypeMeshVisible(['Back_plaster'], villa!)).toBe(false);
     expect(archetypeMeshVisible(['Travertine_floor'], villa!)).toBe(false);
     expect(archetypeMeshVisible(['Left_return'], villa!)).toBe(false);

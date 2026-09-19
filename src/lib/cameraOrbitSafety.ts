@@ -61,8 +61,11 @@ const OPEN_SCENE: CameraOrbitSafety = {
   minAzimuthAngle: -Infinity,
   maxAzimuthAngle: Infinity,
   maxDistance: 8.5,
-  minPolarAngle: Math.PI / 2 - 0.28,
-  maxPolarAngle: Math.PI / 2 + 0.22,
+  // Let the clinician rise above a floor patient to inspect wounds, airway
+  // alignment and device placement. Stop just above the support plane so the
+  // camera never reveals the underside of the road/floor.
+  minPolarAngle: Math.PI * 0.18,
+  maxPolarAngle: Math.PI / 2 - 0.03,
 };
 
 // Shared villa room front is open at z=+2.8. The resp-001 profile adds a
@@ -82,9 +85,9 @@ export function cameraOrbitSafetyForEnvironment(variant: EnvironmentVariant): Ca
     return {
       minAzimuthAngle: -Math.PI / 6,
       maxAzimuthAngle: Math.PI / 6,
-      maxDistance: 3.7,
-      minPolarAngle: Math.PI / 2 - 0.1,
-      maxPolarAngle: Math.PI / 2 + 0.1,
+      maxDistance: 4.0,
+      minPolarAngle: Math.PI * 0.22,
+      maxPolarAngle: Math.PI / 2 - 0.04,
     };
   }
   if (variant === 'home') {
@@ -93,9 +96,14 @@ export function cameraOrbitSafetyForEnvironment(variant: EnvironmentVariant): Ca
     return {
       minAzimuthAngle: -Math.PI / 4,
       maxAzimuthAngle: Math.PI / 4,
-      maxDistance: 4.0,
-      minPolarAngle: Math.PI / 2 - 0.12, // slightly below eye level but with buffer
-      maxPolarAngle: Math.PI / 2 + 0.1,  // above floor plane
+      // The former 4 m / 11-degree vertical slot made the patient feel fixed
+      // behind glass: the lower limbs were cropped and a top-down examination
+      // was impossible. The treatment view removes the overhead plane, so the
+      // orbit can now rise naturally while remaining on the patient-facing
+      // side of the room and above the support surface.
+      maxDistance: 4.6,
+      minPolarAngle: Math.PI * 0.20,
+      maxPolarAngle: Math.PI / 2 - 0.04,
     };
   }
   if (variant === 'public') {
@@ -104,8 +112,8 @@ export function cameraOrbitSafetyForEnvironment(variant: EnvironmentVariant): Ca
       minAzimuthAngle: -Math.PI / 3,
       maxAzimuthAngle: Math.PI / 3,
       maxDistance: 6,
-      minPolarAngle: Math.PI / 2 - 0.15,
-      maxPolarAngle: Math.PI / 2 + 0.1,
+      minPolarAngle: Math.PI * 0.20,
+      maxPolarAngle: Math.PI / 2 - 0.04,
     };
   }
   // Agricultural/farm field = open scene like outdoor road/industrial

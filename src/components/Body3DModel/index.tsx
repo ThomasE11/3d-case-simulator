@@ -4311,12 +4311,12 @@ function getTreatmentBayCameraFocus(
     // overview. A slightly lower target and longer three-quarter view retain
     // the face while showing knees, ankles, soles and their interaction sites.
     const stageLift = mobility === 'standing' ? 0 : seatedSupportLift;
-    const target: [number, number, number] = [plantX, 0.70 * patientScale + stageLift, 0.18];
+    const target: [number, number, number] = [plantX, 0.64 * patientScale + stageLift, 0.18];
     return {
       // A slight three-quarter arrival angle makes the forward trunk lean and
       // hands-on-thigh bracing readable immediately. The extra stand-off also
       // keeps the distal legs visible below the persistent care controls.
-      pos: [target[0] + 1.1 * cameraScale, target[1] + 0.36 * cameraScale, target[2] + 3.55 * cameraScale] as [number, number, number],
+      pos: [target[0] + 1.0 * cameraScale, target[1] + 0.42 * cameraScale, target[2] + 4.18 * cameraScale] as [number, number, number],
       target,
     };
   }
@@ -4824,10 +4824,10 @@ function getPatientReaction(
       id: `${actionId}-listen-cue`,
       tone: 'coach',
       title: 'Auscultation cue',
-      // Consent belongs at the beginning of the examination. The calibrated
-      // site sequence itself is deliberately quiet: the learner needs to hear
-      // the breath/heart sounds, not a new patient line at every position.
-      quote: patient.canVocalize && regionId === 'chest' ? 'You can go ahead and listen to my chest.' : undefined,
+      // Listening is deliberately silent. Consent/explanation belongs to the
+      // learner's interaction with the patient, not to an automatic line that
+      // talks over the first breath or heart sound (or repeats on a restart).
+      quote: undefined,
       message: regionId === 'chest'
         ? 'Ask for normal open-mouth breaths, compare matching positions side to side, then keep the patient quiet while you move between sites.'
         : 'Pause long enough to hear a real pattern before moving to the next site.',

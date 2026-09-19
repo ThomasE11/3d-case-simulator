@@ -1006,7 +1006,10 @@ export const litflCaseDatabase: CaseScenario[] = [
     },
     sceneInfo: {
       description: 'Modern office building, patient sitting in desk chair, grey and sweating. Papers scattered on floor. Colleagues hovering anxiously.',
-      hazards: [],
+      hazards: [
+        'Scattered papers on the office floor — trip hazard',
+        'Four anxious colleagues crowding the patient — clear a working space',
+      ],
       bystanders: '4 colleagues, office first-aider with AED',
       environment: 'Air-conditioned office, 5th floor',
       environmentVariant: 'public',

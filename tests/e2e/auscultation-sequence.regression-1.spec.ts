@@ -13,7 +13,7 @@ function silentWav() {
   return out;
 }
 
-test('auscultation gives consent once and remains quiet while contact moves', async ({ page }) => {
+test('auscultation remains quiet while the stethoscope moves between sites', async ({ page }) => {
   test.setTimeout(45_000);
   const spoken: unknown[] = [];
   await page.addInitScript(() => localStorage.setItem('paramedic-studio-voice-enabled', 'true'));
@@ -29,15 +29,10 @@ test('auscultation gives consent once and remains quiet while contact moves', as
   await dock.getByRole('button', { name: 'Listen', exact: true }).click();
   await dock.getByRole('button', { name: /Auscultate apices, mid-zones, bases/ }).click();
 
-  await expect.poll(() => spoken.length).toBe(1);
-  expect(spoken[0]).toMatchObject({
-    text: 'You can go ahead and listen to my chest.',
-    role: 'patient',
-  });
   // Two full 4-second sites have elapsed. The stethoscope may move, but the
-  // patient must not talk over subsequent listening positions.
+  // patient must not talk over the initial or subsequent listening positions.
   await page.waitForTimeout(8_500);
-  expect(spoken).toHaveLength(1);
+  expect(spoken).toHaveLength(0);
 });
 
 for (const exam of ['lungs', 'heart'] as const) {

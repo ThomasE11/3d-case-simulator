@@ -761,7 +761,7 @@ function HomeScene({
         <pointLight position={[0, 1.5, 0]} intensity={2.4} distance={4} decay={2} color="#ffdca0" />
       </group>
 
-      {(!hideOverhead || hasResp001Dressing) && (
+      {!hideOverhead && (
         <mesh name={hasResp001Dressing ? 'resp001-villa-ceiling' : undefined} position={[0, roomHeight - 0.05, roomCentreZ]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
           <planeGeometry args={[roomHalfW * 2, roomDepth]} />
           <meshStandardMaterial color="#f1e9da" roughness={0.9} />

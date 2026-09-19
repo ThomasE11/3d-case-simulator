@@ -1,7 +1,0 @@
-URL=http://localhost:5173/?capture=&devLiveCase=trauma-001
-case-id-in-body=false
-canvas-count=1
-scene-chip=true
-envChip=ROAD INCIDENT
-
-ERRORS:

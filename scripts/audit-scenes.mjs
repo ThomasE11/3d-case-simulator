@@ -127,7 +127,11 @@ const RULES = [
       // is not a scene-safety exercise. Only the hazardous environments must
       // carry their signature risk.
       const HAZARDOUS = {
-        roadside: /traffic|vehicle|road|oncoming|fuel|glass|highway|carriageway|kerb|debris|passing car/,
+        // A roadside scene can be a genuine highway RTA OR an outdoor sports
+        // pitch (y1-020 derives `roadside` through `pitch`/`field`); both are
+        // exposed outdoor environments with their own signature risk, so the
+        // sports-field vocabulary counts toward the roadside signature.
+        roadside: /traffic|vehicle|road|oncoming|fuel|glass|highway|carriageway|kerb|debris|passing car|football|soccer|astroturf|turf|pitch|floodlight|studs|players/,
         fire: /fire|smoke|heat|flame|carbon monoxide|collapse|structural|toxic/,
         water: /water|drown|slip|wet|current|pool|submerg|tide/,
         industrial: /machin|ppe|height|fall|scaffold|electric|dust|load|crush|isolat|overhead|uneven|debris|equipment|hot surface|weld|chemical|solvent/,

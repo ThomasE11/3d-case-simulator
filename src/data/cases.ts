@@ -2694,7 +2694,12 @@ export const caseDatabase: CaseScenario[] = [
     },
     sceneInfo: {
       description: 'Street corner, police present',
-      hazards: ['Police incident'],
+      hazards: [
+        "Police incident",
+        "Bleeding patient on street \u2014 blood/body fluid exposure risk",
+        "Passing traffic on Deira street corner \u2014 traffic hazard",
+        "Broken glass and debris on pavement near the wound",
+      ],
       bystanders: 'Police officers',
       environment: 'Outdoor',
       environmentVariant: 'roadside',

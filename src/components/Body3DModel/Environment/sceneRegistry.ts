@@ -56,6 +56,11 @@ export const SCENE_ARCHETYPES: readonly SceneArchetypeEntry[] = [
     // HomeScene already builds walls/floor/ceiling. Keep sofa, kit, cabinet,
     // plants and lamps; drop the Jutsu room shell so the two rooms do not stack.
     excludeMeshPrefixes: [
+      // The authored coffee table sits directly between the arrival camera and
+      // the seated patient, hiding the feet, pedal pulses and lower-limb exam.
+      // Keep the room lived-in with the sofa, reading chair and side table,
+      // but preserve an unobstructed clinical approach lane.
+      'Coffee_table',
       'Back_plaster',
       'Glass_fa',
       'Left_return',

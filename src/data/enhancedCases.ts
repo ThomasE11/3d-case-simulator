@@ -1628,7 +1628,12 @@ export const moreTraumaCases: CaseScenario[] = [
     },
     sceneInfo: {
       description: 'Vehicle with front-end damage, driver out of vehicle',
-      hazards: ['Fluid spill', 'Debris'],
+      hazards: [
+        "Fluid spill",
+        "Debris",
+        "Vehicle fuel/fluid leak \u2014 fire risk on Al Khail Road",
+        "Passing traffic around the MVC \u2014 traffic hazard",
+      ],
       bystanders: 'Police on scene',
       environment: 'Hot day',
       environmentVariant: 'roadside',

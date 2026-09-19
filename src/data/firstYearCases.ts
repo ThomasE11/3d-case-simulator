@@ -3821,7 +3821,12 @@ export const firstYearCases: CaseScenario[] = [
     },
     sceneInfo: {
       description: 'Astroturf pitch, patient on the ground holding right lower leg, teammates around',
-      hazards: ['Other players', 'Evening floodlights'],
+      hazards: [
+        "Other players",
+        "Evening floodlights",
+        "Hard astroturf surface \u2014 fall and surface hazard",
+        "Studs and uneven turf \u2014 slip/trip hazard around the injury",
+      ],
       bystanders: 'PE teacher and teammates',
       environment: 'Outdoor pitch, warm evening',
       environmentVariant: 'roadside',

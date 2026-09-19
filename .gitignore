@@ -38,6 +38,8 @@ dist
 # Audit tooling artifacts — the scripts in scripts/ are checked in, but
 # their timestamped JSON outputs are not.
 test-results/
+/probe-out/
+/tmp/
 
 # Obsolete report / summary / checklist stubs regenerated ad-hoc; keep
 # the patterns so no-one recommits them.
@@ -60,4 +62,6 @@ ios/
 /probe-*.mjs
 /record-*.mjs
 /analyse_*.py
+/scripts/_*.mjs
+/scripts/_*.py
 .env*.local
