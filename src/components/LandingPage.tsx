@@ -381,7 +381,7 @@ export function LandingPage({ onRoleSelect, caseCount, caseCountsByCategory }: L
           <div className="training-hero-scene-live" aria-hidden="true">
             <LandingHeroScene />
           </div>
-          <img src="/scene-assets/asthma-villa-male-uae.png" alt={t('landing.sceneAlt', 'Paramedics approaching a patient in a home scenario')} fetchPriority="high" />
+          <img src="/scene-assets/homepage-hero-a.png" alt={t('landing.sceneAlt', 'Paramedics approaching a patient in a home scenario')} fetchPriority="high" />
           <figcaption>
             <span>{t('landing.preview', 'A scene from the case library')}</span>
             <strong>{t('landing.sceneCaption', 'Every encounter starts with a patient, not a diagnosis.')}</strong>
