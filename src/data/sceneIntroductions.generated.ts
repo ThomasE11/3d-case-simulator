@@ -113,6 +113,29 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "note": ""
     },
     "bystanderDetail": "Parents are huddled over the child weeping quietly while the lifeguard holds a rescue tube at their side."
+  },
+  "resp-001": {
+    "arrivalNarrative": "I step into the villa living room where the evening light filters through the windows, finding the patient seated upright on the sofa in a tripod position. His breathing is harsh and laboured as I approach, surrounded by multiple inhalers and a peak flow meter resting on the nearby table. The parents are present but do not intervene directly while he remains unable to speak in sentences.",
+    "sensoryCues": {
+      "sounds": [
+        "heavy wheezing from the patient",
+        "low hum of air conditioning",
+        "distant evening traffic"
+      ],
+      "smells": [
+        "faint scent of dust from the cleaning",
+        "sharp medicinal spray from the inhalers"
+      ],
+      "temperature": "warm evening air inside the villa",
+      "light": "dimming natural light casting soft shadows across the room",
+      "air": "dry, still air with traces of dust"
+    },
+    "accessExtrication": {
+      "accessIssues": [],
+      "extricationNeeded": false,
+      "note": ""
+    },
+    "bystanderDetail": "The parents hover nearby without stepping forward, their bodies tense with concern as they watch his chest rise and fall. They stand close but do not touch the patient or speak to him directly."
   }
 };
 
