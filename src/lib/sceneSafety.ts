@@ -1,4 +1,5 @@
 import type { CaseScenario } from '@/types';
+import { sceneAccessFromIntroduction } from '@/lib/sceneDispatchPreview';
 
 function uniqueMeaningful(values: Array<string | undefined>): string[] {
   const seen = new Set<string>();
@@ -16,6 +17,29 @@ function uniqueMeaningful(values: Array<string | undefined>): string[] {
 /** Hazards the student can reasonably be expected to identify in the image. */
 export function visibleSceneHazards(caseData: CaseScenario): string[] {
   return uniqueMeaningful(caseData.sceneInfo?.hazards ?? []);
+}
+
+/**
+ * Unified hazard list for the survey's scan step. Folds the authored scene
+ * hazards with the generated introduction's access issues (broken glass,
+ * passing traffic, unstable flooring — the same class of obstacle) and
+ * dedupes, so the hazard hotspots on the image and the access panel on the
+ * entry gate read ONE source of truth. Falls back to authored hazards only
+ * when no introduction exists.
+ */
+export function unifiedSceneHazards(caseData: CaseScenario): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const hazard of [
+    ...visibleSceneHazards(caseData),
+    ...sceneAccessFromIntroduction(caseData),
+  ]) {
+    const key = hazard.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(hazard.trim());
+  }
+  return out;
 }
 
 /** Dispatch/logistical knowledge, kept separate from the visual hazard task. */

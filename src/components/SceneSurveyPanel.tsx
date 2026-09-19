@@ -27,7 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { useVoiceNarration } from '@/hooks/useVoiceNarration';
 import { caseSceneNeedsPatientOverlay, inferSceneImage } from '@/lib/sceneImageSelection';
 import { patientAgeBand, patientAgeScale } from '@/lib/patientAgePresentation';
-import { dispatchAccessNotes, mandatoryScenePpe, visibleSceneHazards } from '@/lib/sceneSafety';
+import { dispatchAccessNotes, mandatoryScenePpe, unifiedSceneHazards } from '@/lib/sceneSafety';
 import { sceneAccessFromIntroduction, sceneRequiresExtrication } from '@/lib/sceneDispatchPreview';
 import { deriveSceneEnvironment, sceneEnvironmentLabel } from '@/lib/sceneEnvironment';
 import {
@@ -1279,7 +1279,7 @@ export function sceneSurveyGateHint({
 }
 
 function buildHazardHotspots(caseData: CaseScenario): HazardHotspot[] {
-  return visibleSceneHazards(caseData)
+  return unifiedSceneHazards(caseData)
     .map((hazard, index) => {
       const kind = classifyHazard(hazard);
       const option = HAZARD_OPTIONS.find(o => o.id === kind) || HAZARD_OPTIONS[0];
