@@ -14,12 +14,14 @@
 import { useMemo } from 'react';
 import type { CaseScenario, SimulationObjective } from '@/types';
 import { getResourcesForPreBriefing } from '@/data/diversifiedResources';
+import { buildSceneDispatchPreview } from '@/lib/sceneDispatchPreview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   BookOpen, Target, Shield, ExternalLink, Play,
-  Lightbulb, AlertTriangle, CheckCircle, GraduationCap
+  Lightbulb, AlertTriangle, CheckCircle, GraduationCap, Eye,
+  Ear, Thermometer, SunMedium, Wind, Users,
 } from 'lucide-react';
 
 interface PreBriefingPanelProps {
@@ -52,6 +54,8 @@ export function PreBriefingPanel({
     getResourcesForPreBriefing(caseData, objective || undefined),
     [caseData, objective]
   );
+
+  const preview = useMemo(() => buildSceneDispatchPreview(caseData), [caseData]);
 
   const learningObjectives = useMemo(() => {
     if (objective) {
@@ -228,6 +232,77 @@ export function PreBriefingPanel({
           </div>
         </CardContent>
       </Card>
+
+      {/* Scene preview — what the student will walk into.
+          Renders the same first-person arrival layer the On Arrival panel
+          shows, but here BEFORE the student presses Enter Scene, so they
+          form a scene expectation from the briefing rather than discovering
+          it on approach. Cases with no generated introduction keep the
+          existing minimal scene-description line. */}
+      {preview && (
+        <Card className="border-l-4 border-l-cyan-500">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Eye className="w-5 h-5 text-cyan-500" />
+              Scene Preview
+              {!preview.hasEnrichment && (
+                <Badge variant="secondary" className="text-[10px] font-normal">
+                  basic
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm leading-relaxed text-foreground">
+              {preview.sceneDescription}
+            </p>
+            {preview.arrivalNarrative && (
+              <p className="text-sm leading-relaxed text-muted-foreground italic">
+                {preview.arrivalNarrative}
+              </p>
+            )}
+            {(preview.sensory.sounds.length > 0 ||
+              preview.sensory.smells.length > 0 ||
+              preview.sensory.temperature ||
+              preview.sensory.light ||
+              preview.sensory.air) && (
+              <div className="flex flex-wrap gap-1.5">
+                {preview.sensory.sounds.map((s, i) => (
+                  <span key={`s${i}`} className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-700 dark:text-cyan-300">
+                    <Ear className="h-3 w-3" />{s}
+                  </span>
+                ))}
+                {preview.sensory.smells.map((s, i) => (
+                  <span key={`m${i}`} className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-700 dark:text-cyan-300">
+                    <Wind className="h-3 w-3" />{s}
+                  </span>
+                ))}
+                {preview.sensory.temperature && (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-700 dark:text-cyan-300">
+                    <Thermometer className="h-3 w-3" />{preview.sensory.temperature}
+                  </span>
+                )}
+                {preview.sensory.light && (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-700 dark:text-cyan-300">
+                    <SunMedium className="h-3 w-3" />{preview.sensory.light}
+                  </span>
+                )}
+                {preview.sensory.air && (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-700 dark:text-cyan-300">
+                    <Wind className="h-3 w-3" />{preview.sensory.air}
+                  </span>
+                )}
+              </div>
+            )}
+            {preview.bystanderDetail && (
+              <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+                <Users className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>{preview.bystanderDetail}</span>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Action Buttons */}
       <div className="flex gap-3">
