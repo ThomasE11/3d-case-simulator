@@ -29,6 +29,7 @@ import { caseSceneNeedsPatientOverlay, inferSceneImage } from '@/lib/sceneImageS
 import { patientAgeBand, patientAgeScale } from '@/lib/patientAgePresentation';
 import { dispatchAccessNotes, mandatoryScenePpe, visibleSceneHazards } from '@/lib/sceneSafety';
 import { sceneAccessFromIntroduction, sceneRequiresExtrication } from '@/lib/sceneDispatchPreview';
+import { deriveSceneEnvironment, sceneEnvironmentLabel } from '@/lib/sceneEnvironment';
 import {
   Shield, AlertTriangle, Eye, HardHat, Stethoscope, ArrowRight,
   ArrowLeft, CheckCircle2, Volume2, VolumeX, Flame, Zap, CloudRain,
@@ -2035,6 +2036,15 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
   const STEP_LABELS: Record<Step, string> = { approach: 'Approach', hazards: 'Hazards & PPE' };
   const stepIndex = stepOrder.indexOf(step);
 
+  // The 3D environment the treatment bay will render in — the same variant
+  // the Body3DModel derives, surfaced here so the student knows what they
+  // are walking into before they press Enter Scene.
+  const sceneEnvironment = useMemo(() => deriveSceneEnvironment(caseData), [caseData]);
+  const sceneEnvironmentLabelValue = useMemo(
+    () => sceneEnvironmentLabel(caseData, sceneEnvironment),
+    [caseData, sceneEnvironment],
+  );
+
   return (
     <div className="animate-fade-in space-y-4 max-w-6xl mx-auto">
       {/* Keyframes powering the "alive" animations (procedural-patient
@@ -2108,6 +2118,9 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
               </div>
               Approach the Scene
             </CardTitle>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {sceneEnvironmentLabelValue} — {getSceneTimeLabel(caseData)}
+            </p>
           </CardHeader>
           <CardContent className="pt-4 space-y-3 text-sm leading-relaxed">
             <SceneArrivalVisual

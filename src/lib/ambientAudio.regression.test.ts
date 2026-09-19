@@ -73,6 +73,8 @@ vi.mock('@/data/clinicalSounds', () => ({
 }));
 
 import { createAmbientAudio } from './ambientAudio';
+import { deriveSceneEnvironment, sceneEnvironmentLabel } from './sceneEnvironment';
+import type { CaseScenario } from '@/types';
 
 describe('ambient WebAudio state', () => {
   beforeEach(() => {
@@ -116,5 +118,41 @@ describe('ambient WebAudio state', () => {
 
     state.setPatientPosition([0.1, 0.82, 0.44]);
     expect(state.patient.position.toArray()).toEqual([0.1, 0.82, 0.44]);
+  });
+});
+
+describe('ambient scene-awareness', () => {
+  it('classifies a villa living room as the home variant', () => {
+    const c = {
+      id: 'resp-001',
+      sceneInfo: { description: 'Villa living room', environment: 'home' },
+    } as unknown as CaseScenario;
+    expect(deriveSceneEnvironment(c)).toBe('home');
+  });
+
+  it('classifies an RTA on Al Khail Road as roadside, not water', () => {
+    const c = {
+      id: 'trauma-003',
+      dispatchInfo: { location: 'Al Khail Road, Deira', callReason: 'RTA' },
+      sceneInfo: { description: 'Roadside pavement', environment: 'roadside' },
+    } as unknown as CaseScenario;
+    expect(deriveSceneEnvironment(c)).toBe('roadside');
+  });
+
+  it('classifies a warehouse fire as fire, not industrial', () => {
+    const c = {
+      id: 'fire-001',
+      sceneInfo: { description: 'Warehouse fire', environment: 'fire' },
+    } as unknown as CaseScenario;
+    expect(deriveSceneEnvironment(c)).toBe('fire');
+  });
+
+  it('returns the operational context label for a worksite office', () => {
+    const c = {
+      id: 'ind-001',
+      dispatchInfo: { location: 'Construction site office' },
+      sceneInfo: { description: 'Portacabin', environment: 'public' },
+    } as unknown as CaseScenario;
+    expect(sceneEnvironmentLabel(c, 'industrial')).toBe('worksite office');
   });
 });
