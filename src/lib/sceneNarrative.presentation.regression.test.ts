@@ -7,6 +7,9 @@ describe('scene presentation descriptions', () => {
     const scenario = allCases.find(caseData => caseData.id === 'resp-001');
 
     expect(scenario).toBeDefined();
+    expect(scenario!.sceneInfo.description).toBe(
+      'Villa living room, patient seated upright on the sofa in tripod position',
+    );
     expect(getScenePresentationDescription(scenario!)).toBe(
       'Villa living room, patient seated upright in tripod position',
     );

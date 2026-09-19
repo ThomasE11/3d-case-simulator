@@ -1153,10 +1153,10 @@ export const caseDatabase: CaseScenario[] = [
       language: 'Arabic, English'
     },
     sceneInfo: {
-      description: 'Bedroom, patient sitting on edge of bed',
+      description: 'Villa living room, patient seated upright on the sofa in tripod position',
       hazards: [],
       bystanders: 'Parents present',
-      environment: 'Dust visible, carpeted room',
+      environment: 'Residential living room with upholstered seating; parents present',
       sceneImagePath: '/scene-assets/asthma-villa-male-uae.png',
       sceneImageCaption: 'Villa living room — Al Ain',
     },
