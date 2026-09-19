@@ -1696,6 +1696,7 @@ function SceneArrivalVisual({
     : focus === 'approach'
       ? sceneCallouts.filter(c => c.id === 'patient')
       : [];
+  const intro = sceneIntroductionFor(caseData);
   const visualModeLabel = focus === 'hazards'
     ? 'Hazard scan'
     : focus === 'impression'
@@ -1713,8 +1714,13 @@ function SceneArrivalVisual({
           </div>
           {/* The minimal arrival statement — what the student sees + hears.
               No scene-metadata dump, no hazard list (hazards are scanned, not
-              told), no image-fidelity checklist. */}
+              told), no image-fidelity checklist. When a case has a generated
+              scene introduction the first-person arrival narrative replaces the
+              dispatch shorthand; otherwise the derived sentence is used. */}
           <h3 className="text-lg font-semibold leading-snug">{buildArrivalSentence(caseData)}</h3>
+          {intro?.arrivalNarrative && (
+            <p className="text-sm leading-relaxed text-white/80">{intro.arrivalNarrative}</p>
+          )}
           {/* Additive first-person arrival layer (sensory cues, access/extrication,
               bystander micro-behaviour). Renders only when a case has generated
               scene-introduction enrichment; otherwise leaves the minimal view intact. */}
