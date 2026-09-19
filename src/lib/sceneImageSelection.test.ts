@@ -100,8 +100,14 @@ describe('animated arrival clips', () => {
     expect(inferSceneVideo(caseData!)).toBe('/scene-assets/arrival-trauma-001-rtc.mp4');
   });
 
-  it('falls back to null when a case has no registered clip', () => {
+  it('resolves the registered arrival clip for resp-001', () => {
     const caseData = allCases.find(({ id }) => id === 'resp-001');
+    expect(caseData).toBeDefined();
+    expect(inferSceneVideo(caseData!)).toBe('/scene-assets/arrival-resp-001-villa.mp4');
+  });
+
+  it('falls back to null when a case has no registered clip', () => {
+    const caseData = allCases.find(({ id }) => id === 'y2-007');
     expect(caseData).toBeDefined();
     expect(inferSceneVideo(caseData!)).toBeNull();
   });

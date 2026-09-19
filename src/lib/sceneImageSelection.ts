@@ -509,10 +509,13 @@ export function inferSceneImage(caseData: CaseScenario): string {
 
 /** Case-id → arrival clip path. Deliberately tiny: video is expensive to
  *  generate, so this is the sparse high-value layer, not blanket coverage. */
-const SCENE_VIDEO_OVERRIDES: Record<string, string> = {};
+const SCENE_VIDEO_OVERRIDES: Record<string, string> = {
+  'resp-001': '/scene-assets/arrival-resp-001-villa.mp4',
+};
 
 const KNOWN_SCENE_VIDEOS = new Set<string>([
   '/scene-assets/arrival-trauma-001-rtc.mp4',
+  '/scene-assets/arrival-resp-001-villa.mp4',
 ]);
 
 export function hasSceneVideoAsset(src: string): boolean {
