@@ -5,6 +5,7 @@ export interface SkinTintInputs {
   vitals?: Partial<VitalSigns> | null;
   initialVitals?: Partial<VitalSigns> | null;
   jaundice?: number;
+  scenarioFlushing?: number;
   scenarioPallor?: number;
   scenarioCyanosis?: number;
 }
@@ -28,6 +29,7 @@ export function deriveSkinTint(inputs: SkinTintInputs): THREE.Color | null {
   const source = inputs.vitals ?? inputs.initialVitals;
   const pulse = typeof source?.pulse === 'number' ? source.pulse : null;
   const systolic = parseSystolic(source?.bp);
+  const temperature = typeof source?.temperature === 'number' ? source.temperature : null;
 
   const color = new THREE.Color(0xffffff);
   let touched = false;
@@ -35,6 +37,20 @@ export function deriveSkinTint(inputs: SkinTintInputs): THREE.Color | null {
   const jaundice = inputs.jaundice ?? 0;
   if (jaundice > 0) {
     color.lerp(new THREE.Color(0xd6bd6a), 0.45 * jaundice);
+    touched = true;
+  }
+
+  // Fever should be clinically visible before the learner opens the monitor:
+  // warm pink-red cheeks/upper skin, not the grey pallor used for shock. The
+  // authored flushing channel preserves this cue even when a case omits a
+  // numeric temperature; a live normal temperature can subsequently clear it.
+  const authoredFlushing = inputs.scenarioFlushing ?? 0;
+  const feverStrength = temperature !== null && temperature >= 38
+    ? Math.min(1, 0.45 + (temperature - 38) * 0.35)
+    : 0;
+  const flushing = Math.max(authoredFlushing, feverStrength);
+  if (flushing > 0) {
+    color.lerp(new THREE.Color(0xefaa9d), Math.min(0.55, 0.2 + flushing * 0.32));
     touched = true;
   }
 

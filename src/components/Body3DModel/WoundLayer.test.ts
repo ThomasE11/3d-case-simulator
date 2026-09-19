@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { spriteKindFor, hashInjury, vertexMatchesRegion } from './WoundLayer';
+import { spriteKindFor, hashInjury, vertexMatchesRegion, woundRotationFor } from './WoundLayer';
 
 describe('spriteKindFor', () => {
   it('maps the field-reported case: surgical wound, red and draining', () => {
@@ -29,6 +29,14 @@ describe('hashInjury', () => {
     expect(hashInjury('chest-wound-1')).toBe(hashInjury('chest-wound-1'));
     expect(hashInjury('chest-wound-1')).not.toBe(hashInjury('chest-wound-2'));
     expect(hashInjury('a')).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('woundRotationFor', () => {
+  it('keeps surgical incisions aligned vertically while other wounds remain deterministic', () => {
+    expect(woundRotationFor('infected-incision', 123)).toBe(Math.PI / 2);
+    expect(woundRotationFor('surgical-incision', 987)).toBe(Math.PI / 2);
+    expect(woundRotationFor('laceration', 123)).toBe(woundRotationFor('laceration', 123));
   });
 });
 
@@ -63,4 +71,3 @@ describe('vertexMatchesRegion laterality', () => {
     expect(vertexMatchesRegion(0, 1.27, 0.12, 'chest')).toBe(true);
   });
 });
-

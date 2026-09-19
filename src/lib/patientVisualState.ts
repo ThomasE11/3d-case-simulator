@@ -29,6 +29,7 @@ import type { RealismDirectorState } from '@/lib/patientRealismDirector';
 export type SkinEffectKind =
   | 'rash'
   | 'facial_swelling'
+  | 'flushing'
   | 'pallor'
   | 'mottling'
   | 'diaphoresis'
@@ -106,7 +107,7 @@ export interface PatientVisualState {
 /* ------------------------------------------------------------------ */
 
 const SKIN_EFFECT_KINDS: Set<RealismVisualEffectKind> = new Set([
-  'cyanosis', 'diaphoresis', 'pallor', 'mottling',
+  'cyanosis', 'diaphoresis', 'flushing', 'pallor', 'mottling',
   'rash', 'facial_swelling', 'burn_pattern', 'soot',
   'accessory_muscle_use',
 ]);

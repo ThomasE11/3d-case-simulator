@@ -49,6 +49,14 @@ export function hashInjury(id: string): number {
   return h >>> 0;
 }
 
+export function woundRotationFor(kind: WoundKind, hash: number): number {
+  // Surgical incisions have an authored anatomical direction; random rotation
+  // can turn a midline incision into a diagonal cross when the focused layer
+  // is revealed over the atlas decal.
+  if (kind === 'infected-incision' || kind === 'surgical-incision') return Math.PI / 2;
+  return ((hash >>> 8) % 628) / 100 - Math.PI;
+}
+
 const SEVERITY_SIZE: Record<BodyInjury['severity'], number> = {
   critical: 0.068, // fraction of atlas width
   major: 0.054,
@@ -161,7 +169,7 @@ export function applyWoundsToTextures(
         px: pick.u * tw,
         py: (flipY ? 1 - pick.v : pick.v) * th,
         size: SEVERITY_SIZE[injury.severity] * tw,
-        rot: ((h >>> 8) % 628) / 100 - Math.PI, // stable rotation −π..π
+        rot: woundRotationFor(kind, h),
       });
     }
     if (targets.length === 0) return 0;

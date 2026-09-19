@@ -53,11 +53,11 @@ function drawWound(ctx: CanvasRenderingContext2D, kind: WoundKind, cx: number, c
       ctx.fillStyle = infectedGradient;
       ctx.fillRect(-sizePx * 1.4, -sizePx * 1.4, sizePx * 2.8, sizePx * 2.8);
 
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 6; i++) {
         const angle = rand() * Math.PI * 2;
         ctx.beginPath();
-        ctx.arc(Math.cos(angle) * sizePx * 0.5, Math.sin(angle) * sizePx * 0.5, sizePx * 0.1, 0, Math.PI * 2);
-        ctx.fillStyle = '#FFFF99';
+        ctx.arc(Math.cos(angle) * sizePx * 0.42, Math.sin(angle) * sizePx * 0.62, sizePx * (0.025 + rand() * 0.025), 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(235, 218, 154, 0.82)';
         ctx.fill();
       }
       break;

@@ -1378,6 +1378,19 @@ body {
   backdrop-filter: blur(8px);
 }
 
+.focused-wound-callout[data-wound-kind="infected-incision"] {
+  width: 5.4rem;
+}
+
+.focused-wound-callout[data-wound-kind="infected-incision"] img {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+.focused-wound-callout[data-wound-kind="infected-incision"] span {
+  display: none;
+}
+
 .tactical-monitor-rail,
 .tactical-loadout-rail {
   display: flex;

@@ -96,6 +96,7 @@ import {
 } from '@/lib/pupilExam';
 import { ActiveBleedSprites } from './ActiveBleedLayer';
 import { FocusedWoundLayer } from './FocusedWoundLayer';
+import { spriteKindFor } from './WoundLayer';
 import type { PatientVisualState, PatientWoundOverlay } from '@/lib/patientVisualState';
 import { deriveIdleCues } from '@/lib/idleCues';
 import {
@@ -1231,6 +1232,7 @@ function InjuryWoundMarkers({
   return (
     <>
       {injuries.map((inj) => {
+        if (spriteKindFor(inj) === 'infected-incision') return null;
         const style = WOUND_STYLE[inj.kind];
         if (!style) return null; // shape-only finding — no skin mark
         const region3d = injuryRegionTo3D(inj.region);
@@ -1266,6 +1268,57 @@ function InjuryWoundMarkers({
         );
       })}
     </>
+  );
+}
+
+/**
+ * A pre-existing infected surgical wound is normally covered when crews
+ * arrive. Keep that clinical clue visible in the overview as a soiled gauze
+ * dressing; once the learner exposes and inspects the region, remove the
+ * dressing cue so FocusedWoundLayer reveals the actual incision underneath.
+ */
+export function isPreExistingInfectedDressing(injury: Pick<BodyInjury, 'kind' | 'label' | 'detail'>): boolean {
+  return spriteKindFor(injury) === 'infected-incision';
+}
+
+function PreExistingWoundDressing({
+  injury,
+  activeRegion,
+  exposed,
+  assessedRegions,
+  sampler,
+}: {
+  injury: BodyInjury | null;
+  activeRegion: string | null;
+  exposed: boolean;
+  assessedRegions: Set<string>;
+  sampler: SurfaceSampler | null;
+}) {
+  if (!injury) return null;
+  const region = injuryRegionTo3D(injury.region);
+  const inspectingOpenWound = activeRegion === region && exposed && assessedRegions.has(region);
+  if (inspectingOpenWound) return null;
+
+  const fallback = FINDING_ANCHORS[region] ?? FINDING_ANCHORS.abdomen;
+  const sampled = sampler && region !== 'posterior-logroll'
+    ? sampler(fallback[0], fallback[1], { coordinateSpace: 'author' })
+    : fallback;
+  const position: [number, number, number] = [sampled[0], sampled[1] + 0.025, sampled[2] + 0.015];
+
+  return (
+    <Html position={position} center distanceFactor={2.3} zIndexRange={[96, 76]} transform={false} occlude={false} pointerEvents="none">
+      <div
+        data-preexisting-dressing="infected-incision"
+        aria-label="Soiled abdominal surgical dressing with surrounding redness and purulent drainage"
+        className="pointer-events-none relative h-9 w-14 -rotate-2 drop-shadow-[0_3px_5px_rgba(52,18,18,0.38)]"
+      >
+        <span className="absolute -inset-2 rounded-[48%] bg-[radial-gradient(ellipse,rgba(183,47,53,0.44)_0%,rgba(194,62,52,0.18)_48%,rgba(190,42,48,0)_76%)]" />
+        <span className="absolute inset-0 rounded-md border border-amber-100/90 bg-[repeating-linear-gradient(0deg,rgba(255,255,255,0.94)_0px,rgba(255,255,255,0.94)_3px,rgba(225,218,201,0.96)_4px,rgba(246,241,225,0.96)_6px)] shadow-inner" />
+        <span className="absolute left-[38%] top-[20%] h-[62%] w-[30%] rounded-full bg-[radial-gradient(ellipse,rgba(128,64,38,0.68)_0%,rgba(178,123,57,0.48)_42%,rgba(137,43,41,0.20)_70%,transparent_100%)] blur-[0.35px]" />
+        <span className="absolute left-[49%] top-[59%] h-1.5 w-1.5 rounded-full bg-amber-200/65 blur-[0.4px]" />
+        <span className="absolute -bottom-0.5 left-[50%] h-1.5 w-0.5 -translate-x-1/2 rounded-b-full bg-amber-200/55" />
+      </div>
+    </Html>
   );
 }
 
@@ -1351,7 +1404,7 @@ function ScenarioVisualMarkers({
 
   const markers = [
     ...visualState.skinEffects
-      .filter(effect => !['pallor', 'cyanosis', 'diaphoresis', 'mottling'].includes(effect.kind))
+      .filter(effect => !['flushing', 'pallor', 'cyanosis', 'diaphoresis', 'mottling'].includes(effect.kind))
       .map(effect => ({
         id: `skin-${effect.kind}-${effect.region}`,
         kind: effect.kind,
@@ -3801,8 +3854,8 @@ function getFinding(
   const abdomenQuadrant = getQuadrantFromAction(actionId);
   // Abdomen — consolidated techniques (each covers the whole abdomen)
   if (actionId === 'abd-inspect') {
-    const abd = ss?.abdomen || [];
-    const inspectFindings = abd.filter(f => f.toLowerCase().includes('distend') || f.toLowerCase().includes('bruis') || f.toLowerCase().includes('scar') || f.toLowerCase().includes('visible'));
+    const abd = [...(ss?.abdomen || []), ...(caseData.abcde?.exposure?.findings || [])];
+    const inspectFindings = [...new Set(abd.filter(f => /distend|bruis|scar|visible|incision|wound|cellul|erythema|purulent|drain|swell/i.test(f)))];
     return inspectFindings.length ? inspectFindings.join('. ') : 'Abdomen flat, symmetrical. No distension. No visible bruising, scars, or peristalsis.';
   }
   if (abdomenQuadrant && actionId.endsWith('-auscultate')) {
@@ -5709,6 +5762,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
   }, [unwellness]);
 
   const scenarioPallor = skinEffectStrength(patientVisualState, 'pallor');
+  const scenarioFlushing = skinEffectStrength(patientVisualState, 'flushing');
   const scenarioCyanosis = skinEffectStrength(patientVisualState, 'cyanosis');
   const scenarioDiaphoresis = skinEffectStrength(patientVisualState, 'diaphoresis');
   const scenarioMottling = skinEffectStrength(patientVisualState, 'mottling');
@@ -5736,9 +5790,10 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
       vitals: effectiveVitals,
       initialVitals: caseData.vitalSignsProgression?.initial,
       jaundice: unwellness.jaundice,
+      scenarioFlushing,
       scenarioPallor,
     });
-  }, [effectiveVitals, caseData.vitalSignsProgression?.initial, unwellness.jaundice, scenarioPallor]);
+  }, [effectiveVitals, caseData.vitalSignsProgression?.initial, unwellness.jaundice, scenarioFlushing, scenarioPallor]);
 
   const cyanosisLocalStrength = useMemo<number>(() => {
     return deriveCyanosisLocalStrength(
@@ -5775,6 +5830,10 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
   const bodyInjuriesForMesh = useMemo(
     () => [...caseInjuries, ...scenarioBodyInjuries],
     [caseInjuries, scenarioBodyInjuries],
+  );
+  const preExistingInfectedDressing = useMemo(
+    () => bodyInjuriesForMesh.find(isPreExistingInfectedDressing) ?? null,
+    [bodyInjuriesForMesh],
   );
 
   const activeFindingMorphs = useMemo(() => {
@@ -6978,6 +7037,14 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 controlledIds={buildTreatmentEquipmentState(appliedTreatmentIds).controlledBleedIds}
                 sampler={surfaceSampler}
                 bpm={isInArrest ? 0 : (vitals?.pulse ?? 80)}
+              />
+
+              <PreExistingWoundDressing
+                injury={preExistingInfectedDressing}
+                activeRegion={activeRegion}
+                exposed={regionExposed}
+                assessedRegions={assessedRegions}
+                sampler={surfaceSampler}
               />
 
               <FocusedWoundLayer

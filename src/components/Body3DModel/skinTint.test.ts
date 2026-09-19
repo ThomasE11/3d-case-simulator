@@ -13,6 +13,13 @@ describe('skinTint functions', () => {
       const tint = deriveSkinTint({ vitals: { pulse: 120, bp: '100/70' } });
       expect(tint).not.toBeNull();
     });
+
+    it('renders fever as warm flushing rather than pallor', () => {
+      const tint = deriveSkinTint({ initialVitals: { temperature: 38.5, pulse: 105, bp: '130/80' }, scenarioFlushing: 0.66 });
+      expect(tint).not.toBeNull();
+      expect(tint!.r).toBeGreaterThan(tint!.g);
+      expect(tint!.g).toBeGreaterThan(tint!.b);
+    });
   });
 
   describe('deriveCyanosisLocalStrength', () => {

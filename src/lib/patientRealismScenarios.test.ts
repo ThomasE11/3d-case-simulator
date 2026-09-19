@@ -336,6 +336,18 @@ describe('matchRealismScenarios', () => {
 /* ------------------------------------------------------------------ */
 
 describe('deriveScenarioVisuals', () => {
+  it('renders the post-operative infection as flushed and sweaty before deterioration', () => {
+    const scenario = allCases.find(caseData => caseData.id === 'postd-001');
+    expect(scenario).toBeDefined();
+
+    const visuals = deriveScenarioVisuals(scenario!);
+    expect(visuals).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'flushing', region: 'face' }),
+      expect.objectContaining({ kind: 'diaphoresis', region: 'face' }),
+    ]));
+    expect(visuals.some(visual => visual.id === 'sepsis-flush' && visual.kind === 'pallor')).toBe(false);
+  });
+
   it('returns immediate visuals from matched respiratory scenario', () => {
     const scenario = baseCase({
       id: 'test-visuals-asthma',
@@ -751,4 +763,3 @@ describe('trauma is not one undifferentiated scenario', () => {
     }
   });
 });
-

@@ -39,7 +39,7 @@ function makeDataUrl(injury: BodyInjury): string | null {
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  drawWound(ctx, kind, size / 2, size / 2, size * 0.31, 0);
+  drawWound(ctx, kind, size / 2, size / 2, size * 0.31, kind === 'infected-incision' ? Math.PI / 2 : 0);
   return canvas.toDataURL('image/png');
 }
 
@@ -81,13 +81,13 @@ export function FocusedWoundLayer({
             key={injury.id}
             position={position}
             center
-            distanceFactor={3.15}
+            distanceFactor={spriteKindFor(injury) === 'infected-incision' ? 2.2 : 3.15}
             zIndexRange={[100, 80]}
             transform={false}
             occlude={false}
             pointerEvents="none"
           >
-            <div className="focused-wound-callout" data-severity={injury.severity} data-wound-kind={spriteKindFor(injury)}>
+            <div className="focused-wound-callout" data-severity={injury.severity} data-wound-kind={spriteKindFor(injury)} aria-label={injury.label}>
               <img src={url} alt="" aria-hidden="true" />
               <span>{injury.label}</span>
             </div>

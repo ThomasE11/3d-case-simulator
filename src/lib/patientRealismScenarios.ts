@@ -19,6 +19,7 @@ export type ProblemFamily =
 export type RealismVisualEffectKind =
   | 'cyanosis'
   | 'diaphoresis'
+  | 'flushing'
   | 'pallor'
   | 'mottling'
   | 'rash'
@@ -822,7 +823,7 @@ export const REALISM_SCENARIOS: RealismScenarioSpec[] = [
     priority: 70,
     activeProblems: ['systemic infection', 'perfusion failure', 'altered mental state', 'source identification'],
     immediateVisuals: [
-      { id: 'sepsis-flush', kind: 'pallor', region: 'face', intensity: 'moderate', showWhen: 'immediate', clearsWhen: ['perfusion improves'], detail: 'Septic patients look wrong before the numbers do — flushed then grey as perfusion fails.' },
+      { id: 'sepsis-flush', kind: 'flushing', region: 'face', intensity: 'moderate', showWhen: 'immediate', clearsWhen: ['fever and perfusion improve'], detail: 'Fever produces warm facial and upper-body flushing; deteriorating perfusion can later turn the patient grey.' },
       { id: 'sepsis-mottling', kind: 'mottling', region: 'left-leg', intensity: 'moderate', showWhen: 'if-deteriorating', clearsWhen: ['perfusion improves'], detail: 'Mottled knees and peripheries are a late, ominous perfusion sign.' },
       { id: 'sepsis-sweat', kind: 'diaphoresis', region: 'face', intensity: 'moderate', showWhen: 'immediate', clearsWhen: ['fever and perfusion improve'], detail: 'Clammy and febrile together.' },
     ],
