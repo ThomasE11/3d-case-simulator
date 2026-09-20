@@ -96,6 +96,7 @@ import { phaseMotionVariant, phaseTransitionKey, type CinematicPhase } from '@/l
 import { deduplicateCareFeedItems } from '@/lib/careFeed';
 import { deriveSceneEnvironment, sceneEnvironmentLabel } from '@/lib/sceneEnvironment';
 import { sceneArrivalCopy } from '@/lib/sceneArrival';
+import { getSceneIntroduction } from '@/lib/sceneIntroductions';
 import { matchRealismScenarios } from '@/lib/patientRealismScenarios';
 import {
   buildReactionForTreatment,
@@ -1803,7 +1804,15 @@ export function StudentPanel({
   // patient frame had rendered on a cold load.
   const arrivalChyronEncounterRef = useRef<string | null>(null);
   const arrivalCaseId = currentCase?.id ?? null;
-  const hasSceneArrival = Boolean(currentCase?.sceneInfo?.sceneImageCaption?.trim());
+  // The arrival chyron fires for any case that describes a place — either an
+  // authored scene-image caption OR a generated arrival layer (arrival
+  // narrative / sensory cues). Previously this gated on the caption alone,
+  // so the cases with a rich generated arrival layer but no authored caption
+  // never got a broadcast lower-third at all.
+  const hasSceneArrival = Boolean(
+    currentCase?.sceneInfo?.sceneImageCaption?.trim() ||
+      (arrivalCaseId ? getSceneIntroduction(arrivalCaseId)?.arrivalNarrative?.trim() : false),
+  );
   const isArrivalLivePhase = phase === 'vitals' || phase === 'case';
   const [sceneReadyForCase, setSceneReadyForCase] = useState<string | null>(null);
   const handlePatientSceneReady = useCallback(() => {
