@@ -34,6 +34,9 @@ export interface IdleLimbMotion {
   rightArmDrift: number;
   leftForeArmDrift: number;
   rightForeArmDrift: number;
+  /** Recumbent leg drift — a resting leg's knee never holds one angle. */
+  leftKneeDrift: number;
+  rightKneeDrift: number;
 }
 
 export interface IdleLimbMotionInput {
@@ -78,6 +81,11 @@ const ACCESSORY_FULL_RPM = 34;
 
 const ARM_DRIFT = 0.008;
 const FOREARM_DRIFT = 0.006;
+/** Resting knee drift — a supine or seated patient's knee joint relaxes by a
+ *  fraction of a degree. Kept an order of magnitude below the forearm drift:
+ * the knee is a long lever, and 0.006 rad still travels the foot ~40 mm.
+ * This is a knee angle, not a foot swing — the foot stays planted. */
+const KNEE_DRIFT = 0.0009;
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
@@ -121,6 +129,8 @@ export function computeIdleLimbMotion(
     out.rightArmDrift = 0;
     out.leftForeArmDrift = 0;
     out.rightForeArmDrift = 0;
+    out.leftKneeDrift = 0;
+    out.rightKneeDrift = 0;
     return out;
   }
 
@@ -131,6 +141,22 @@ export function computeIdleLimbMotion(
   // Braced hands (tripod) still get a girdle shrug, but a smaller one so the
   // planted contact points do not skate.
   out.shoulderLift = braced ? lift * 0.55 : lift;
+
+  // A resting leg's knee never holds one angle. This is the lowest-cost
+  // "alive" cue in the module — a single sine per side, applied to the knee
+  // joint only, so the foot stays on the floor/stretcher and nothing above it
+  // is disturbed. Measured on resp-001: a supine patient's legs had a 0 mm
+  // world-space span across 60 samples and read as a mannequin, while the
+  // arms drifted 1.3–4.3 mm. Gated on the reduced rung (iPad tier drops the
+  // garnish) but NOT on braced: a tripod patient's planted hands are the
+  // clinical finding, their relaxed knees are not.
+  if (!reduced) {
+    out.leftKneeDrift = (Math.sin(time * 0.34 + 0.7) * 0.6 + Math.sin(time * 0.19) * 0.4) * KNEE_DRIFT * gate;
+    out.rightKneeDrift = (Math.sin(time * 0.29 + 3.1) * 0.6 + Math.sin(time * 0.16 + 1.4) * 0.4) * KNEE_DRIFT * gate;
+  } else {
+    out.leftKneeDrift = 0;
+    out.rightKneeDrift = 0;
+  }
 
   if (reduced || braced) {
     out.leftArmDrift = 0;
@@ -161,5 +187,7 @@ export function createIdleLimbMotion(): IdleLimbMotion {
     rightArmDrift: 0,
     leftForeArmDrift: 0,
     rightForeArmDrift: 0,
+    leftKneeDrift: 0,
+    rightKneeDrift: 0,
   };
 }

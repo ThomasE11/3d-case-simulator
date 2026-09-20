@@ -1551,12 +1551,23 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
     [standingArmBones],
   );
   const tripodBraceRef = useRef(0);
+  // Skeleton.bones are the ORIGINAL mesh's bones, not the cloned scene's —
+  // clonedScene.getObjectByName cannot see them. Every bone lookup below
+  // routes through this helper, which resolves off the patient's own
+  // skeleton first (measured: without it, all leg bones came back null and
+  // recumbent patients read as mannequins with 0 mm leg span).
+  const resolveSkeletonBone = (scene: THREE.Object3D, name: string) => {
+    const patientObj = scene.getObjectByName('Patient');
+    const skel = patientObj && (patientObj as THREE.SkinnedMesh).skeleton;
+    if (skel) return skel.bones.find(b => b.name === name.replace(/:/g, '')) ?? null;
+    return scene.getObjectByName(name) ?? scene.getObjectByName(name.replace(/:/g, '')) ?? null;
+  };
   // Accessory recruitment is a girdle shrug, not an upper-arm wave. Mixamo's
   // LeftArm/RightArm sit distal to the clavicle; rotating them levers the
   // hands ~30 mm and reads as jitter on a tripod patient.
   const accessoryShoulderBones = useMemo(() => (
     ['mixamorig:LeftShoulder', 'mixamorig:RightShoulder']
-      .map(name => clonedScene.getObjectByName(name) ?? clonedScene.getObjectByName(name.replace(/:/g, '')))
+      .map(name => resolveSkeletonBone(clonedScene, name))
       .filter((node): node is THREE.Object3D => node !== undefined)
   ), [clonedScene]);
   const accessoryShoulderRest = useMemo(
@@ -1565,7 +1576,7 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
   );
   const recumbentForearmBones = useMemo(() => (
     ['mixamorig:LeftForeArm', 'mixamorig:RightForeArm']
-      .map(name => clonedScene.getObjectByName(name) ?? clonedScene.getObjectByName(name.replace(/:/g, '')))
+      .map(name => resolveSkeletonBone(clonedScene, name))
       .filter((node): node is THREE.Object3D => node !== undefined)
   ), [clonedScene]);
   const recumbentForearmRest = useMemo(
@@ -1574,7 +1585,7 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
   );
   const postureSpineBones = useMemo(() => (
     ['mixamorig:Spine', 'mixamorig:Spine1']
-      .map(name => clonedScene.getObjectByName(name) ?? clonedScene.getObjectByName(name.replace(/:/g, '')))
+      .map(name => resolveSkeletonBone(clonedScene, name))
       .filter((node): node is THREE.Object3D => node !== undefined)
   ), [clonedScene]);
   const postureSpineRest = useMemo(
@@ -1582,19 +1593,25 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
     [postureSpineBones],
   );
   const recoveryPoseBones = useMemo(() => {
-    const find = (name: string) => (
-      clonedScene.getObjectByName(name) ?? clonedScene.getObjectByName(name.replace(/:/g, '')) ?? null
-    );
+    // NB: Skeleton.bones are the ORIGINAL mesh's bones, not the cloned
+    // scene's — clonedScene.getObjectByName cannot see them (measured:
+    // every leg bone came back null, which is why recumbent patients read
+    // as mannequins with 0 mm leg span). resolveSkeletonBone handles that.
+    const find = (name: string) => resolveSkeletonBone(clonedScene, name);
     return {
       leftArm: find('mixamorig:LeftArm'),
       leftForeArm: find('mixamorig:LeftForeArm'),
       rightArm: find('mixamorig:RightArm'),
       rightForeArm: find('mixamorig:RightForeArm'),
+      leftUpLeg: find('mixamorig:LeftUpLeg'),
+      leftLeg: find('mixamorig:LeftLeg'),
       rightUpLeg: find('mixamorig:RightUpLeg'),
       rightLeg: find('mixamorig:RightLeg'),
     };
   }, [clonedScene]);
   const recoveryLegRest = useMemo(() => ({
+    leftUpLeg: recoveryPoseBones.leftUpLeg?.quaternion.clone() ?? null,
+    leftLeg: recoveryPoseBones.leftLeg?.quaternion.clone() ?? null,
     rightUpLeg: recoveryPoseBones.rightUpLeg?.quaternion.clone() ?? null,
     rightLeg: recoveryPoseBones.rightLeg?.quaternion.clone() ?? null,
   }), [recoveryPoseBones]);
@@ -1915,11 +1932,22 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
       // Legs are otherwise static in recumbent presentations, so explicitly
       // restore them before applying the recovery bend. This also makes a
       // later move back to supine deterministic instead of retaining a knee.
+      // The idle knee drift layers on top of that restore — a resting leg's
+      // knee never holds one angle, and the foot stays planted because the
+      // drift is applied to the knee joint only.
+      if (recoveryPoseBones.leftUpLeg && recoveryLegRest.leftUpLeg) {
+        recoveryPoseBones.leftUpLeg.quaternion.copy(recoveryLegRest.leftUpLeg);
+      }
+      if (recoveryPoseBones.leftLeg && recoveryLegRest.leftLeg) {
+        recoveryPoseBones.leftLeg.quaternion.copy(recoveryLegRest.leftLeg);
+        recoveryPoseBones.leftLeg.rotateX(idleLimb.leftKneeDrift);
+      }
       if (recoveryPoseBones.rightUpLeg && recoveryLegRest.rightUpLeg) {
         recoveryPoseBones.rightUpLeg.quaternion.copy(recoveryLegRest.rightUpLeg);
       }
       if (recoveryPoseBones.rightLeg && recoveryLegRest.rightLeg) {
         recoveryPoseBones.rightLeg.quaternion.copy(recoveryLegRest.rightLeg);
+        recoveryPoseBones.rightLeg.rotateX(idleLimb.rightKneeDrift);
       }
       if (posture === 'recovery') {
         applyLocalBoneAdjustment(recoveryPoseBones.leftArm, RECOVERY_BONE_ADJUSTMENTS.leftArm);
