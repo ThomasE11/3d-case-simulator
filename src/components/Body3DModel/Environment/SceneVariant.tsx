@@ -1420,11 +1420,15 @@ function BystanderFigure({
   position,
   yaw,
   posture,
+  onReady,
 }: {
   url: string;
   position: [number, number, number];
   yaw: number;
   posture: BystanderPosture;
+  /** Called once with the mounted group so the crowd can drive the idle
+   *  animation from a single useFrame instead of one per figure. */
+  onReady?: (ref: THREE.Group | null) => void;
 }) {
   const { scene } = useGLTF(url);
   const clone = useMemo(() => {
@@ -1454,15 +1458,52 @@ function BystanderFigure({
     lying: 0.3,
   };
   const s = scaleByPosture[posture];
+
+  const groupRef = useRef<THREE.Group>(null);
+  useEffect(() => {
+    const g = groupRef.current;
+    if (g) onReady?.(g);
+    return () => { onReady?.(null); };
+  }, [onReady]);
+
   return (
-    <primitive
-      name={`bystander-${posture}`}
-      object={clone}
-      position={[position[0], 0, position[2]]}
-      rotation={[0, yaw, 0]}
-      scale={[1, s, 1]}
-    />
+    <group ref={groupRef} position={[position[0], 0, position[2]]} rotation={[0, yaw, 0]}>
+      <primitive name={`bystander-${posture}`} object={clone} scale={[1, s, 1]} />
+    </group>
   );
+}
+
+/** A static crowd reads as a line of mannequins. One useFrame drives every
+ *  figure instead of N callbacks, so a 24-strong crowd costs one loop on the
+ *  iPad tier rather than 24. Each figure gets a small, deterministic idle — a
+ *  slow chest rise (breathing) and a gentle head turn, phased off its index
+ *  so adjacent figures never move in lock. The amplitude is tiny: this is a
+ *  witness shifting their weight, not a turbulence generator.
+ */
+function BystanderIdle({
+  refs,
+  baseYaws,
+}: {
+  refs: React.MutableRefObject<THREE.Group[]>;
+  baseYaws: number[];
+}) {
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    const arr = refs.current;
+    for (let i = 0; i < arr.length; i++) {
+      const g = arr[i];
+      if (!g) continue;
+      // Phase each figure off its index so adjacent figures desync.
+      const phase = (i * 2.65) % (Math.PI * 2);
+      const breathHz = 0.26 + (i % 3) * 0.02;
+      const breath = Math.sin(t * breathHz * Math.PI * 2 + phase) * 0.012;
+      const sway = Math.sin(t * 0.42 + phase * 0.5) * 0.016;
+      const base = baseYaws[i] ?? 0;
+      g.rotation.z = base + sway;
+      g.scale.set(1, g.scale.y + breath, 1);
+    }
+  });
+  return null;
 }
 
 /**
@@ -1488,6 +1529,10 @@ function BystanderCrowd({
     const posture = parsed.count > 0 ? parsed.posture : envelope.posture;
     return layoutBystanders(count, { ...envelope, posture }, envelope.seed);
   }, [envelope, parsed]);
+  const refs = useRef<THREE.Group[]>([]);
+  const yaws = useRef<number[]>([]);
+  refs.current = [];
+  yaws.current = [];
   if (placements.length === 0) return null;
   return (
     <group name="bystander-crowd">
@@ -1502,9 +1547,13 @@ function BystanderCrowd({
             position={[p.x, 0, p.z]}
             yaw={p.yaw}
             posture={p.posture}
+            onReady={ref => {
+              if (ref) { refs.current.push(ref); yaws.current.push(p.yaw); }
+            }}
           />
         );
       })}
+      <BystanderIdle refs={refs} baseYaws={yaws.current} />
     </group>
   );
 }
