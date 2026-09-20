@@ -1421,6 +1421,7 @@ function BystanderFigure({
   yaw,
   posture,
   onReady,
+  depth01 = 1,
 }: {
   url: string;
   position: [number, number, number];
@@ -1429,6 +1430,8 @@ function BystanderFigure({
   /** Called once with the mounted group so the crowd can drive the idle
    *  animation from a single useFrame instead of one per figure. */
   onReady?: (ref: THREE.Group | null) => void;
+  /** 0..1 — distance from the crowd centroid, for a soft depth fade. */
+  depth01?: number;
 }) {
   const { scene } = useGLTF(url);
   const clone = useMemo(() => {
@@ -1437,9 +1440,26 @@ function BystanderFigure({
       object.raycast = NO_RAYCAST;
       object.castShadow = true;
       object.receiveShadow = true;
+      // Deep clone gives each figure its own material set, so a depth fade
+      // on one witness never bleeds onto another.
+      if (object instanceof THREE.Mesh) {
+        const m = object.material;
+        const mats = Array.isArray(m) ? m : [m];
+        mats.forEach(mat => {
+          if (mat instanceof THREE.MeshStandardMaterial) {
+            mat.transparent = true;
+            mat.depthWrite = false;
+            // Far figures fade toward the backdrop so the crowd reads as a
+            // depth field rather than a wall of identical cutouts. The fade
+            // is baked into the clone — keyed on depth01 so each distance
+            // band gets its own material set.
+            mat.opacity = 0.35 + 0.65 * depth01;
+          }
+        });
+      }
     });
     return next;
-  }, [url, scene]);
+  }, [url, scene, depth01]);
 
   // Posture drives a grounded silhouette. The bystander GLB is a single
   // standing mesh normalised to min-Y = 0, so a non-authored posture is a
@@ -1547,6 +1567,7 @@ function BystanderCrowd({
             position={[p.x, 0, p.z]}
             yaw={p.yaw}
             posture={p.posture}
+            depth01={p.depth01}
             onReady={ref => {
               if (ref) { refs.current.push(ref); yaws.current.push(p.yaw); }
             }}
