@@ -36,6 +36,7 @@ import { createAssessmentContactSampler, type AssessmentContactFrame } from './a
 import { IdleAnimations, type IdleCues } from './IdleAnimations';
 import { getBreathPhase01, setBreathClock } from '@/lib/breathClock';
 import { computeIdleLimbMotion, createIdleLimbMotion } from '@/lib/idleLimbMotion';
+import { pupilDiscScale } from '@/lib/pupilDiscScale';
 import { patientWalkingPath } from '@/lib/patientWalkingPath';
 import { tripodHandBraceSweep, TRIPOD_BRACE_CALIBRATION } from '@/lib/tripodHandBrace';
 import { skinDetailProfileForPilot, type SkinDetailProfile } from './resp001SkinDetail';
@@ -588,7 +589,7 @@ function applyLocalBoneAdjustment(
 
 /** Case pupil mm -> pupil disc scale. Discs are authored at 5mm diameter. */
 function pupilScale(mm: number): number {
-  return Math.min(1.8, Math.max(0.4, mm / 5));
+  return pupilDiscScale(mm);
 }
 
 // ---------------------------------------------------------------------------

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import type { PupilProfile } from '@/lib/pupilExam';
 import { stepPupilLightResponse } from './pupilLightResponse';
+import { pupilDiscScale } from '@/lib/pupilDiscScale';
 import { withIrisSurfaceUv } from './irisSurface';
 
 type LightSide = 'left' | 'right' | null;
@@ -113,8 +114,8 @@ export function PupilLightExam({ side, profile }: { side: LightSide; profile: Pu
       for (const { mesh, material, replacement } of replacements) {
         mesh.material = material; replacement.dispose();
       }
-      scene.getObjectByName('pupilL')?.scale.setScalar(Math.min(1.8, Math.max(.4, profile.leftMm / 5)));
-      scene.getObjectByName('pupilR')?.scale.setScalar(Math.min(1.8, Math.max(.4, profile.rightMm / 5)));
+      scene.getObjectByName('pupilL')?.scale.setScalar(pupilDiscScale(profile.leftMm));
+      scene.getObjectByName('pupilR')?.scale.setScalar(pupilDiscScale(profile.rightMm));
     };
   }, [scene, profile.leftMm, profile.rightMm]);
   useFrame((_, dt) => {
@@ -123,7 +124,7 @@ export function PupilLightExam({ side, profile }: { side: LightSide; profile: Pu
     sizes.current = stepPupilLightResponse(sizes.current, profile, !!side, elapsed.current, delta);
     ['pupilL', 'pupilR'].forEach((name, index) => {
       const pupil = scene.getObjectByName(name);
-      if (pupil) pupil.scale.setScalar(sizes.current[index] / 5);
+      if (pupil) pupil.scale.setScalar(pupilDiscScale(sizes.current[index]));
     });
     if (!penlight.current || !light.current) return;
     penlight.current.visible = !!side;

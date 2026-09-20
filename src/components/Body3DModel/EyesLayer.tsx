@@ -32,6 +32,7 @@
  */
 
 import * as THREE from 'three';
+import { pupilTextureRadiusFraction } from '@/lib/pupilDiscScale';
 
 const SCLERA = [232, 228, 216] as const; // warm off-white
 const IRIS = '#5d4634';
@@ -127,7 +128,7 @@ export function paintEyesOnTexture(
       ctx.beginPath(); ctx.arc(e.cx, e.cy, irisR, 0, Math.PI * 2); ctx.fill();
       if (!hasEyeMeshes) {
         const pupilMm = idx === 0 ? pupilLeftMm : pupilRightMm;
-        const pupilR = Math.max(irisR * 0.32, Math.min(irisR * 0.9, irisR * (pupilMm / 5)));
+        const pupilR = irisR * pupilTextureRadiusFraction(pupilMm);
         ctx.fillStyle = PUPIL;
         ctx.beginPath(); ctx.arc(e.cx, e.cy, pupilR, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = 'rgba(255,255,255,0.75)';
