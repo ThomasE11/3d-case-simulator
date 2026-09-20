@@ -1,5 +1,5 @@
 import type { CaseScenario } from '@/types';
-import { sceneIntroAccessIssues } from '@/lib/sceneDispatchPreview';
+import { sceneIntroductionFor } from '@/lib/sceneIntroductions';
 
 function uniqueMeaningful(values: Array<string | undefined>): string[] {
   const seen = new Set<string>();
@@ -20,6 +20,51 @@ export function visibleSceneHazards(caseData: CaseScenario): string[] {
 }
 
 /**
+ * Raw access-issue strings from the generated introduction — the obstacle
+ * list only, without the free-text note. Used by the scene-survey hazard
+ * scan, where the note ("requires careful navigation around debris") is
+ * navigational guidance rather than a hazard the student identifies in
+ * the image. Inlined here (rather than imported from sceneDispatchPreview)
+ * to keep the dependency graph acyclic — sceneDispatchPreview reads the
+ * same introduction layer and must not depend on the hazard scan.
+ */
+export function sceneIntroAccessIssues(caseData: CaseScenario): string[] {
+  const intro = sceneIntroductionFor(caseData);
+  const access = intro?.accessExtrication;
+  if (!access) return [];
+  return (Array.isArray(access.accessIssues) ? access.accessIssues : [])
+    .filter((value): value is string => Boolean(value?.trim()));
+}
+
+/**
+ * Scene-safety hazards the student can identify from the generated arrival
+ * layer's own words — currently, an agitated or aggressive bystander.
+ *
+ * The "D" in DRSABCD asks whether the environment is safe to approach, and
+ * an indoor scene with no authored hazards and no access obstacles still
+ * has something to teach when the arrival layer describes a person shouting,
+ * arguing, or pacing aggressively at the patient's side. This reads that
+ * signal out of the intro's own text (bystanderDetail + sensory cues) and
+ * never invents it: the generator only writes an agitated bystander when
+ * the case facts carry one, so the regex is a reader, not a fabricator.
+ */
+export function sceneIntroHazards(caseData: CaseScenario): string[] {
+  const intro = sceneIntroductionFor(caseData);
+  if (!intro) return [];
+
+  const text = [
+    intro.bystanderDetail,
+    ...(intro.sensoryCues?.sounds ?? []),
+    ...(intro.sensoryCues?.smells ?? []),
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (/shout|argu|agitat|aggress|threat|weapon|violence|panic|frustrated voice|tense and voice|shouting/.test(text)) {
+    return ['Agitated / aggressive bystander'];
+  }
+  return [];
+}
+
+/**
  * Unified hazard list for the survey's scan step. Folds the authored scene
  * hazards with the generated introduction's access issues (broken glass,
  * passing traffic, unstable flooring — the same class of obstacle) and
@@ -37,6 +82,7 @@ export function unifiedSceneHazards(caseData: CaseScenario): string[] {
   for (const hazard of [
     ...visibleSceneHazards(caseData),
     ...sceneIntroAccessIssues(caseData),
+    ...sceneIntroHazards(caseData),
   ]) {
     const key = hazard.trim().toLowerCase();
     if (!key || seen.has(key)) continue;

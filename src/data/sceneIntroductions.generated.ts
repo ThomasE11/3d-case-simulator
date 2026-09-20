@@ -132,9 +132,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "dry, still air with traces of dust"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "limited working space"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Patient is seated upright on a sofa; no physical removal required."
     },
     "bystanderDetail": "The parents hover nearby without stepping forward, their bodies tense with concern as they watch his chest rise and fall. They stand close but do not touch the patient or speak to him directly."
   },
@@ -922,9 +924,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still and warm"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "limited working space"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Family members are stationary and not obstructing movement."
     },
     "bystanderDetail": "Family members cluster near the patient without moving, their hands pressed to their mouths as they watch his breathing."
   },
@@ -943,9 +947,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "stagnant, warm air"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "limited working space"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Patient is seated and stable for EMS entry"
     },
     "bystanderDetail": "The son stands nearby, watching his father struggle with an expression of helpless concern."
   },
@@ -1032,12 +1038,14 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "light": "bright afternoon light filtering through windows",
       "air": "still, cool, slightly dusty"
     },
+    "bystanderDetail": "The campus nurse stands nearby, observing the patient with a supportive but neutral stance.",
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "dust present"
+      ],
       "extricationNeeded": false,
       "note": ""
-    },
-    "bystanderDetail": "The campus nurse stands nearby, observing the patient with a supportive but neutral stance."
+    }
   },
   "cardiac-001": {
     "arrivalNarrative": "I step onto the well-maintained villa grounds where a private residence stands air-conditioned and comfortable inside, though the morning heat presses against my skin. The living room sofa sits quietly as the patient clutches his chest, appearing pale and sweaty from the crushing pressure he has endured for half an hour. His wife waits nearby, her anxiety palpable in the stillness of the scene.",
@@ -1523,9 +1531,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still, filtered air within the enclosed apartment"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "patient seated on upholstered seating"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Patient is already seated and stable; no extrication required."
     },
     "bystanderDetail": "The wife stands close to her husband, her voice low and anxious as she recounts the morning's events, while the adult daughter remains nearby, observing the patient with concern but staying out of his immediate space."
   },
@@ -1567,12 +1577,14 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "light": "soft artificial desk lighting",
       "air": "still, filtered air"
     },
+    "bystanderDetail": "The security guard remains near the entrance, having facilitated our entry without interfering with the patient's space.",
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "security staff controlling entry"
+      ],
       "extricationNeeded": false,
-      "note": ""
-    },
-    "bystanderDetail": "The security guard remains near the entrance, having facilitated our entry without interfering with the patient's space."
+      "note": "Security cleared entry; no physical barriers to access."
+    }
   },
   "metab-002": {
     "arrivalNarrative": "I step through the doorway into a quiet Dubai apartment where the afternoon heat presses against the windows. The friend stands nearby, looking distressed while I assess the young woman slumped on the upholstered seating in the living room. She is drowsy but rousable, breathing fast with an acetone breath odor wafting toward me from her flushed skin.",
@@ -1591,9 +1603,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still, dry, hot air"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "limited working space"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Patient is seated on furniture, allowing immediate access without extrication."
     },
     "bystanderDetail": "The friend remains by the patient's side, hands wringing together as they watch me check her responsiveness."
   },
@@ -1612,9 +1626,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still, filtered hospital air"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "limited working space"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Patient is seated in a clinic room requiring no physical removal."
     },
     "bystanderDetail": "Clinic staff stand nearby observing the situation without intervening directly."
   },
@@ -1705,9 +1721,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still, quiet indoor air"
     },
     "accessExtrication": {
-      "accessIssues": [],
-      "extricationNeeded": false,
-      "note": ""
+      "accessIssues": [
+        "patient on floor"
+      ],
+      "extricationNeeded": true,
+      "note": "Patient requires removal from bedroom floor for transport."
     },
     "bystanderDetail": "The wife is present and helpful, standing nearby as I approach the patient."
   },
@@ -1795,6 +1813,13 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "temperature": "cool, air-conditioned air",
       "light": "diffused afternoon light filtering through windows",
       "air": "still, filtered library air"
+    },
+    "accessExtrication": {
+      "accessIssues": [
+        "limited working space"
+      ],
+      "extricationNeeded": true,
+      "note": "Patient is seated on the floor against a wall and requires assistance to stand or be moved."
     }
   },
   "obs-001": {
@@ -1885,9 +1910,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still, filtered office air"
     },
     "accessExtrication": {
-      "accessIssues": [],
-      "extricationNeeded": false,
-      "note": ""
+      "accessIssues": [
+        "limited working space"
+      ],
+      "extricationNeeded": true,
+      "note": "Patient is on the floor requiring lift"
     },
     "bystanderDetail": "Three colleagues are gathered around the patient, visibly concerned and offering to help with her comfort and safety."
   },
@@ -1929,9 +1956,12 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still, quiet apartment air"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "furniture restricting access",
+        "agitated bystander controlling access"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Parents are guiding entry; infant is held by mother."
     },
     "bystanderDetail": "The mother clutches the baby protectively while her husband remains at the front door to control access. Both parents display extreme anxiety as they watch me approach."
   },
@@ -1975,9 +2005,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still and filtered"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "limited working space"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Patient is seated and accessible; no physical barriers to approach."
     },
     "bystanderDetail": "The parents stand nearby with the mother holding the child tightly on her lap."
   },
@@ -1997,9 +2029,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still and warm"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "limited working space"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Parents are managing the child on the rug; no physical removal required."
     },
     "bystanderDetail": "Parents are present near the child, their hands gripped tightly around his limbs to manage the tonic-clonic movements while they look up at me with wide eyes."
   },
@@ -2042,9 +2076,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "dry, centrally heated air"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "limited working space"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Patient is seated and accessible on lap; no physical barriers to entry."
     },
     "bystanderDetail": "The father holds the child tightly while the mother stands with their older sibling nearby."
   },
@@ -2313,9 +2349,12 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still, warm apartment air"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "limited working space",
+        "patient guarding head"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Patient is in bed; no extrication required."
     },
     "bystanderDetail": "The roommate remains close to the bed, eyes fixed on my movements while fidgeting with their hands and speaking softly to calm the patient."
   },
@@ -2362,7 +2401,9 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still, slightly stale"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "patient on sofa"
+      ],
       "extricationNeeded": false,
       "note": ""
     },
@@ -2524,9 +2565,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still, filtered apartment air"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "patient seated at desk"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Patient is seated and alert; no extrication required."
     },
     "bystanderDetail": "No bystanders are present on the scene."
   },
@@ -2638,7 +2681,9 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still and filtered"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "open public space"
+      ],
       "extricationNeeded": false,
       "note": ""
     },
@@ -2658,9 +2703,11 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "air": "still, slightly stale apartment air"
     },
     "accessExtrication": {
-      "accessIssues": [],
+      "accessIssues": [
+        "staff/bystander managing access"
+      ],
       "extricationNeeded": false,
-      "note": ""
+      "note": "Coordinate with husband to secure area before approaching patient."
     },
     "bystanderDetail": "The husband stands close to the patient, his posture tense and voice raised in argument, while the two children remain near the periphery of the room, watching the scene unfold with wide eyes."
   },

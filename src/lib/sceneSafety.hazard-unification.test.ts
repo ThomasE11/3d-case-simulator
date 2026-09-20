@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { visibleSceneHazards, unifiedSceneHazards } from '@/lib/sceneSafety';
-import { sceneAccessFromIntroduction, sceneIntroAccessIssues } from '@/lib/sceneDispatchPreview';
 import type { CaseScenario } from '@/types';
+import {
+  visibleSceneHazards,
+  unifiedSceneHazards,
+  sceneIntroAccessIssues,
+  sceneIntroHazards,
+} from '@/lib/sceneSafety';
 
 const base = {
   id: 'basic-001',
@@ -32,24 +36,27 @@ describe('visibleSceneHazards', () => {
 });
 
 describe('sceneIntroAccessIssues', () => {
-  it('returns only the raw access-issue strings, never the free-text note', () => {
-    const c = { ...base, id: 'trauma-003' } as unknown as CaseScenario;
+  it('returns the raw access-issue strings, never the free-text note', () => {
+    const c = { ...base, id: 'resp-001' } as unknown as CaseScenario;
     const raw = sceneIntroAccessIssues(c);
-    const withNote = sceneAccessFromIntroduction(c);
-    // The note ("Patient is accessible but requires careful navigation
-    // around debris.") is navigational guidance, not a scan hazard — it
-    // must NOT appear in the raw list.
-    expect(raw.some((h) => h.toLowerCase().includes('navigation'))).toBe(false);
-    expect(raw).toEqual([
-      'Broken glass and debris on pavement near the wound',
-      'Passing traffic creating a safety hazard',
-    ]);
-    // sceneAccessFromIntroduction keeps the note for the entry-gate panel.
-    expect(withNote.some((h) => h.toLowerCase().includes('navigation'))).toBe(true);
+    // The note ("Patient is seated upright on a sofa; no physical removal
+    // required.") is navigational guidance, not a scan hazard — it must NOT
+    // appear in the raw list.
+    expect(raw.some((h) => h.toLowerCase().includes('removal'))).toBe(false);
+    expect(raw).toEqual(['limited working space']);
   });
 
   it('returns an empty array when the case has no generated introduction', () => {
     expect(sceneIntroAccessIssues(base)).toEqual([]);
+  });
+});
+
+describe('sceneIntroHazards', () => {
+  it('fires on an agitated bystander and nothing else', () => {
+    const calm = { ...base, id: 'metab-002' } as unknown as CaseScenario;
+    expect(sceneIntroHazards(calm)).toEqual([]);
+    const agitated = { ...base, id: 'psych-001' } as unknown as CaseScenario;
+    expect(sceneIntroHazards(agitated)).toEqual(['Agitated / aggressive bystander']);
   });
 });
 

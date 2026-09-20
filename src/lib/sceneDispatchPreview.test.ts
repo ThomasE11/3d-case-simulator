@@ -96,9 +96,11 @@ describe('sceneAccessFromIntroduction', () => {
     const c = { ...baseCase, id: 'resp-001' } as unknown as CaseScenario;
     const notes = sceneAccessFromIntroduction(c);
     expect(Array.isArray(notes)).toBe(true);
-    // resp-001's generated intro has an empty accessIssues array and no note,
-    // so the result is empty — the function is additive, not a substitute.
-    expect(notes.length).toBe(0);
+    // resp-001's generated intro now carries a real access block (limited
+    // working space) — the function flattens it, and the navigational note
+    // rides along.
+    expect(notes.length).toBeGreaterThan(0);
+    expect(notes.some((n) => /limited working space/i.test(n))).toBe(true);
   });
 
   it('returns real obstacles for a scene that has them', () => {
