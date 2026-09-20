@@ -380,6 +380,22 @@ function ScenePatientSupport({ kind, seated = false }: { kind: 'bed' | 'sofa'; s
         <boxGeometry args={[1.30, 0.09, 2.26]} />
         <meshStandardMaterial map={fabric.map} normalMap={fabric.normalMap} normalScale={[0.5, 0.5]} roughness={0.96} />
       </mesh>
+      {/* Blanket — a rumpled throw over the mattress, not a flat plane. A bare
+          mattress reads as a plinth; a blanket reads as a bed someone was
+          taken from. The drape hangs 0.04 m over the foot end and is pushed
+          back 0.34 m from the headboard so the patient's feet stay clear. */}
+      <mesh position={[0, 0.528, 0.30]} castShadow receiveShadow raycast={NO_RAYCAST}>
+        <boxGeometry args={[1.24, 0.05, 1.42]} />
+        <meshStandardMaterial color="#f4f1e8" roughness={0.97} />
+      </mesh>
+      <mesh position={[0, 0.555, 0.55]} castShadow receiveShadow raycast={NO_RAYCAST}>
+        <boxGeometry args={[1.24, 0.04, 0.10]} />
+        <meshStandardMaterial color="#ebe6d8" roughness={0.97} />
+      </mesh>
+      <mesh position={[0, 0.545, -0.30]} castShadow receiveShadow raycast={NO_RAYCAST}>
+        <boxGeometry args={[1.24, 0.03, 0.14]} />
+        <meshStandardMaterial color="#ebe6d8" roughness={0.97} />
+      </mesh>
       <mesh position={[0, 0.503, 0]} receiveShadow raycast={NO_RAYCAST}>
         <boxGeometry args={[1.22, 0.012, 2.18]} />
         <meshStandardMaterial color="#e8eef2" roughness={0.94} />
@@ -387,6 +403,13 @@ function ScenePatientSupport({ kind, seated = false }: { kind: 'bed' | 'sofa'; s
       <mesh position={[0, 0.73, -1.14]} castShadow raycast={NO_RAYCAST}>
         <boxGeometry args={[1.48, 0.68, 0.08]} />
         <meshStandardMaterial color="#6b4f38" roughness={0.66} />
+      </mesh>
+      {/* Pillow — a bed with no pillow reads as a plinth. Rests against the
+          headboard at the head end, clear of the blanket fold so the two
+          don't z-fight. */}
+      <mesh position={[0, 0.572, -0.78]} castShadow receiveShadow raycast={NO_RAYCAST}>
+        <boxGeometry args={[0.62, 0.14, 0.42]} />
+        <meshStandardMaterial color="#faf8f2" roughness={0.96} />
       </mesh>
       {[-0.58, 0.58].flatMap(x => [-0.96, 0.96].map(z => (
         <mesh key={`bed-leg-${x}-${z}`} position={[x, 0.12, z]} castShadow raycast={NO_RAYCAST}>
