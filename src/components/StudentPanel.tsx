@@ -95,6 +95,7 @@ import { derivePatientVisualState } from '@/lib/patientVisualState';
 import { phaseMotionVariant, phaseTransitionKey, type CinematicPhase } from '@/lib/cinematicPhase';
 import { deduplicateCareFeedItems } from '@/lib/careFeed';
 import { deriveSceneEnvironment, sceneEnvironmentLabel } from '@/lib/sceneEnvironment';
+import { SceneSensoryStrip } from '@/components/SceneSensoryStrip';
 import { sceneArrivalCopy } from '@/lib/sceneArrival';
 import { getSceneIntroduction } from '@/lib/sceneIntroductions';
 import { matchRealismScenarios } from '@/lib/patientRealismScenarios';
@@ -5424,6 +5425,11 @@ export function StudentPanel({
                 </div>
               </CardHeader>
               <CardContent className="p-3 sm:p-4">
+                {/* Additive first-person arrival layer — sensory cues, access /
+                    extrication, bystander detail — when a case has a generated
+                    scene introduction. Renders nothing otherwise, so plain
+                    clinic-bay cases keep their current brief untouched. */}
+                <SceneSensoryStrip caseData={currentCase} />
                 <div className={`grid gap-4 ${(prebriefSceneImage || prebriefSceneVideo) ? 'lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.9fr)]' : ''}`}>
                   {prebriefSceneVideo ? (
                     <video
