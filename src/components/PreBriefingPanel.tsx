@@ -14,7 +14,7 @@
 import { useMemo } from 'react';
 import type { CaseScenario, SimulationObjective } from '@/types';
 import { getResourcesForPreBriefing } from '@/data/diversifiedResources';
-import { buildSceneDispatchPreview } from '@/lib/sceneDispatchPreview';
+import { buildSceneDispatchPreview, sceneAccessFromIntroduction } from '@/lib/sceneDispatchPreview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -299,6 +299,20 @@ export function PreBriefingPanel({
                 <Users className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span>{preview.bystanderDetail}</span>
               </p>
+            )}
+            {/* Access / extrication — the physical obstacle the student will
+                actually hit when they pull up. Rendered here, BEFORE Enter
+                Scene, so they form an expectation of the work rather than
+                discovering it on approach. Cases with no generated access
+                layer render nothing. */}
+            {sceneAccessFromIntroduction(caseData).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {sceneAccessFromIntroduction(caseData).map((issue, i) => (
+                  <span key={`a${i}`} className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">
+                    <AlertTriangle className="h-3 w-3" />{issue}
+                  </span>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
