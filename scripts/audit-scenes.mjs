@@ -118,8 +118,16 @@ const LOCATION_PRECEDENCE = [
   'outdoorRoad', 'outdoorLeisure', 'industrial', 'transport', 'medical',
   'commercial', 'office', 'education', 'residence', 'wet',
 ];
+// Dubai district names that collide with venue keywords. "Academic City" is
+// a residential/university district, not a lecture theatre — reading it as an
+// education venue classed a student's BEDROOM as a classroom. Strip the
+// district name before classifying so the actual venue word wins.
+const DISTRICT_NAMES = [/\bacademic city\b/g];
+
 const locationClassOf = (s) => {
-  const t = String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, ' ');
+  let raw = String(s ?? '').toLowerCase();
+  for (const district of DISTRICT_NAMES) raw = raw.replace(district, ' ');
+  const t = raw.replace(/[^a-z0-9]/g, ' ');
   const words = t.split(/\s+/).filter(Boolean);
   let best = null;
   let bestRank = Infinity;

@@ -25,6 +25,7 @@ const SCENE_ASSET_GENDER_OVERRIDES: Record<string, 'male' | 'female'> = {
   '/scene-assets/construction-fall-male-29-dubaihills.png': 'male',
   '/scene-assets/y2-004-workshop-flash-burn.png': 'male',
   '/scene-assets/trauma-004-park-stabbing-tamponade.png': 'male',
+  '/scene-assets/y2-007-student-bedroom-overdose-female.png': 'female',
 };
 
 /** Patient gender visibly represented by a scene asset, when it is known. */
@@ -42,6 +43,7 @@ export const KNOWN_SCENE_ASSETS = new Set<string>([
   '/scene-assets/burn-001-jebel-ali-industrial-fire-burns.png',
   '/scene-assets/burn-002-electrical-arrest-business-bay.png',
   '/scene-assets/campus-student-uae.png',
+  '/scene-assets/y2-007-student-bedroom-overdose-female.png',
   '/scene-assets/cardiac-002-home-cardiac-arrest-deira.png',
   '/scene-assets/cardiac-004-hypertensive-headache-villa.png',
   '/scene-assets/cardiac-009-elderly-female-aflutter-retirement-home.png',
@@ -472,6 +474,17 @@ function resolveCaseSceneOverride(caseData: CaseScenario): string | null {
 export function inferSceneImage(caseData: CaseScenario): string {
   const caseOverride = resolveCaseSceneOverride(caseData);
   if (caseOverride) return caseOverride;
+
+  // A plate authored ON the case is a stronger signal than keyword matching
+  // against the registry. y2-007 is why: it authors a student-bedroom plate
+  // for a female overdose, and the registry's "student/campus" keywords
+  // rendered a classroom full of people around a male patient instead.
+  //
+  // The override layer above still wins, because that is the deliberate patch
+  // layer for cases whose authored choice was itself wrong. Guarded on
+  // KNOWN_SCENE_ASSETS so a typo cannot render a 404.
+  const authored = caseData.sceneInfo?.sceneImagePath;
+  if (authored && KNOWN_SCENE_ASSETS.has(authored)) return authored;
 
   const haystack = sceneHaystack(caseData);
   const age = caseData.patientInfo?.age;

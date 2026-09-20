@@ -2527,7 +2527,7 @@ export const secondYearCases: CaseScenario[] = [
       bystanders: 'Flatmate present and supportive, visibly upset',
       environment: 'Small student bedroom, tidy, no other concerning items visible',
       environmentVariant: 'home',
-      sceneImagePath: '/scene-assets/campus-student-uae.png',
+      sceneImagePath: '/scene-assets/y2-007-student-bedroom-overdose-female.png',
       sceneImageCaption: 'Student flat — bedroom, young female on bed'
     },
     initialPresentation: {
