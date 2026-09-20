@@ -33,6 +33,8 @@ import {
 import { ArchetypeSceneDressing } from './ArchetypeSceneDressing';
 import { SCENE_ARCHETYPES } from './sceneRegistry';
 import type { SceneAnchorSet } from '@/lib/sceneAnchors';
+import { getBystanderEnvelope, layoutBystanders, type BystanderPosture } from '@/lib/bystanderLayout';
+import { parseBystanders } from '@/lib/bystanderCount';
 
 const NO_RAYCAST = () => null;
 
@@ -408,6 +410,7 @@ function HomeDustMotes({
 }
 
 function HomeScene({
+  variant,
   hideOverhead,
   shadowsEnabled,
   showPatientSeat,
@@ -415,6 +418,7 @@ function HomeScene({
   sceneProfile,
   onAnchorsReady,
 }: {
+  variant: EnvironmentVariant;
   hideOverhead: boolean;
   shadowsEnabled: boolean;
   showPatientSeat: boolean;
@@ -445,6 +449,7 @@ function HomeScene({
     : ([0, 0.9, 0] as const);
   return (
     <group>
+      <BystanderCrowd variant={variant} bystanders={null} />
       {/* Oak floor */}
       <mesh name={hasResp001Dressing ? 'resp001-villa-floor' : undefined} position={[0, -0.05, roomCentreZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
         <planeGeometry args={[roomHalfW * 2, roomDepth]} />
@@ -794,10 +799,12 @@ function PublicScene({
   hideOverhead,
   shadowsEnabled,
   showPatientSeat,
+  bystanders,
 }: {
   hideOverhead: boolean;
   shadowsEnabled: boolean;
   showPatientSeat: boolean;
+  bystanders?: string | null;
 }) {
   // A supine patient extends to roughly z=-1.15 at the head. Keep every
   // storefront element behind a generous examination clearance plane so the
@@ -813,6 +820,7 @@ function PublicScene({
   const wallColour = '#e8ecef';
   return (
     <group>
+      <BystanderCrowd variant="public" bystanders={bystanders} />
       {/* Polished stone floor — low roughness picks up the lights */}
       <mesh position={[0, -0.05, 0.1]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
         <planeGeometry args={[halfW * 2, frontZ - backdropZ]} />
@@ -975,9 +983,10 @@ function PublicScene({
 // central treatment lane remains clear while scaffold, materials and access
 // control make this read as a worksite instead of a road collision.
 // ---------------------------------------------------------------------------
-function IndustrialScene({ shadowsEnabled }: { shadowsEnabled: boolean }) {
+function IndustrialScene({ shadowsEnabled, bystanders }: { shadowsEnabled: boolean; bystanders?: string | null }) {
   return (
     <group>
+      <BystanderCrowd variant="industrial" bystanders={bystanders} />
       <OutdoorSky zenith="#9fc8e7" horizon="#e8dcc4" />
       <mesh position={[0, -0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
         <planeGeometry args={[9, 9]} />
@@ -1093,9 +1102,10 @@ function FireSmoke() {
 // animated residual smoke. There are no decorative open flames beside the
 // patient: the scene represents the safe treatment zone after extraction.
 // ---------------------------------------------------------------------------
-function FireScene({ shadowsEnabled }: { shadowsEnabled: boolean }) {
+function FireScene({ shadowsEnabled, bystanders }: { shadowsEnabled: boolean; bystanders?: string | null }) {
   return (
     <group>
+      <BystanderCrowd variant="fire" bystanders={bystanders} />
       <OutdoorSky zenith="#596979" horizon="#a78b78" />
       <mesh position={[0, -0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
         <planeGeometry args={[9, 9]} />
@@ -1154,9 +1164,10 @@ function FireScene({ shadowsEnabled }: { shadowsEnabled: boolean }) {
 // Water rescue — wet treatment apron beside visible water, with rescue ring,
 // throw line and drainage. The patient remains on dry ground after extraction.
 // ---------------------------------------------------------------------------
-function WaterScene({ shadowsEnabled }: { shadowsEnabled: boolean }) {
+function WaterScene({ shadowsEnabled, bystanders }: { shadowsEnabled: boolean; bystanders?: string | null }) {
   return (
     <group>
+      <BystanderCrowd variant="water" bystanders={bystanders} />
       <OutdoorSky zenith="#7bc7e3" horizon="#d9f2ed" />
       <mesh position={[0, -0.05, 0.3]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
         <planeGeometry args={[9, 8]} />
@@ -1212,9 +1223,10 @@ function WaterScene({ shadowsEnabled }: { shadowsEnabled: boolean }) {
 // hydration station and high-contrast sun. This avoids placing heat illness
 // beside traffic wreckage merely because it happened outdoors.
 // ---------------------------------------------------------------------------
-function HeatScene({ shadowsEnabled, showPatientSeat }: { shadowsEnabled: boolean; showPatientSeat: boolean }) {
+function HeatScene({ shadowsEnabled, showPatientSeat, bystanders }: { shadowsEnabled: boolean; showPatientSeat: boolean; bystanders?: string | null }) {
   return (
     <group>
+      <BystanderCrowd variant="heat" bystanders={bystanders} />
       <OutdoorSky zenith="#78b9e4" horizon="#dbe8ea" />
       <mesh position={[0, -0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
         <planeGeometry args={[10, 10]} />
@@ -1284,9 +1296,10 @@ function HeatScene({ shadowsEnabled, showPatientSeat }: { shadowsEnabled: boolea
 // generic roadside by adding crop textures, farm equipment silhouettes, and
 // an earthy palette that matches pesticide poisoning presentations.
 // ---------------------------------------------------------------------------
-function AgriculturalScene({ shadowsEnabled, showPatientSeat: _showPatientSeat }: { shadowsEnabled: boolean; showPatientSeat: boolean }) {
+function AgriculturalScene({ shadowsEnabled, showPatientSeat: _showPatientSeat, bystanders }: { shadowsEnabled: boolean; showPatientSeat: boolean; bystanders?: string | null }) {
   return (
     <group>
+      <BystanderCrowd variant="agricultural" bystanders={bystanders} />
       {/* Open sky day lighting for outdoor farm */}
       <OutdoorSky zenith="#8ac2d6" horizon="#e3f4eb" />
       
@@ -1396,6 +1409,106 @@ function PropGltf({
   return <primitive name={name} object={clone} position={position} rotation={rotation} scale={scale} />;
 }
 
+/**
+ * A single crowd figure. The GLB is decimated to ~1.5 k verts and normalised
+ * to 1.72 m by the Blender pipeline, so each instance is cheap and the layout
+ * owns the spacing. The figure stands on the floor plane (min-Y = 0) and is
+ * yawed to face the treatment lane; the layout passes the yaw as a Z rotation.
+ */
+function BystanderFigure({
+  url,
+  position,
+  yaw,
+  posture,
+}: {
+  url: string;
+  position: [number, number, number];
+  yaw: number;
+  posture: BystanderPosture;
+}) {
+  const { scene } = useGLTF(url);
+  const clone = useMemo(() => {
+    const next = scene.clone(true);
+    next.traverse(object => {
+      object.raycast = NO_RAYCAST;
+      object.castShadow = true;
+      object.receiveShadow = true;
+    });
+    return next;
+  }, [url, scene]);
+
+  // Posture drives a grounded silhouette. The bystander GLB is a single
+  // standing mesh normalised to min-Y = 0, so a non-authored posture is a
+  // Y-scale that squats the figure onto the floor — never a lift, which would
+  // float a "kneeling" bystander 0.18 m in the air.
+  //   standing  1.00  full height, feet on the floor
+  //   kneeling  0.72  squat — knees on the ground, torso still upright
+  //   crouching 0.62  deeper crouch
+  //   sitting   0.55  seated height, still grounded on the floor plane
+  //   lying     0.30  low silhouette, reads as a figure on the ground
+  const scaleByPosture: Record<BystanderPosture, number> = {
+    standing: 1.0,
+    kneeling: 0.72,
+    crouching: 0.62,
+    sitting: 0.55,
+    lying: 0.3,
+  };
+  const s = scaleByPosture[posture];
+  return (
+    <primitive
+      name={`bystander-${posture}`}
+      object={clone}
+      position={[position[0], 0, position[2]]}
+      rotation={[0, yaw, 0]}
+      scale={[1, s, 1]}
+    />
+  );
+}
+
+/**
+ * The crowd. Renders outside the treatment lane, behind and to the sides of
+ * the patient, facing inward. Driven by the pure layout so the placement is
+ * testable and deterministic. Outdoor variants get a bigger, more dispersed
+ * crowd; indoor public scenes keep it tight against the back wall so the
+ * storefront reads as populated without blocking the exam lane.
+ */
+function BystanderCrowd({
+  variant,
+  bystanders,
+}: {
+  variant: EnvironmentVariant;
+  /** Authored case bystander sentence; parsed into count + posture. */
+  bystanders?: string | null;
+}) {
+  const envelope = getBystanderEnvelope(variant);
+  const parsed = useMemo(() => parseBystanders(bystanders), [bystanders]);
+  const placements = useMemo(() => {
+    const count = parsed.count > 0 ? parsed.count : envelope.count;
+    if (count === 0) return [];
+    const posture = parsed.count > 0 ? parsed.posture : envelope.posture;
+    return layoutBystanders(count, { ...envelope, posture }, envelope.seed);
+  }, [envelope, parsed]);
+  if (placements.length === 0) return null;
+  return (
+    <group name="bystander-crowd">
+      {placements.map((p, i) => {
+        const url = p.gender === 'female'
+          ? '/models/bystander-female.glb'
+          : '/models/bystander-male.glb';
+        return (
+          <BystanderFigure
+            key={`bystander-${i}`}
+            url={url}
+            position={[p.x, 0, p.z]}
+            yaw={p.yaw}
+            posture={p.posture}
+          />
+        );
+      })}
+    </group>
+  );
+}
+
 function WreckedSedan() {
   return (
     <group name="wrecked-car" position={[3.6, 0, -1.7]} rotation={[0, -0.55, 0]}>
@@ -1418,7 +1531,7 @@ function WreckedSedan() {
   );
 }
 
-function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile }: { shadowsEnabled: boolean; showPatientSeat: boolean; sceneProfile?: SceneProfile }) {
+function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile, bystanders }: { shadowsEnabled: boolean; showPatientSeat: boolean; sceneProfile?: SceneProfile; bystanders?: string | null }) {
   const traumaDressing = isTrauma008RoadsideProfile(sceneProfile)
     ? SCENE_ARCHETYPES.find(e => e.profile === 'trauma-008-roadside')
     : undefined;
@@ -1426,6 +1539,7 @@ function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile }: { shad
     <group>
       <OutdoorSky zenith="#8cb6d4" horizon="#e8d3ba" />
       {showPatientSeat && <Suspense fallback={null}><VehiclePatientSeat /></Suspense>}
+      <BystanderCrowd variant="roadside" bystanders={bystanders} />
       {/* Asphalt */}
       <mesh position={[0, -0.05, 0.1]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
         <planeGeometry args={[9, 9]} />
@@ -1565,6 +1679,7 @@ export function SceneVariantEnvironment({
   showPatientSeat,
   patientSeatKind,
   sceneProfile,
+  bystanders,
   onAnchorsReady,
 }: {
   variant: Exclude<EnvironmentVariant, 'clinic'>;
@@ -1573,16 +1688,17 @@ export function SceneVariantEnvironment({
   showPatientSeat: boolean;
   patientSeatKind?: PatientSeatKind;
   sceneProfile?: SceneProfile;
+  bystanders?: string | null;
   onAnchorsReady?: (anchors: SceneAnchorSet) => void;
 }) {
-  if (variant === 'home') return <HomeScene hideOverhead={hideOverhead} shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} patientSeatKind={patientSeatKind} sceneProfile={sceneProfile} onAnchorsReady={onAnchorsReady} />;
-  if (variant === 'public') return <PublicScene hideOverhead={hideOverhead} shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} />;
-  if (variant === 'industrial') return <IndustrialScene shadowsEnabled={shadowsEnabled} />;
-  if (variant === 'fire') return <FireScene shadowsEnabled={shadowsEnabled} />;
-  if (variant === 'water') return <WaterScene shadowsEnabled={shadowsEnabled} />;
-  if (variant === 'heat') return <HeatScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} />;
-  if (variant === 'agricultural') return <AgriculturalScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} />;
-  return <RoadsideScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} sceneProfile={sceneProfile} />;
+  if (variant === 'home') return <HomeScene variant={variant} hideOverhead={hideOverhead} shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} patientSeatKind={patientSeatKind} sceneProfile={sceneProfile} onAnchorsReady={onAnchorsReady} />;
+  if (variant === 'public') return <PublicScene hideOverhead={hideOverhead} shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} bystanders={bystanders} />;
+  if (variant === 'industrial') return <IndustrialScene shadowsEnabled={shadowsEnabled} bystanders={bystanders} />;
+  if (variant === 'fire') return <FireScene shadowsEnabled={shadowsEnabled} bystanders={bystanders} />;
+  if (variant === 'water') return <WaterScene shadowsEnabled={shadowsEnabled} bystanders={bystanders} />;
+  if (variant === 'heat') return <HeatScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} bystanders={bystanders} />;
+  if (variant === 'agricultural') return <AgriculturalScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} bystanders={bystanders} />;
+  return <RoadsideScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} sceneProfile={sceneProfile} bystanders={bystanders} />;
 }
 
 useGLTF.preload('/models/props/kenney-sedan.glb');

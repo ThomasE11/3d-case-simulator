@@ -6914,6 +6914,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 shadowsEnabled={quality.contactShadows}
                 variant={bayVariant}
                 sceneProfile={resolveSceneProfile(caseData)}
+                bystanders={caseData?.sceneInfo?.bystanders ?? null}
                 onAnchorsReady={caseData.id === 'resp-001' ? handleSceneAnchorsReady : undefined}
                 kitAnchor={villaAnchors?.kit}
                 firstAidAnchor={villaAnchors?.firstAid}

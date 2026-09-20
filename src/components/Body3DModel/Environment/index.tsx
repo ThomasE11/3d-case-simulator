@@ -752,6 +752,7 @@ export function TreatmentBayEnvironment({
   shadowsEnabled = true,
   variant = 'clinic',
   sceneProfile,
+  bystanders,
   onAnchorsReady,
   kitAnchor,
   firstAidAnchor,
@@ -764,6 +765,7 @@ export function TreatmentBayEnvironment({
   shadowsEnabled?: boolean;
   variant?: EnvironmentVariant;
   sceneProfile?: SceneProfile;
+  bystanders?: string | null;
   onAnchorsReady?: (anchors: SceneAnchorSet) => void;
   kitAnchor?: SceneAnchorPoint;
   firstAidAnchor?: SceneAnchorPoint;
@@ -787,6 +789,7 @@ export function TreatmentBayEnvironment({
           showPatientSeat={showPatientSeat}
           patientSeatKind={patientSeatKind}
           sceneProfile={sceneProfile}
+          bystanders={bystanders}
           onAnchorsReady={onAnchorsReady}
         />
       )}
