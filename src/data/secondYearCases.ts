@@ -519,6 +519,7 @@ export const secondYearCases: CaseScenario[] = [
       bystanders: 'Wife and adult daughter present',
       environment: 'Comfortable home environment',
       environmentVariant: 'home',
+      patientSupportSurface: 'sofa',
       sceneImagePath: '/scene-assets/home-medical-male-dubai-apartment.png',
       sceneImageCaption: 'Home apartment — Dubai Marina'
     },

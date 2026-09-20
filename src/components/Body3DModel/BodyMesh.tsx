@@ -497,57 +497,53 @@ const NEUROLOGICAL_WEAK_ARM_ADJUSTMENTS = {
   },
 };
 
-// Seated self-splint / neck guard: the patient cups the posterior c-spine with
-// both hands (whiplash "holding back of neck") instead of resting them in the
-// lap. Additive to the seated rest pose applied in the frame loop. Calibrated
-// on the adult seated rig — hands move from ~[±0.26, 0.87, 1.08] world up to
-// the neck just below the head (~[0, 1.25, 0.55] world).
+// Natural one-hand posterior-neck/head guard. The old mirrored two-hand pose
+// drove the elbows behind the torso on the current fitted rig. These values
+// keep the unaffected hand at rest while the right hand reaches the lateral
+// neck/temple and remains visible from the assessment camera.
 const NECK_GUARD_ADJUSTMENTS = {
-  leftArm: [-1.15, 0, -0.35] as const,
-  leftForeArm: [-1.5, -0.6, 1.6] as const,
-  rightArm: [-1.15, 0, 0.35] as const,
-  rightForeArm: [-1.5, 0.6, -1.6] as const,
+  leftArm: [0, 0, 0] as const,
+  leftForeArm: [0, 0, 0] as const,
+  rightArm: [0, 0, 0.2] as const,
+  rightForeArm: [-0.5, -0.5, -2] as const,
 };
 
 /**
  * Hand-guard bone adjustments per guarded region, applied additively over the
- * seated/standing rest pose. Each region raises the hands from the lap to the
- * guarded anatomy. Values are CALIBRATED against live skinned-mesh bone
- * positions (scripts/guard-final-cal.mjs drives window.__setHandGuard across a
- * grid of elbow-flexion (foreArm X), horizontal-adduction (foreArm Y) and
- * inward-sweep (foreArm Z), reads LeftHand/RightHand world positions, and picks
- * the combo whose hand midpoint lands on the target bone: head→Head,
- * neck/choking→Neck, chest→Spine2, abdomen→Spine1). The forearm Y (horizontal
- * adduction) is the axis that brings the hands to the body midline — a Z twist
- * alone leaves them splayed outboard.
+ * stable seated/standing rest pose. One-hand guards are used for chest,
+ * abdominal, head and posterior-neck pain; the universal choking sign remains
+ * deliberately bilateral. Values were calibrated against the live fitted rig
+ * and then image-reviewed so wrists land on the visible body surface rather
+ * than merely on an internal target bone or behind the torso.
  */
 const HAND_GUARD_ADJUSTMENTS: Record<
   'neck' | 'head' | 'chest' | 'abdomen' | 'choking',
   { leftArm: readonly [number, number, number]; leftForeArm: readonly [number, number, number]; rightArm: readonly [number, number, number]; rightForeArm: readonly [number, number, number] }
 > = {
   neck: NECK_GUARD_ADJUSTMENTS,
-  // Hands cup the sides of the head — same pose as the neck guard, which
-  // lands the hands at head height flanking the temples.
+  // One hand at the temple reads as holding the head without a surrender pose.
   head: NECK_GUARD_ADJUSTMENTS,
-  // Both hands rise to the sternum / left chest. Deeper adduction + more
-  // inward sweep drops the hands from head height to the chest line.
+  // One hand crosses naturally to the lower sternum; the other remains relaxed.
   chest: {
-    leftArm: [-1.15, 0, -0.35] as const,
-    leftForeArm: [-1.3, -1.5, 2.5] as const,
-    rightArm: [-1.15, 0, 0.35] as const,
-    rightForeArm: [-1.3, 1.5, -2.5] as const,
+    leftArm: [0, 0, 0] as const,
+    leftForeArm: [0, 0, 0] as const,
+    rightArm: [-0.5, 0, 0.2] as const,
+    rightForeArm: [-0.5, -1.5, -2] as const,
   },
-  // Both hands press the lower abdomen — full flexion + deepest adduction
-  // lowers the hands to the belly line.
+  // One protective hand settles over the lower abdomen.
   abdomen: {
-    leftArm: [-1.15, 0, -0.35] as const,
-    leftForeArm: [-1.9, -1.5, 2.5] as const,
-    rightArm: [-1.15, 0, 0.35] as const,
-    rightForeArm: [-1.9, 1.5, -2.5] as const,
+    leftArm: [0, 0, 0] as const,
+    leftForeArm: [0, 0, 0] as const,
+    rightArm: [0, 0, 0.4] as const,
+    rightForeArm: [-0.5, -1.5, -1] as const,
   },
-  // Universal choking sign — both hands rise to the front of the throat. Same
-  // pose as the neck guard; hands land at the anterior neck line.
-  choking: NECK_GUARD_ADJUSTMENTS,
+  // Universal choking sign — both hands meet visibly at the anterior throat.
+  choking: {
+    leftArm: [0, 0, -0.2] as const,
+    leftForeArm: [-0.5, 1, 2] as const,
+    rightArm: [0, 0, 0.2] as const,
+    rightForeArm: [-0.5, -1, -2] as const,
+  },
 };
 
 /**
