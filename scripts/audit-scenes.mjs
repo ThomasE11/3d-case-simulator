@@ -32,6 +32,7 @@ const jiti = require('jiti')(projectRoot, {
 const { allCases } = jiti('./src/data/cases.ts');
 const { deriveSceneEnvironment } = jiti('./src/lib/sceneEnvironment.ts');
 const { inferSceneImage } = jiti('./src/lib/sceneImageSelection.ts');
+const { unifiedSceneHazards } = jiti('./src/lib/sceneSafety.ts');
 
 if (!Array.isArray(allCases) || allCases.length === 0) {
   console.error('Could not load allCases from src/data/cases.ts');
@@ -54,7 +55,7 @@ const sceneText = (c) => [
   c.initialPresentation?.position,
 ].filter(Boolean).join(' ').toLowerCase();
 
-const hazardText = (c) => (c.sceneInfo?.hazards ?? []).join(' ').toLowerCase();
+const hazardText = (c) => unifiedSceneHazards(c).join(' ').toLowerCase();
 const slug = (c) => (c.sceneInfo?.sceneImagePath ?? '').toLowerCase();
 
 // Emirate names, normalised so "Al Ain" in a dispatch address and "alain" in
@@ -154,7 +155,10 @@ const RULES = [
     check(c) {
       const env = deriveSceneEnvironment(c);
       if (!['home', 'public', 'clinic'].includes(env)) return [];
-      if ((c.sceneInfo?.hazards ?? []).length) return [];
+      // The survey scan renders `unifiedSceneHazards` — authored hazards folded
+      // with the generated arrival layer's raw access-issue strings — so the
+      // scan has something to teach whenever that combined list is non-empty.
+      if (unifiedSceneHazards(c).length) return [];
       return [`indoor scene "${env}" has an empty hazards array — scene-safety step has nothing to teach`];
     },
   },

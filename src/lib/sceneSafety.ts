@@ -59,6 +59,10 @@ export function mandatoryScenePpe(caseData: CaseScenario): string[] {
     caseData.sceneInfo?.description,
     caseData.sceneInfo?.environment,
     ...(caseData.sceneInfo?.hazards ?? []),
+    // The generated arrival layer carries scene-side signals (bystander smoking,
+    // chemical smells, retching sounds, infection cues) that the student sees on
+    // arrival — the PPE decision must read the same evidence the survey does.
+    ...(unifiedSceneHazards(caseData) ?? []),
   ].filter(Boolean).join(' ').toLowerCase();
 
   const required = new Set<string>(['gloves']);
