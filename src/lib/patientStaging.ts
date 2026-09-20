@@ -292,6 +292,34 @@ export function patientSkeletalAction(
   return null;
 }
 
+/**
+ * Shoulder ADDUCTION applied over the walk clip, in radians.
+ *
+ * The donor clip is authored against a capture A-pose, so its shoulders keep
+ * an abduction the model never sheds: measured live, the upper arms sat 41-48
+ * degrees off vertical while walking, where an ordinary walk keeps them inside
+ * about 20. The arms read as held out from the body.
+ *
+ * This is deliberately NOT the same knob as patientArmRestRadians. That one is
+ * a local-X flexion offset for STATIC poses; applying it over a clip swung both
+ * arms forward into a sleepwalker's pose. Bringing the arms down to the sides
+ * is adduction, which is local Z and mirrored per side.
+ */
+export function patientGaitArmAdductionRadians(
+  mobility: PatientMobility,
+  ageYears?: number,
+): number {
+  if (mobility !== 'pacing') return 0;
+  const paediatricScale = typeof ageYears === 'number' && ageYears < 2
+    ? 0.49
+    : typeof ageYears === 'number' && ageYears < 6
+      ? 0.63
+      : typeof ageYears === 'number' && ageYears < 12
+        ? 0.78
+        : 1;
+  return 0.8 * paediatricScale;
+}
+
 /** Scene support furniture must match the patient's rendered mobility. */
 export function shouldShowPatientSeat(
   mobility: PatientMobility,
@@ -486,10 +514,11 @@ export function patientArmRestRadians(
       : typeof ageYears === 'number' && ageYears < 12
         ? 0.78
         : 1;
-  // The source walk keeps useful opposing arm swing, but its shoulders retain
-  // too much of the capture A-pose. This smaller additive offset brings the
-  // hands into a natural gait envelope without flattening the authored swing.
-  if (mobility === 'pacing') return 0.42 * paediatricScale;
+  // Ambulatory patients take their arm position from the walk clip plus a
+  // dedicated ADDUCTION correction — see patientGaitArmAdductionRadians. The
+  // flexion offset below is a rest-pose correction; stacking it on a clip that
+  // already places the arms swung both of them out in front of the patient.
+  if (mobility === 'pacing') return 0;
   if (mobility === 'seated') return 0.72 * paediatricScale;
   // A recumbent patient needs almost the same shoulder adduction as a seated
   // patient. The old 0.28 offset only removed part of the donor A-pose, so a

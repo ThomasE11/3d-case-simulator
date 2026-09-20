@@ -16,6 +16,7 @@ import {
   patientForearmRestRadians,
   patientForearmSweepRadians,
   patientSpineLeanRadians,
+  patientGaitArmAdductionRadians,
 } from './patientStaging';
 import type { CaseScenario } from '@/types';
 
@@ -123,8 +124,11 @@ describe('patientSkeletalAction', () => {
     expect(patientArmRestRadians('seated')).toBeCloseTo(0.72);
     expect(patientArmRestRadians('recumbent')).toBeCloseTo(0.58);
     expect(patientArmRestRadians('recumbent', true)).toBeCloseTo(0.58);
-    expect(patientArmRestRadians('pacing')).toBeCloseTo(0.42);
-    expect(patientArmRestRadians('pacing', false, 4)).toBeCloseTo(0.2646);
+    // Ambulatory patients take their arms from the walk clip plus a dedicated
+    // adduction correction. This flexion offset is a REST-pose knob; stacking
+    // it on a clip that already places the arms swung both out in front.
+    expect(patientArmRestRadians('pacing')).toBe(0);
+    expect(patientArmRestRadians('pacing', false, 4)).toBe(0);
     expect(patientArmRestRadians('standing', true)).toBe(0);
     expect(patientArmRestRadians('seated', false, 0.5)).toBeCloseTo(0.3528);
     expect(patientArmRestRadians('seated', false, 4)).toBeCloseTo(0.4536);
@@ -329,3 +333,25 @@ describe('deriveTreatmentPositioningOverride', () => {
     });
   });
 });
+
+describe('gait arm adduction', () => {
+  it('only applies to ambulatory patients', () => {
+    expect(patientGaitArmAdductionRadians('pacing')).toBeGreaterThan(0);
+    expect(patientGaitArmAdductionRadians('standing')).toBe(0);
+    expect(patientGaitArmAdductionRadians('seated')).toBe(0);
+    expect(patientGaitArmAdductionRadians('recumbent')).toBe(0);
+  });
+
+  it('scales down for smaller frames', () => {
+    const adult = patientGaitArmAdductionRadians('pacing');
+    expect(patientGaitArmAdductionRadians('pacing', 4)).toBeLessThan(adult);
+    expect(patientGaitArmAdductionRadians('pacing', 1)).toBeLessThan(
+      patientGaitArmAdductionRadians('pacing', 4),
+    );
+  });
+
+  it('stays within a shoulder\'s range so the arms cannot cross the torso', () => {
+    expect(patientGaitArmAdductionRadians('pacing')).toBeLessThan(Math.PI / 3);
+  });
+});
+

@@ -37,7 +37,7 @@ import { IdleAnimations, type IdleCues } from './IdleAnimations';
 import { getBreathPhase01, setBreathClock } from '@/lib/breathClock';
 import { computeIdleLimbMotion, createIdleLimbMotion } from '@/lib/idleLimbMotion';
 import { pupilDiscScale } from '@/lib/pupilDiscScale';
-import { patientWalkingPath } from '@/lib/patientWalkingPath';
+import { patientWalkingPath, walkClipTimeScale } from '@/lib/patientWalkingPath';
 import { tripodHandBraceSweep, TRIPOD_BRACE_CALIBRATION } from '@/lib/tripodHandBrace';
 import { skinDetailProfileForPilot, type SkinDetailProfile } from './resp001SkinDetail';
 import { shouldApplyCorrectedLipArticulation, withResp001LipArticulationMorph } from './resp001LipArticulation';
@@ -52,6 +52,7 @@ import {
   type NeurologicalWeakSide,
   type PatientMobility,
   type PatientPosture,
+  patientGaitArmAdductionRadians,
 } from '@/lib/patientStaging';
 import {
   PATIENT_MOTION_MORPHS,
@@ -1159,6 +1160,7 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
   const idleLimbTimeRef = useRef(0);
   const idleLimbGateRef = useRef(0);
   const skeletalMixerRef = useRef<THREE.AnimationMixer | null>(null);
+  const skeletalActionRef = useRef<THREE.AnimationAction | null>(null);
   const locomotionTimeRef = useRef(0);
   // Reusable temp colour for the per-frame skin-tint lerp so we don't allocate
   // a THREE.Color every frame (GC pressure under 60fps useFrame).
@@ -1650,9 +1652,13 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
     action.reset();
     action.enabled = true;
     action.setLoop(THREE.LoopRepeat, Infinity);
-    action.timeScale = actionName === 'walk' ? 0.58 : 0.68;
+    // The walk's playback rate is NOT set here. It is derived every frame from
+    // the ground speed the path is asking for (see walkClipTimeScale), because
+    // a hand-picked rate is exactly how the stance foot ends up sliding.
+    action.timeScale = actionName === 'walk' ? 0 : 0.68;
     action.fadeIn(0.3).play();
     skeletalMixerRef.current = mixer;
+    skeletalActionRef.current = action;
 
     return () => {
       // Extended fade-out smooths the transition and reduces residual drift
@@ -1660,6 +1666,7 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
       mixer.stopAllAction();
       mixer.uncacheRoot(clonedScene);
       if (skeletalMixerRef.current === mixer) skeletalMixerRef.current = null;
+      if (skeletalActionRef.current === action) skeletalActionRef.current = null;
     };
   }, [animations, clonedScene, mobility, unconscious]);
 
@@ -1889,6 +1896,14 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
     }
     skeletalMixer?.update(Math.min(delta, 0.05));
     const armRelaxation = patientArmRestRadians(mobility, unconscious, patientAge);
+    // Bring the clip's A-pose shoulders in to the body. Adduction is local Z
+    // and mirrors per side; the flexion offset below is for static poses only.
+    const gaitAdduction = patientGaitArmAdductionRadians(mobility, patientAge);
+    if (skeletalMixer && gaitAdduction > 0) {
+      for (const arm of standingArmBones) {
+        arm.rotateZ(arm.name.toLowerCase().includes('left') ? -gaitAdduction : gaitAdduction);
+      }
+    }
     if (skeletalMixer && armRelaxation > 0) {
       // The donor's idle action retains its capture A-pose. Apply the
       // Blender-calibrated local-X offset after the mixer writes each frame so
@@ -2034,6 +2049,11 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
     if (root && treatmentBayPresentation && mobility === 'pacing' && !unconscious) {
       locomotionTimeRef.current += Math.min(delta, 0.05);
       const pace = patientWalkingPath(locomotionTimeRef.current);
+      // Legs cover exactly the ground the body covers — the planted foot stays
+      // planted, and slowing for the turn slows the stride with it.
+      if (skeletalActionRef.current) {
+        skeletalActionRef.current.timeScale = walkClipTimeScale(pace.speed);
+      }
       root.position.set(
         treatmentBayTransform.position[0] + pace.x,
         treatmentBayTransform.position[1],
