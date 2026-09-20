@@ -409,6 +409,83 @@ function HomeDustMotes({
   );
 }
 
+/**
+ * Ceiling cornice — a room with no cornice reads as a stage set. The old
+ * ceiling was one flat plane at the wall head, so the wall-ceiling junction
+ * was a hairline with nothing to catch the light and no shadow for the
+ * orbit camera to read as depth. A cornice is a small extrusion that:
+ *   - gives the top of every wall a soft occlusion line (the ambient term
+ *     darkens the cove, which is what makes a ceiling read as a ceiling),
+ *   - throws a narrow shadow band onto the plaster below it from the key
+ *     light, so the room has a crown instead of a lid,
+ *   - is a real mesh the camera can slide behind, which is what makes the
+ *     villa orbit feel enclosed rather than open-topped.
+ *
+ * It runs the full perimeter as four boxes (no mitre math), each 0.06 deep
+ * and 0.09 tall, sitting just under the slab. The villa variant carries the
+ * plaster texture so the cornice matches the wall; the generic home ceiling
+ * keeps its warm off-white.
+ */
+function CeilingCornice({
+  x,
+  y,
+  z,
+  width,
+  depth,
+  hasResp001Dressing,
+  tex,
+}: {
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  depth: number;
+  hasResp001Dressing: boolean;
+  tex: ReturnType<typeof getVillaTextures> | null;
+}) {
+  const halfW = width / 2;
+  const halfD = depth / 2;
+  const corniceH = 0.09;
+  const corniceD = 0.06;
+  const innerW = width - 2 * corniceD;
+  const innerD = depth - 2 * corniceD;
+  const CorniceMaterial = () => hasResp001Dressing && tex ? (
+    <meshStandardMaterial map={tex.plaster.map} normalMap={tex.plaster.normalMap} normalScale={[0.5, 0.5]} roughness={0.9} />
+  ) : (
+    <meshStandardMaterial color="#f1e9da" roughness={0.9} />
+  );
+  const segs: Array<{ key: string; position: [number, number, number]; args: [number, number, number] }> = [
+    { key: 'front', position: [x, y - corniceH / 2, z + halfD - corniceD / 2], args: [width, corniceH, corniceD] },
+    { key: 'back', position: [x, y - corniceH / 2, z - halfD + corniceD / 2], args: [width, corniceH, corniceD] },
+    { key: 'left', position: [x - halfW + corniceD / 2, y - corniceH / 2, z], args: [corniceD, corniceH, innerD] },
+    { key: 'right', position: [x + halfW - corniceD / 2, y - corniceH / 2, z], args: [corniceD, corniceH, innerD] },
+  ];
+  return (
+    <group name="ceiling-cornice">
+      {segs.map(s => (
+        <mesh key={s.key} position={s.position} raycast={NO_RAYCAST}>
+          <boxGeometry args={s.args} />
+          <CorniceMaterial />
+        </mesh>
+      ))}
+      {/* The slab itself, dropped just below the cornice so the cove reads as a
+          recess rather than the cornice floating in front of a lit plane.
+          Rotated to lie in the XZ plane like the ceiling it replaces — a
+          default plane faces +Z, so without this the slab stood on edge and
+          the room had a vertical fin for a lid.
+          The cornice band spans [y-0.09, y] (its segments are centred at
+          y-corniceH/2), so the slab goes at y-corniceH, not y-corniceH/2:
+          at half-depth it was buried inside the band and every room rendered
+          open-topped, because nothing capped the space between the wall head
+          and the sky — the audit caught it from above. */}
+      <mesh position={[x, y - corniceH - 0.006, z]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
+        <planeGeometry args={[innerW, innerD]} />
+        <CorniceMaterial />
+      </mesh>
+    </group>
+  );
+}
+
 function HomeScene({
   variant,
   hideOverhead,
@@ -767,10 +844,15 @@ function HomeScene({
       </group>
 
       {!hideOverhead && (
-        <mesh name={hasResp001Dressing ? 'resp001-villa-ceiling' : undefined} position={[0, roomHeight - 0.05, roomCentreZ]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
-          <planeGeometry args={[roomHalfW * 2, roomDepth]} />
-          <meshStandardMaterial color="#f1e9da" roughness={0.9} />
-        </mesh>
+        <CeilingCornice
+          x={0}
+          y={roomHeight - 0.05}
+          z={roomCentreZ}
+          width={roomHalfW * 2}
+          depth={roomDepth}
+          hasResp001Dressing={hasResp001Dressing}
+          tex={tex}
+        />
       )}
 
       {/* Light rig — window daylight does the soft wash (RectAreaLight) while
@@ -948,20 +1030,33 @@ function PublicScene({
         </mesh>
       </group>
 
+      {/* Cornice — the office ceiling is a bare plane like every other variant
+          was before this pass, so the wall-ceiling junction was a hairline with
+          nothing to catch light and no shadow for the camera to read as depth.
+          A 0.06 × 0.09 extrusion around the perimeter gives the shell a crown,
+          throws a narrow shadow band onto the partition below the key light,
+          and is a real mesh the orbit camera can slide behind. */}
       {!hideOverhead && (
-        <>
-          <mesh position={[0, 2.3, 0.1]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
-            <planeGeometry args={[halfW * 2, frontZ - backdropZ]} />
-            <meshStandardMaterial color="#dde3e9" roughness={0.8} />
-          </mesh>
-          {[-1.2, -0.4, 0.4, 1.2].map((x) => (
-            <mesh key={`fluoro-${x}`} position={[x, 2.28, backdropZ + 0.85]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
-              <boxGeometry args={[0.35, 1.6, 0.02]} />
-              <meshStandardMaterial color="#f0f7ff" roughness={0.2} emissive="#e3f0ff" emissiveIntensity={0.9} />
-            </mesh>
-          ))}
-        </>
+        <CeilingCornice
+          x={0}
+          y={height - 0.05}
+          z={(backdropZ + frontZ) / 2}
+          width={halfW * 2}
+          depth={frontZ - backdropZ}
+          hasResp001Dressing={false}
+          tex={null}
+        />
       )}
+      {/* Recessed fluorescent troffers sit just under the cornice so the
+          office ceiling reads as a dropped panel grid rather than a bare
+          slab. The old build hung them at y=2.28 in open air; with the
+          cornice at the wall head they now tuck into the cove. */}
+      {[-1.2, -0.4, 0.4, 1.2].map((x) => (
+        <mesh key={`fluoro-${x}`} position={[x, height - 0.105, backdropZ + 0.85]} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.35, 1.6, 0.02]} />
+          <meshStandardMaterial color="#f0f7ff" roughness={0.2} emissive="#e3f0ff" emissiveIntensity={0.9} />
+        </mesh>
+      ))}
       {/* Cool fluorescent lighting — flatter and brighter than the bay */}
       {/* Public/office scenes must enclose their space like every other
           variant. The old build only had a key + 3 point lights aimed at the
