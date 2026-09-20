@@ -116,7 +116,7 @@ const LOCATION_CLASS = {
 // workshop" is industrial, not an office.
 const LOCATION_PRECEDENCE = [
   'outdoorRoad', 'outdoorLeisure', 'industrial', 'transport', 'medical',
-  'residence', 'wet', 'commercial', 'office', 'education',
+  'commercial', 'office', 'education', 'residence', 'wet',
 ];
 const locationClassOf = (s) => {
   const t = String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, ' ');
@@ -307,8 +307,17 @@ const RULES = [
       const slugClass = locationClassOf(img);
       const locClass = locationClassOf(loc);
       if (!slugClass || !locClass) return [];
-      if (slugClass !== locClass) {
-        return [`dispatch location "${c.dispatchInfo.location}" is class "${locClass}" but scene image "${img}" is class "${slugClass}"`];
+      // A slug that resolved to the generic fallback (residence — the last
+      // branch of selectTemplateSceneImage) is a case that did not find a
+      // specific plate. When the dispatch address names a specific place — a
+      // golf clubhouse, a shopping mall, a school — the student is arriving
+      // somewhere that is not a living room, and a domestic bedroom plate is
+      // the wrong world. The converse is not a defect: a case at a shopping
+      // mall whose plate slug says "mall" is specific-by-name and correct even
+      // though the address also contains a road or a hotel. Only the
+      // generic-fallback-against-specific pattern fires.
+      if (slugClass === 'residence' && locClass !== 'residence') {
+        return [`dispatch location "${c.dispatchInfo.location}" is class "${locClass}" but scene image "${img}" is class "${slugClass}" — the plate is a generic domestic fallback for a specific non-residential scene`];
       }
       return [];
     },

@@ -2148,7 +2148,7 @@ export const secondYearCases: CaseScenario[] = [
       environment: 'Comfortable indoor golf clubhouse lounge, air conditioned',
       environmentVariant: 'public',
       patientSupportSurface: 'seat',
-      sceneImagePath: '/scene-assets/home-stroke-elderly-male-uae.png',
+      sceneImagePath: '/scene-assets/hotel-room-medical-uae.png',
       sceneImageCaption: 'Golf clubhouse lounge — Dubai, seated in club chair'
     },
     initialPresentation: {
