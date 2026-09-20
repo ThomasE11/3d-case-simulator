@@ -473,12 +473,17 @@ function CeilingCornice({
           Rotated to lie in the XZ plane like the ceiling it replaces — a
           default plane faces +Z, so without this the slab stood on edge and
           the room had a vertical fin for a lid.
-          The cornice band spans [y-0.09, y] (its segments are centred at
-          y-corniceH/2), so the slab goes at y-corniceH, not y-corniceH/2:
-          at half-depth it was buried inside the band and every room rendered
-          open-topped, because nothing capped the space between the wall head
-          and the sky — the audit caught it from above. */}
-      <mesh position={[x, y - corniceH - 0.006, z]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
+          Geometry: the wall boxes are centred at roomHeight/2-0.05, so every
+          wall top lands at roomHeight-0.05. The cornice band spans
+          [roomHeight-0.14, roomHeight-0.05] (its segments are centred at
+          y-corniceH/2), i.e. flush with the wall top and BELOW it. So a slab
+          anywhere inside or under the band left the air above the wall head
+          uncapped and every room rendered as a black-void open-topped box —
+          the audit caught it from a corner wide shot. The slab has to clear
+          the wall top: at y+0.02 it sits 20 mm above the wall head, caps the
+          room, and the band hangs 40 mm below it as the cove shadow that makes
+          the ceiling read as a ceiling. */}
+      <mesh position={[x, y + 0.02, z]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
         <planeGeometry args={[innerW, innerD]} />
         <CorniceMaterial />
       </mesh>
