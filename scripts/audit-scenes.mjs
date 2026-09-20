@@ -31,7 +31,7 @@ const jiti = require('jiti')(projectRoot, {
 
 const { allCases } = jiti('./src/data/cases.ts');
 const { deriveSceneEnvironment } = jiti('./src/lib/sceneEnvironment.ts');
-const { inferSceneImage } = jiti('./src/lib/sceneImageSelection.ts');
+const { inferSceneImage, sceneImageNeedsPatientOverlay } = jiti('./src/lib/sceneImageSelection.ts');
 const { unifiedSceneHazards } = jiti('./src/lib/sceneSafety.ts');
 
 if (!Array.isArray(allCases) || allCases.length === 0) {
@@ -63,6 +63,83 @@ const slug = (c) => (c.sceneInfo?.sceneImagePath ?? '').toLowerCase();
 const UAE_CITIES = ['dubai', 'abudhabi', 'sharjah', 'ajman', 'fujairah', 'alain', 'rasalkhaimah', 'ummalquwain'];
 const squash = (s) => s.replace(/[^a-z]/g, '');
 const cityIn = (s) => { const f = squash(s); return UAE_CITIES.filter((city) => f.includes(city)); };
+
+// A scene plate's filename is a claim about the *scene type* it depicts. The
+// emirate in it is where the photographer stood, not where the incident
+// happened — a villa in Al Ain and a villa in Abu Dhabi are the same room.
+// So: classify each name into a location-type compatibility class and fire
+// only when the slug's class and the dispatch address's class genuinely
+// disagree. A name with no location-type token is a generic fallback the case
+// resolved to through the template ladder, so it is exempt.
+const LOCATION_CLASS = {
+  residence: ['home', 'villa', 'apartment', 'bedroom', 'house', 'flat', 'room',
+    'accommodation', 'hostel', 'residence', 'living', 'livingroom', 'living-room',
+    'balcony', 'nursery', 'lodging'],
+  commercial: ['mall', 'foodcourt', 'food-court', 'restaurant', 'cafe', 'shop',
+    'shopping', 'store', 'supermarket', 'grocery', 'market', 'atrium', 'mall-',
+    'nightclub', 'clubhouse', 'lounge', 'casino', 'hotel', 'resort', 'lobby',
+    'reception', 'gallery', 'mall-restaurant'],
+  office: ['office', 'workshop', 'factory', 'warehouse', 'corporate', 'business',
+    'studio', 'agency'],
+  education: ['school', 'campus', 'university', 'college', 'library', 'classroom',
+    'exam', 'lecture', 'hall', 'academic'],
+  outdoorRoad: ['road', 'roadside', 'highway', 'street', 'traffic', 'pavement',
+    'sidewalk', 'driveway', 'parking', 'garage', 'highway', 'mci', 'rtc', 'mvc',
+    'avenue', 'lane', 'crossing', 'junction'],
+  outdoorLeisure: ['pool', 'garden', 'yard', 'field', 'pitch', 'stadium',
+    'court', 'golf', 'park', 'gym', 'sport', 'club', 'terrace', 'deck'],
+  industrial: ['construction', 'site', 'farm', 'industrial', 'machinery', 'scaffold',
+    'warehouse', 'plant', 'refinery', 'dock', 'harbour', 'harbor'],
+  medical: ['hospital', 'clinic', 'surgery', 'ambulance', 'station', 'centre',
+    'center', 'health'],
+  residence: ['home', 'villa', 'apartment', 'bedroom', 'house', 'flat', 'room',
+    'accommodation', 'hostel', 'residence', 'living', 'livingroom', 'living-room',
+    'balcony', 'nursery', 'lodging'],
+  wet: ['kitchen', 'bathroom', 'scald', 'washroom', 'toilet', 'shower'],
+  commercial: ['mall', 'foodcourt', 'food-court', 'restaurant', 'cafe', 'shop',
+    'shopping', 'store', 'supermarket', 'grocery', 'market', 'atrium',
+    'nightclub', 'clubhouse', 'lounge', 'casino', 'hotel', 'resort', 'lobby',
+    'reception', 'gallery'],
+  office: ['office', 'factory', 'warehouse', 'corporate', 'business',
+    'studio', 'agency'],
+  education: ['school', 'campus', 'university', 'college', 'library', 'classroom',
+    'exam', 'lecture', 'hall', 'academic'],
+  transport: ['airport', 'station', 'terminal', 'port', 'train', 'bus', 'metro', 'taxi'],
+};
+// A dispatch address often names several places at once — "Sheikh Zayed
+// Road, near Mall of Emirates" is both a road and a mall, "Grand Palms
+// Hotel, Jumeirah Beach Road" is both a hotel and a beach road, "Family
+// home - kitchen" is both a home and a wet room. The scene type is the most
+// specific container, so rank the classes and keep the best match rather than
+// the first one found. "Beach" and "workshop" are deliberately NOT in the
+// leisure / office lists: "Beach Road" is a road, and an "industrial
+// workshop" is industrial, not an office.
+const LOCATION_PRECEDENCE = [
+  'outdoorRoad', 'outdoorLeisure', 'industrial', 'transport', 'medical',
+  'residence', 'wet', 'commercial', 'office', 'education',
+];
+const locationClassOf = (s) => {
+  const t = String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, ' ');
+  const words = t.split(/\s+/).filter(Boolean);
+  let best = null;
+  let bestRank = Infinity;
+  for (const [cls, terms] of Object.entries(LOCATION_CLASS)) {
+    const rank = LOCATION_PRECEDENCE.indexOf(cls);
+    for (const w of words) {
+      for (const term of terms) {
+        // Exact word match, or the word is the first hyphen-free segment of a
+        // hyphenated term ("food" in "foodcourt"). The reverse — a term that
+        // merely starts with the word — is NOT a match: it made "night" match
+        // "nightclub" and misclassified a pedestrian road as a commercial
+        // lounge.
+        if (w === term || (term.includes(w) && term.split(/[-\s]/)[0] === w)) {
+          if (rank < bestRank) { best = cls; bestRank = rank; }
+        }
+      }
+    }
+  }
+  return best;
+};
 
 // ---------------------------------------------------------------------------
 const RULES = [
@@ -210,14 +287,28 @@ const RULES = [
   {
     id: 'scene-image-city-mismatch',
     severity: 'INFO',
+    // The slug in a scene plate's filename is a claim about the *scene type*
+    // it depicts, not about the emirate the photographer stood in. A villa in
+    // Al Ain and a villa in Abu Dhabi are the same room; a mall in Abu Dhabi
+    // and a mall in Dubai are the same food court. The old rule compared the
+    // raw city names and fired on every emirate difference, so the three real
+    // cases it reported were naming noise, not drift.
+    //
+    // Classify each name into a location-type compatibility class (residence,
+    // commercial, office, education, outdoorRoad, outdoorLeisure, industrial,
+    // medical, wet, transport) and fire only when the slug's class and the
+    // dispatch address's class genuinely disagree. A name with no location
+    // token is a generic fallback the case resolved to through the template
+    // ladder — it is exempt, because the case did not pick it for that place.
     check(c) {
-      const s = slug(c).replace(/[-_]/g, ' ');
       const loc = String(c.dispatchInfo?.location ?? '').toLowerCase();
-      if (!s || !loc) return [];
-      const inSlug = cityIn(s);
-      const inLoc = cityIn(loc);
-      if (inSlug.length && inLoc.length && !inSlug.some((x) => inLoc.includes(x))) {
-        return [`dispatch location "${c.dispatchInfo.location}" but scene image names ${inSlug.join('/')}: "${slug(c)}"`];
+      const img = c.sceneInfo?.sceneImagePath;
+      if (!loc || !img) return [];
+      const slugClass = locationClassOf(img);
+      const locClass = locationClassOf(loc);
+      if (!slugClass || !locClass) return [];
+      if (slugClass !== locClass) {
+        return [`dispatch location "${c.dispatchInfo.location}" is class "${locClass}" but scene image "${img}" is class "${slugClass}"`];
       }
       return [];
     },
@@ -323,7 +414,7 @@ if (args.includes('--self-test')) {
   fires('indoor-scene-no-hazards', base({ sceneInfo: { description: 'villa bedroom', hazards: [] } }));
   fires('scene-image-gender-mismatch', base({ patientInfo: { age: 40, gender: 'female' }, sceneInfo: { description: 'villa', hazards: ['x'], sceneImagePath: '/scene-assets/home-medical-male-dubai-apartment.png' } }));
   fires('scene-image-age-mismatch', base({ patientInfo: { age: 45, gender: 'male' }, sceneInfo: { description: 'villa', hazards: ['x'], sceneImagePath: '/scene-assets/home-pediatric-uae-family.png' } }));
-  fires('scene-image-city-mismatch', base({ dispatchInfo: { timeOfDay: 'day', location: 'Villa in Abu Dhabi' }, sceneInfo: { description: 'villa', hazards: ['x'], sceneImagePath: '/scene-assets/home-medical-male-dubai-apartment.png' } }));
+  fires('scene-image-city-mismatch', base({ dispatchInfo: { timeOfDay: 'day', location: 'Villa in Abu Dhabi' }, sceneInfo: { description: 'villa', hazards: ['x'], sceneImagePath: '/scene-assets/mall-foodcourt-chestpain-male-65.png' } }));
   fires('extrication-without-access-issue', base({ sceneInfo: { description: 'villa', hazards: ['x'], extricationNeeded: true } }));
   fires('bystanders-field-empty', base({ sceneInfo: { description: 'villa', hazards: ['x'], bystanders: '' } }));
   fires('duplicate-case-id', base());
@@ -333,6 +424,18 @@ if (args.includes('--self-test')) {
 
 const findings = [];
 const pool = idFilter ? allCases.filter((c) => c.id === idFilter) : allCases;
+
+if (process.env.AUDIT_DEBUG) {
+  for (const c of pool) {
+    const img = c.sceneInfo?.sceneImagePath;
+    const loc = String(c.dispatchInfo?.location ?? '');
+    const slugClass = img ? locationClassOf(img) : null;
+    const locClass = loc ? locationClassOf(loc) : null;
+    if (slugClass && locClass && slugClass !== locClass) {
+      console.log('MISMATCH', c.id, '| loc:', JSON.stringify(loc), '->', locClass, '| img:', img, '->', slugClass);
+    }
+  }
+}
 
 for (const rule of RULES) {
   if (ruleFilter && rule.id !== ruleFilter) continue;
