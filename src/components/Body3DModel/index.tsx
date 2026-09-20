@@ -6998,7 +6998,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 bayStage={bayStage}
                 // SSS skin (male mesh only) — shed with the composer on the
                 // adaptive ladder so iPad falls back to plain PBR.
-                sss={qualityTier < 1}
+                sss={qualityTier < 3}
                 // Work-of-breathing posture; eases to recovery as SpO2 climbs.
                 posture={patientPosture}
                 braceHandsOnKnees={caseData.id === 'resp-001'}

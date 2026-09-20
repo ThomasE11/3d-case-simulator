@@ -236,47 +236,77 @@ function drawWound(ctx: CanvasRenderingContext2D, kind: WoundKind, cx: number, c
       break;
     }
 
-    case 'burn':
-      // Irregular seeded blob with blister circles
-      ctx.strokeStyle = '#FF4500';
-      ctx.lineWidth = sizePx * 0.03;
+    case 'burn': {
+      // A second-degree burn is not one colour. From centre out: charred
+      // black eschar, a raised pale blister ring, then an erythematous flare
+      // that fades into surrounding skin. The old sprite was a flat orange
+      // blob with eight cream dots — it read as a decal, not a wound, which
+      // is exactly what the burn-001 audit flagged.
+      // 1. Deep eschar core — irregular, not a circle.
+      ctx.strokeStyle = '#2B0E0A';
+      ctx.lineWidth = sizePx * 0.04;
       ctx.beginPath();
-      const points: [number, number][] = [];
-      for (let i = 0; i < 100; i++) {
-        const angle = rand() * Math.PI * 2;
-        points.push([Math.cos(angle) * sizePx * 0.8, Math.sin(angle) * sizePx * 0.6]);
-      }
-      ctx.moveTo(points[0][0], points[0][1]);
-      for (const [x, y] of points.slice(1)) {
-        ctx.lineTo(x, y);
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        const r = sizePx * (0.42 + rand() * 0.16);
+        const x = Math.cos(a) * r;
+        const y = Math.sin(a) * r * 0.78;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
       ctx.closePath();
+      ctx.fillStyle = '#3A140C';
+      ctx.fill();
       ctx.stroke();
 
-      ctx.globalAlpha = 0.5;
-      ctx.fillStyle = '#FF4500';
-      ctx.beginPath();
-      ctx.moveTo(points[0][0], points[0][1]);
-      for (const [x, y] of points.slice(1)) {
-        ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      ctx.fill();
-
-      const burnGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, sizePx * 1.6);
-      burnGradient.addColorStop(0, 'rgba(255, 69, 0, 0.3)');
-      burnGradient.addColorStop(1, 'rgba(255, 69, 0, 0)');
-      ctx.fillStyle = burnGradient;
-      ctx.fillRect(-sizePx * 1.6, -sizePx * 1.6, sizePx * 3.2, sizePx * 3.2);
-
-      for (let i = 0; i < 8; i++) {
-        const angle = rand() * Math.PI * 2;
+      // Charred cross-hatch — cracked eschar reads as burnt, not bruised.
+      ctx.strokeStyle = 'rgba(80, 30, 20, 0.7)';
+      ctx.lineWidth = sizePx * 0.012;
+      for (let i = 0; i < 5; i++) {
+        const a = rand() * Math.PI * 2;
         ctx.beginPath();
-        ctx.arc(Math.cos(angle) * sizePx * 0.9, Math.sin(angle) * sizePx * 0.7, sizePx * 0.05, 0, Math.PI * 2);
-        ctx.fillStyle = '#FFDAB9';
+        ctx.moveTo(Math.cos(a) * sizePx * 0.5, Math.sin(a) * sizePx * 0.4);
+        ctx.lineTo(Math.cos(a + Math.PI) * sizePx * 0.5, Math.sin(a + Math.PI) * sizePx * 0.4);
+        ctx.stroke();
+      }
+
+      // 2. Pale blister ring — raised, wet-looking, sitting on the eschar.
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = '#F3E4C0';
+      for (let i = 0; i < 9; i++) {
+        const a = rand() * Math.PI * 2;
+        const r = sizePx * (0.18 + rand() * 0.28);
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * r, Math.sin(a) * r * 0.78, sizePx * (0.05 + rand() * 0.04), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Blister shine.
+      ctx.strokeStyle = 'rgba(255, 255, 235, 0.55)';
+      ctx.lineWidth = sizePx * 0.015;
+      ctx.beginPath();
+      ctx.arc(-sizePx * 0.06, -sizePx * 0.05, sizePx * 0.07, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // 3. Erythematous flare fading outward — warm red, not orange.
+      const flare = ctx.createRadialGradient(0, 0, sizePx * 0.3, 0, 0, sizePx * 1.9);
+      flare.addColorStop(0, 'rgba(196, 30, 24, 0.55)');
+      flare.addColorStop(0.5, 'rgba(210, 58, 40, 0.28)');
+      flare.addColorStop(1, 'rgba(210, 58, 40, 0)');
+      ctx.fillStyle = flare;
+      ctx.fillRect(-sizePx * 1.9, -sizePx * 1.9, sizePx * 3.8, sizePx * 3.8);
+
+      // 4. Soot stipple at the wound edge — inhalation-injury tell that
+      // pairs with the separate 'soot' sprite when both are authored.
+      for (let i = 0; i < 14; i++) {
+        const a = rand() * Math.PI * 2;
+        const dist = rand() * sizePx * 1.3;
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * dist, Math.sin(a) * dist * 0.78, sizePx * (0.01 + rand() * 0.025), 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(30, 24, 20, ${0.25 + rand() * 0.3})`;
         ctx.fill();
       }
       break;
+    }
   }
 
   ctx.restore();

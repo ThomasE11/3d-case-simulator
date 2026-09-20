@@ -1436,6 +1436,7 @@ function BystanderFigure({
   const { scene } = useGLTF(url);
   const clone = useMemo(() => {
     const next = scene.clone(true);
+    const isFemale = url.endsWith('bystander-female.glb');
     next.traverse(object => {
       object.raycast = NO_RAYCAST;
       object.castShadow = true;
@@ -1454,6 +1455,24 @@ function BystanderFigure({
             // is baked into the clone — keyed on depth01 so each distance
             // band gets its own material set.
             mat.opacity = 0.35 + 0.65 * depth01;
+            // The bystander GLB ships ONE untextured material (flat grey
+            // 0.55,0.52,0.48, no maps, one primitive, no per-part split) —
+            // without a tint it renders as a white plastic mannequin, which
+            // is exactly the ghost the audit flagged on trauma-005. A warm,
+            // gendered tone is the whole fix available at this mesh: there is
+            // no separate hair/garment material to darken, so any
+            // luminance-based "skin vs clothing" split paints the entire
+            // figure one colour (verified in Blender — the single material
+            // sits at lum 0.52, above any threshold). The real fix is a
+            // clothed bystander GLB with per-part materials; this buys the
+            // tone in the meantime. baseColorFactor multiplies any future
+            // texture, so it stays correct if maps are added later.
+            mat.color.set(
+              isFemale ? 0.52 : 0.46,
+              isFemale ? 0.37 : 0.33,
+              isFemale ? 0.30 : 0.27,
+            );
+            mat.roughness = Math.max(mat.roughness, 0.75);
           }
         });
       }

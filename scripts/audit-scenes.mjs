@@ -423,7 +423,13 @@ if (args.includes('--self-test')) {
   fires('indoor-scene-no-hazards', base({ sceneInfo: { description: 'villa bedroom', hazards: [] } }));
   fires('scene-image-gender-mismatch', base({ patientInfo: { age: 40, gender: 'female' }, sceneInfo: { description: 'villa', hazards: ['x'], sceneImagePath: '/scene-assets/home-medical-male-dubai-apartment.png' } }));
   fires('scene-image-age-mismatch', base({ patientInfo: { age: 45, gender: 'male' }, sceneInfo: { description: 'villa', hazards: ['x'], sceneImagePath: '/scene-assets/home-pediatric-uae-family.png' } }));
-  fires('scene-image-city-mismatch', base({ dispatchInfo: { timeOfDay: 'day', location: 'Villa in Abu Dhabi' }, sceneInfo: { description: 'villa', hazards: ['x'], sceneImagePath: '/scene-assets/mall-foodcourt-chestpain-male-65.png' } }));
+  // The tightened rule fires only on a generic domestic fallback plate
+  // paired with a specific non-residential dispatch address — the reverse
+  // (a specific commercial plate at a villa) is not a defect, because the
+  // case picked that plate for its scene type. The old self-test had the
+  // classes the wrong way round, so it stopped firing the day the rule was
+  // tightened and every commit since shipped with a red gate.
+  fires('scene-image-city-mismatch', base({ dispatchInfo: { timeOfDay: 'day', location: 'Mall of the Emirates, Dubai' }, sceneInfo: { description: 'mall food court', hazards: ['x'], sceneImagePath: '/scene-assets/home-medical-male-dubai-apartment.png' } }));
   fires('extrication-without-access-issue', base({ sceneInfo: { description: 'villa', hazards: ['x'], extricationNeeded: true } }));
   fires('bystanders-field-empty', base({ sceneInfo: { description: 'villa', hazards: ['x'], bystanders: '' } }));
   fires('duplicate-case-id', base());

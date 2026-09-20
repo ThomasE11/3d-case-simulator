@@ -65,3 +65,6 @@ ios/
 /scripts/_*.mjs
 /scripts/_*.py
 .env*.local
+
+# recoverable temp probes (never committed)
+scripts/.trash/
