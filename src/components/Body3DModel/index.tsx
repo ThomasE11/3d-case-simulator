@@ -833,13 +833,14 @@ function MarkerHtml({
 
 const NO_TOOL_RAYCAST = () => {};
 
-function AssessmentContactTool({ action, region, sampler, patientScale, exposed, listeningStep }: {
+function AssessmentContactTool({ action, region, sampler, patientScale, exposed, listeningStep, landmarks }: {
   action: string | null;
   region: string | null;
   sampler: SurfaceSampler | null;
   patientScale: number;
   exposed: boolean;
   listeningStep: number;
+  landmarks: readonly ExamLandmark[];
 }) {
   const root = useRef<THREE.Group>(null);
   const gesture = useRef<THREE.Group>(null);
@@ -847,7 +848,7 @@ function AssessmentContactTool({ action, region, sampler, patientScale, exposed,
   const fitHand = useMemo(() => createPalpationHandFit(), []);
   const elapsed = useRef(0);
   const [sequence, setSequence] = useState(0);
-  const contact = resolveAssessmentContact(action, region, RESP001_EXAM_LANDMARKS, action === 'chest-percuss' ? sequence : listeningStep);
+  const contact = resolveAssessmentContact(action, region, landmarks, action === 'chest-percuss' ? sequence : listeningStep);
   const vectors = useMemo(() => ({ normal: new THREE.Vector3(), z: new THREE.Vector3(0, 0, 1) }), []);
   useEffect(() => {
     elapsed.current = 0;
@@ -1014,7 +1015,7 @@ function LandmarkMarkers({
         // resolve, so it keeps its authored anchor.
         const sampleMarkerPosition = sampler && marker.region !== 'posterior-logroll'
           ? () => {
-            const contact = useContactAnchors && (marker.region === 'chest' || marker.region === 'abdomen')
+            const contact = useContactAnchors && (marker.region === 'neck-cspine' || marker.region === 'chest' || marker.region === 'abdomen')
               ? sampler.contact?.(marker.position[0], marker.position[1]) : null;
             return contact?.position ?? sampler(marker.position[0], marker.position[1], { coordinateSpace: marker.anchorSpace ?? 'author', anatomicalSite: marker.actionId });
           }
@@ -7076,7 +7077,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
 
               {!bedsideConversation.active && <LandmarkMarkers
                 landmarks={caseData.id === 'resp-001' ? RESP001_EXAM_LANDMARKS : EXAM_LANDMARKS}
-                useContactAnchors={caseData.id === 'resp-001'}
+                useContactAnchors
                 activeRegion={activeRegion}
                 assessedRegions={assessedRegions}
                 requiredRegions={requiredRegions}
@@ -7088,14 +7089,15 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 patientScale={patientScale}
               />}
 
-              {caseData.id === 'resp-001' && !bedsideConversation.active && anatomyLayer !== 'skeleton' && (activeRegion === 'chest' || activeRegion === 'abdomen') && (
+              {!bedsideConversation.active && anatomyLayer !== 'skeleton' && (activeRegion === 'neck-cspine' || activeRegion === 'chest' || activeRegion === 'abdomen') && (
                 <AssessmentContactTool
                   action={selectedAction === contactAction ? contactAction : null}
                   region={activeRegion}
                   sampler={surfaceSampler}
                   patientScale={patientScale}
                   listeningStep={pilotListeningStep}
-                  exposed={anatomyLayer !== 'dressed' || regionExposed || (activeRegion === 'chest' && defibrillatorPadsAttached)}
+                  landmarks={caseData.id === 'resp-001' ? RESP001_EXAM_LANDMARKS : EXAM_LANDMARKS}
+                  exposed={activeRegion === 'neck-cspine' || anatomyLayer !== 'dressed' || regionExposed || (activeRegion === 'chest' && defibrillatorPadsAttached)}
                 />
               )}
 

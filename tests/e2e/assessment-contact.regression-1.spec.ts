@@ -26,7 +26,9 @@ test('assessment tools identify the selected anatomical contact and clear on exi
   await dock.getByRole('button', { name: 'Listen', exact: true }).click();
   const contact = page.getByTestId('assessment-contact-label');
   await expect(contact).toHaveCount(0);
-  await page.getByRole('button', { name: 'R upper zone: right apex / upper field', exact: true }).click();
+  // This target follows the breathing mesh every frame; dispatch a semantic
+  // click directly instead of asking Playwright to wait for a stationary box.
+  await page.getByRole('button', { name: 'R upper zone: right apex / upper field', exact: true }).evaluate(button => (button as HTMLButtonElement).click());
   await expect(contact).toContainText('R upper zone');
   await dock.getByRole('button', { name: 'Listen', exact: true }).click();
   await expect(contact).toHaveCount(0);
@@ -114,4 +116,69 @@ test('abdominal contact follows the chosen quadrant and technique with exposure 
     await page.waitForTimeout(600);
     await page.screenshot({ path: info.outputPath(`${quadrant}-contact.png`) });
   }
+});
+
+test('chest palpation is attached to the patient in non-pilot cases', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.addInitScript(() => localStorage.setItem('paramedic-studio-voice-enabled', 'false'));
+  await page.goto('/?devLiveCase=trauma-003');
+  await expect.poll(() => renderedSceneFraction(page), { timeout: 30_000 }).toBeGreaterThan(.25);
+  await page.getByRole('button', { name: 'Examine Chest', exact: true }).click();
+  await page.getByRole('button', { name: 'Expose', exact: true }).click();
+  const dock = page.locator('.patient-first-exam-dock');
+  await dock.getByRole('button', { name: 'Palpate', exact: true }).click();
+  await dock.getByRole('button', { name: /Palpate expansion/ }).click();
+  await expect(page.getByTestId('assessment-contact-label')).toContainText('Palpation · Chest wall');
+  await expect.poll(() => page.evaluate(() => {
+    const tool = window.__r3f!.get().scene.getObjectByName('assessment-contact-tool');
+    let node = tool?.getObjectByName('assessment-gloved-hand') ?? null;
+    while (node) {
+      if (!node.visible) return false;
+      node = node.parent;
+    }
+    return !!tool;
+  })).toBe(true);
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: info.outputPath('generic-chest-contact.png') });
+});
+
+test('neck palpation and airway auscultation land on the patient', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.addInitScript(() => localStorage.setItem('paramedic-studio-voice-enabled', 'false'));
+  await page.goto('/?devLiveCase=trauma-003');
+  await expect.poll(() => renderedSceneFraction(page), { timeout: 30_000 }).toBeGreaterThan(.25);
+  await page.getByRole('button', { name: 'Examine Neck', exact: true }).click();
+  const expose = page.getByRole('button', { name: 'Expose', exact: true });
+  if (await expose.isVisible()) await expose.click();
+  const dock = page.locator('.patient-first-exam-dock');
+  await dock.getByRole('button', { name: 'Palpate', exact: true }).click();
+  await dock.getByRole('button', { name: 'Trachea Position', exact: true }).click();
+  const contact = page.getByTestId('assessment-contact-label');
+  await expect(contact).toContainText('Palpation · Trachea');
+  await expect(contact).not.toContainText('Expose this region');
+  await expect.poll(() => page.evaluate(() => {
+    const tool = window.__r3f!.get().scene.getObjectByName('assessment-contact-tool');
+    let node = tool?.getObjectByName('assessment-gloved-hand') ?? null;
+    while (node) {
+      if (!node.visible) return false;
+      node = node.parent;
+    }
+    return !!tool;
+  })).toBe(true);
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: info.outputPath('generic-neck-palpation.png') });
+  await dock.getByRole('button', { name: 'Listen', exact: true }).click();
+  await dock.getByRole('button', { name: 'Auscultate Airway', exact: true }).click();
+  await expect(contact).toContainText('Stethoscope · Trachea');
+  await expect.poll(() => page.evaluate(() => {
+    const tool = window.__r3f!.get().scene.getObjectByName('assessment-contact-tool');
+    let node = tool?.getObjectByName('assessment-stethoscope') ?? null;
+    while (node) {
+      if (!node.visible) return false;
+      node = node.parent;
+    }
+    return !!tool;
+  })).toBe(true);
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: info.outputPath('generic-neck-auscultation.png') });
 });
