@@ -18,7 +18,7 @@
  */
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useTexture } from '@react-three/drei';
+import { RoundedBox, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { getBayTextures } from './textures';
 import { SceneVariantEnvironment } from './SceneVariant';
@@ -279,25 +279,21 @@ function ScenePatientSupport({ kind, seated = false }: { kind: 'bed' | 'sofa'; s
   if (kind === 'sofa' && seated) {
     return (
       <group name="scene-patient-support-sofa-seated" position={[0, 0, 0.62]}>
-        <mesh position={[0, 0.44, 0.02]} castShadow receiveShadow raycast={NO_RAYCAST}>
-          <boxGeometry args={[1.72, 0.18, 0.18]} />
+        <RoundedBox args={[1.72, 0.18, 0.56]} radius={0.07} smoothness={4} position={[0, 0.44, 0.02]} castShadow receiveShadow raycast={NO_RAYCAST}>
           <meshStandardMaterial color="#647052" roughness={0.96} />
-        </mesh>
-        <mesh position={[0, 0.80, -0.08]} rotation={[-0.18, 0, 0]} castShadow raycast={NO_RAYCAST}>
-          <boxGeometry args={[1.72, 0.60, 0.15]} />
+        </RoundedBox>
+        <RoundedBox args={[1.72, 0.60, 0.16]} radius={0.065} smoothness={4} position={[0, 0.80, -0.08]} rotation={[-0.18, 0, 0]} castShadow raycast={NO_RAYCAST}>
           <meshStandardMaterial color="#566247" roughness={0.98} />
-        </mesh>
+        </RoundedBox>
         {[-0.86, 0.86].map(x => (
-          <mesh key={`seated-sofa-arm-${x}`} position={[x, 0.62, 0.02]} castShadow raycast={NO_RAYCAST}>
-            <boxGeometry args={[0.15, 0.38, 0.18]} />
+          <RoundedBox key={`seated-sofa-arm-${x}`} args={[0.15, 0.38, 0.56]} radius={0.055} smoothness={4} position={[x, 0.62, 0.02]} castShadow raycast={NO_RAYCAST}>
             <meshStandardMaterial color="#566247" roughness={0.98} />
-          </mesh>
+          </RoundedBox>
         ))}
         {[-0.41, 0.41].map(x => (
-          <mesh key={`seated-sofa-cushion-${x}`} position={[x, 0.53, 0.03]} castShadow receiveShadow raycast={NO_RAYCAST}>
-            <boxGeometry args={[0.72, 0.02, 0.16]} />
+          <RoundedBox key={`seated-sofa-cushion-${x}`} args={[0.72, 0.10, 0.50]} radius={0.035} smoothness={4} position={[x, 0.49, 0.04]} castShadow receiveShadow raycast={NO_RAYCAST}>
             <meshStandardMaterial color="#7a8568" roughness={0.98} />
-          </mesh>
+          </RoundedBox>
         ))}
         {[-0.68, 0.68].flatMap(x => [-0.08, 0.10].map(z => (
           <mesh key={`seated-sofa-leg-${x}-${z}`} position={[x, 0.16, z]} castShadow raycast={NO_RAYCAST}>

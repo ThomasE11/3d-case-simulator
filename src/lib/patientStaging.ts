@@ -11,6 +11,7 @@ export type PatientMobility = 'recumbent' | 'seated' | 'standing' | 'pacing';
 export type PatientSkeletalAction = 'idle' | 'walk' | null;
 export type PatientPosture = 'seated' | 'legs-elevated' | 'tripod' | 'supine' | 'recovery' | null;
 export type PatientSupportSurface = 'stretcher' | 'floor' | 'bed' | 'sofa' | 'seat' | 'none';
+export type NeurologicalWeakSide = 'left' | 'right' | null;
 
 export interface PatientPacingTransform {
   x: number;
@@ -369,6 +370,54 @@ export function derivePatientSeatKind(caseData: CaseScenario): PatientSeatKind {
     return 'desk';
   }
   return null;
+}
+
+/**
+ * Resolve an authored unilateral motor deficit into the anatomical side that
+ * should look weak. Only live presentation and examination findings are read:
+ * history and dispatch prose can mention old deficits or lesion laterality
+ * that must not silently deform the current patient.
+ */
+export function deriveNeurologicalWeakSide(caseData: CaseScenario): NeurologicalWeakSide {
+  const presentation = caseData.initialPresentation;
+  const disability = caseData.abcde?.disability;
+  const survey = caseData.secondarySurvey;
+  const findings = [
+    presentation?.generalImpression,
+    presentation?.position,
+    presentation?.appearance,
+    ...(disability?.findings ?? []),
+    ...(survey?.head ?? []),
+    ...(survey?.extremities ?? []),
+    ...(survey?.neurological ?? []),
+  ].filter((value): value is string => Boolean(value));
+
+  const deficit = '(?:weak(?:ness)?|hemiparesis|arm drift|decreased tone|weak grip|unable to (?:lift|raise|move))';
+  const hasDeficit = (side: 'left' | 'right') => findings.some(value => {
+    const finding = value.toLowerCase();
+    if (/\b(?:no|without)\b[^.]{0,24}\bweak(?:ness)?\b|\bbilateral\b/.test(finding)) return false;
+    return new RegExp(`(?:${side}(?:-sided)?[^.]{0,42}${deficit}|${deficit}[^.]{0,42}${side})`, 'i').test(finding);
+  });
+  const left = hasDeficit('left');
+  const right = hasDeficit('right');
+
+  if (left === right) return null;
+  return left ? 'left' : 'right';
+}
+
+/**
+ * Calibrated patient depth for seated furniture. The fitted seated mesh has a
+ * posterior surface at roughly root-0.11 m. Chair and sofa backrests begin at
+ * z≈0.59 m, so the old universal 0.78 m root buried the torso in furniture.
+ * Beds retain their authored scene placement.
+ */
+export function patientPlantOffsetForSupport(
+  support: PatientSupportSurface,
+  mobility: PatientMobility,
+): { z: number } | undefined {
+  if (mobility !== 'seated') return undefined;
+  if (support === 'seat' || support === 'sofa') return { z: 0.86 };
+  return undefined;
 }
 
 /**

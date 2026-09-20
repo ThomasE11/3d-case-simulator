@@ -26,6 +26,7 @@ import { activeRespiratoryInterface, type OxygenVisualMode } from '@/lib/respira
 import {
   deriveAppliedPatientStage,
   deriveHandGuardRegion,
+  deriveNeurologicalWeakSide,
   derivePatientMobility,
   derivePatientPosture,
   derivePatientSeatKind,
@@ -33,7 +34,9 @@ import {
   deriveScenePatientStage,
   deriveTreatmentPositioningOverride,
   patientLoadedOnStretcher,
+  patientPlantOffsetForSupport,
   patientLivePositionPresentation,
+  type NeurologicalWeakSide,
   type PatientMobility,
   type PatientPosture,
   type PatientSeatKind,
@@ -5514,10 +5517,6 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
   );
   const seatedSupportLift = villaPlant?.seatedSupportLift
     ?? (caseData.id === 'resp-001' ? RESP001_SEATED_SUPPORT_LIFT : 0);
-  const plantOffset = useMemo(
-    () => (villaPlant ? { x: villaPlant.x, z: villaPlant.z } : undefined),
-    [villaPlant],
-  );
   // Scene-contextual environment: villa cases render in a living room,
   // street cases at a roadside, mall cases in a public atrium.
   const bayVariant = useMemo(() => deriveSceneEnvironment(caseData), [caseData]);
@@ -5603,6 +5602,18 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
       loadedOnStretcher,
     }),
     [bayStage, caseData, loadedOnStretcher, patientMobility],
+  );
+
+  const plantOffset = useMemo(
+    () => villaPlant
+      ? { x: villaPlant.x, z: villaPlant.z }
+      : patientPlantOffsetForSupport(patientSupportSurface, patientMobility),
+    [patientMobility, patientSupportSurface, villaPlant],
+  );
+
+  const neurologicalWeakSide = useMemo<NeurologicalWeakSide>(
+    () => deriveNeurologicalWeakSide(caseData),
+    [caseData],
   );
 
   const patientSeatKind = useMemo<PatientSeatKind>(
@@ -7010,6 +7021,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 posture={patientPosture}
                 braceHandsOnKnees={caseData.id === 'resp-001'}
                 handGuardRegion={handGuardRegion}
+                neurologicalWeakSide={neurologicalWeakSide}
                 mobility={patientMobility}
                 plantOffset={plantOffset}
                 seatedSupportLift={seatedSupportLift}

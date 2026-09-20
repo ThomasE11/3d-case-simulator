@@ -49,6 +49,7 @@ import {
   patientForearmRestRadians,
   patientForearmSweepRadians,
   patientSpineLeanRadians,
+  type NeurologicalWeakSide,
   type PatientMobility,
   type PatientPosture,
 } from '@/lib/patientStaging';
@@ -215,6 +216,9 @@ interface BodyMeshProps {
    *  the hands from the lap to the guarded region instead of the default
    *  seated rest so the render matches the authored presentation. */
   handGuardRegion?: 'neck' | 'head' | 'chest' | 'abdomen' | 'choking' | null;
+  /** Anatomical side with an authored acute motor deficit. The affected arm
+   * hangs with reduced tone so FAST-positive cases are visible, not text-only. */
+  neurologicalWeakSide?: NeurologicalWeakSide;
   /** Fade the surface patient when an internal anatomy reference is shown. */
   surfaceOpacity?: number;
   /** Names of finding morph targets that should be ACTIVE (revealed) — e.g.
@@ -476,6 +480,21 @@ const RECOVERY_BONE_ADJUSTMENTS = {
   rightForeArm: [-1.29, 0, 1.09] as const,
   rightUpLeg: [0.87, 0, 0] as const,
   rightLeg: [-1.4, 0, 0] as const,
+};
+
+// Acute unilateral weakness: shoulder depression/internal rotation with a
+// lax, partly extended elbow. Applied after the stable seated rest pose and
+// mirrored anatomically. The asymmetry is readable at overview distance while
+// staying inside normal passive joint ranges.
+const NEUROLOGICAL_WEAK_ARM_ADJUSTMENTS = {
+  left: {
+    arm: [-0.30, 0, -0.30] as const,
+    foreArm: [0, 0, -0.10] as const,
+  },
+  right: {
+    arm: [0.30, 0, -0.04] as const,
+    foreArm: [-0.32, 0, -0.05] as const,
+  },
 };
 
 // Seated self-splint / neck guard: the patient cups the posterior c-spine with
@@ -1089,7 +1108,7 @@ function buildSurfaceSampler(root: THREE.Object3D | null, presentationRoot?: THR
  */
 const ASYMMETRIC_CHEST_RESIDUAL = 0.35;
 
-export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guidedMode = false, nextGuidedStep = null, onBlockedClick, onBodyPoint, bodyInjuries, patientGender, patientAge, braceHandsOnKnees = false, handGuardRegion = null, surfaceOpacity = 1, activeFindingMorphs, breathRateRpm = 0, breathingEffort = 0, chestRiseUnilateral = false, breathDepthFactor = 1, onSurfaceSampler, onFaceAttachment, dressed = false, dressedActiveRegion = null, pupilLeftMm = 3.5, pupilRightMm = 3.5, skinTint = null, skinDiaphoretic = false, diaphoresis = 0, jaundice = 0, mottling = 0, unconscious = false, idleCues = null, reduceIdleMotion = false, presentation = 'upright', bayStage = 'stretcher', sss = false, posture = null, mobility = 'recumbent', mouthOpenRef = null, cyanosisLocalStrength = 0, plantOffset, seatedSupportLift }: BodyMeshProps) {
+export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guidedMode = false, nextGuidedStep = null, onBlockedClick, onBodyPoint, bodyInjuries, patientGender, patientAge, braceHandsOnKnees = false, handGuardRegion = null, neurologicalWeakSide = null, surfaceOpacity = 1, activeFindingMorphs, breathRateRpm = 0, breathingEffort = 0, chestRiseUnilateral = false, breathDepthFactor = 1, onSurfaceSampler, onFaceAttachment, dressed = false, dressedActiveRegion = null, pupilLeftMm = 3.5, pupilRightMm = 3.5, skinTint = null, skinDiaphoretic = false, diaphoresis = 0, jaundice = 0, mottling = 0, unconscious = false, idleCues = null, reduceIdleMotion = false, presentation = 'upright', bayStage = 'stretcher', sss = false, posture = null, mobility = 'recumbent', mouthOpenRef = null, cyanosisLocalStrength = 0, plantOffset, seatedSupportLift }: BodyMeshProps) {
   // The path is recomputed per render so a `caseData.patientInfo.gender`
   // change (e.g. user picks a different case) swaps the mesh without
   // remounting the parent. useGLTF caches by URL.
@@ -1957,6 +1976,18 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
         applyLocalBoneAdjustment(recoveryPoseBones.rightForeArm, RECOVERY_BONE_ADJUSTMENTS.rightForeArm);
         applyLocalBoneAdjustment(recoveryPoseBones.rightUpLeg, RECOVERY_BONE_ADJUSTMENTS.rightUpLeg);
         applyLocalBoneAdjustment(recoveryPoseBones.rightLeg, RECOVERY_BONE_ADJUSTMENTS.rightLeg);
+      }
+      if (
+        neurologicalWeakSide
+        && posture !== 'recovery'
+        && !handGuardRegion
+        && (mobility === 'seated' || mobility === 'standing')
+      ) {
+        const weak = NEUROLOGICAL_WEAK_ARM_ADJUSTMENTS[neurologicalWeakSide];
+        const arm = neurologicalWeakSide === 'left' ? recoveryPoseBones.leftArm : recoveryPoseBones.rightArm;
+        const foreArm = neurologicalWeakSide === 'left' ? recoveryPoseBones.leftForeArm : recoveryPoseBones.rightForeArm;
+        applyLocalBoneAdjustment(arm, weak.arm);
+        applyLocalBoneAdjustment(foreArm, weak.foreArm);
       }
       // Seated/standing self-splint / hand guard: raise both hands from the
       // lap/sides to the guarded region (neck, head, chest, abdomen, choking
