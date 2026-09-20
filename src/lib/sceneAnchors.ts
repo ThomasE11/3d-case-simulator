@@ -126,13 +126,14 @@ export function kitBagLayout(kit: SceneAnchorPoint): Array<{
   key: 'airway' | 'breathing' | 'circulation';
   label: string;
   color: string;
+  photo: string;
   position: [number, number, number];
   rotation: number;
 }> {
   return [
-    { key: 'airway', label: 'A', color: '#f59e0b', position: [kit.x - 0.16, kit.y, kit.z - 0.06], rotation: 0.35 },
-    { key: 'breathing', label: 'B', color: '#0ea5e9', position: [kit.x + 0.02, kit.y, kit.z + 0.10], rotation: -0.15 },
-    { key: 'circulation', label: 'C', color: '#f43f5e', position: [kit.x + 0.18, kit.y, kit.z - 0.04], rotation: 0.45 },
+    { key: 'airway', label: 'A', color: '#f59e0b', photo: '/bag-assets/airway-bag.webp', position: [kit.x - 0.16, kit.y, kit.z - 0.06], rotation: 0.35 },
+    { key: 'breathing', label: 'B', color: '#0ea5e9', photo: '/bag-assets/breathing-bag.webp', position: [kit.x + 0.02, kit.y, kit.z + 0.10], rotation: -0.15 },
+    { key: 'circulation', label: 'C', color: '#f43f5e', photo: '/bag-assets/circulation-kit.webp', position: [kit.x + 0.18, kit.y, kit.z - 0.04], rotation: 0.45 },
   ];
 }
 

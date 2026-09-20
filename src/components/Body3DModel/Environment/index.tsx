@@ -18,6 +18,7 @@
  */
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { getBayTextures } from './textures';
 import { SceneVariantEnvironment } from './SceneVariant';
@@ -515,42 +516,101 @@ function PortableMonitor() {
 }
 
 /** Floor jump bags the crew brings to every scene. Visual anchors for
- *  FIND EQUIPMENT — the interactive open-kit controls live in the bay
- *  hotspot strip (DOM) so OrbitControls never fight bag clicks. */
+ * FIND EQUIPMENT — the interactive open-kit controls live in the bay
+ * hotspot strip (DOM) so OrbitControls never fight bag clicks.
+ *
+ * These are NOT flat-colour plastic boxes. The Treat rail renders the real
+ * kit photographs (public/bag-assets/*.webp), and a scene where the 3D bags
+ * were mustard/blue/red blocks while the 2D rail showed photographed bags was
+ * a visible inconsistency the audit flagged. The same seven assets are now
+ * mapped onto the case body as a plane so the scene matches the rail.
+ *
+ * The plane is the bag's FRONT face, scaled to the case body's footprint and
+ * rotated to face the camera. There is no attempt at a 3D bag: a box with a
+ * photo on one side reads as a soft case better than a box with a flat colour
+ * ever did, and it costs one plane + one texture load per kit letter. The
+ * lid seam, carry handle and letter badge stay as geometry — they give the
+ * photo a silhouette to sit on instead of a floating rectangle.
+ *
+ * The photo is tone-mapped OFF (meshBasicMaterial) so the bag keeps its
+ * authored saturation rather than being washed out by the bay's ACES grade;
+ * the emissive plane is also what lets the badge read in shadow.
+ */
 function SceneJumpBags({ kit }: { kit?: SceneAnchorPoint }) {
-  const bags: Array<{ key: string; label: string; color: string; position: [number, number, number]; rotation: number }> = kit
+  const bags: Array<{
+    key: 'airway' | 'breathing' | 'circulation';
+    label: string;
+    color: string;
+    photo: string;
+    position: [number, number, number];
+    rotation: number;
+  }> = kit
     ? kitBagLayout(kit)
     : [
-        { key: 'airway', label: 'A', color: '#f59e0b', position: [1.35, 0, -1.05], rotation: 0.35 },
-        { key: 'breathing', label: 'B', color: '#0ea5e9', position: [1.62, 0, -1.18], rotation: -0.15 },
-        { key: 'circulation', label: 'C', color: '#f43f5e', position: [1.90, 0, -1.05], rotation: 0.45 },
+        { key: 'airway', label: 'A', color: '#f59e0b', photo: '/bag-assets/airway-bag.webp', position: [1.35, 0, -1.05], rotation: 0.35 },
+        { key: 'breathing', label: 'B', color: '#0ea5e9', photo: '/bag-assets/breathing-bag.webp', position: [1.62, 0, -1.18], rotation: -0.15 },
+        { key: 'circulation', label: 'C', color: '#f43f5e', photo: '/bag-assets/circulation-kit.webp', position: [1.90, 0, -1.05], rotation: 0.45 },
       ];
   return (
     <group name="scene-jump-bags">
       {bags.map(bag => (
-        <group key={bag.key} position={bag.position} rotation={[0, bag.rotation, 0]}>
-          {/* Soft case body */}
-          <mesh position={[0, 0.11, 0]} castShadow raycast={NO_RAYCAST}>
-            <boxGeometry args={[0.34, 0.18, 0.22]} />
-            <meshStandardMaterial color={bag.color} roughness={0.72} metalness={0.08} />
-          </mesh>
-          {/* Lid seam */}
-          <mesh position={[0, 0.205, 0]} raycast={NO_RAYCAST}>
-            <boxGeometry args={[0.34, 0.02, 0.22]} />
-            <meshStandardMaterial color="#0f172a" roughness={0.55} metalness={0.15} />
-          </mesh>
-          {/* Carry handle */}
-          <mesh position={[0, 0.255, 0]} raycast={NO_RAYCAST}>
-            <torusGeometry args={[0.07, 0.012, 8, 16, Math.PI]} />
-            <meshStandardMaterial color="#1e293b" roughness={0.45} metalness={0.25} />
-          </mesh>
-          {/* Kit letter badge */}
-          <mesh position={[0, 0.14, 0.112]} raycast={NO_RAYCAST}>
-            <planeGeometry args={[0.08, 0.08]} />
-            <meshBasicMaterial color="#0f172a" transparent opacity={0.55} />
-          </mesh>
-        </group>
+        <JumpBag key={bag.key} bag={bag} />
       ))}
+    </group>
+  );
+}
+
+/** One jump bag: soft case body with the real kit photograph on the front
+ * face, lid seam, carry handle and ABC letter badge. */
+type JumpBagProps = {
+  bag: {
+    key: 'airway' | 'breathing' | 'circulation';
+    label: string;
+    color: string;
+    photo: string;
+    position: [number, number, number];
+    rotation: number;
+  };
+};
+function JumpBag({ bag }: JumpBagProps) {
+  const photo = useTexture(bag.photo) as THREE.Texture | undefined;
+  if (photo) {
+    photo.generateMipmaps = false;
+    photo.minFilter = THREE.LinearFilter;
+    photo.magFilter = THREE.LinearFilter;
+    photo.wrapS = photo.wrapT = 1000; // THREE.ClampToEdgeWrapping
+  }
+  return (
+    <group position={bag.position} rotation={[0, bag.rotation, 0]}>
+      {/* Soft case body — the colour is the bag's own trim, the photo is the
+          identity. Keep the base colour dark so the photo reads as the bag. */}
+      <mesh position={[0, 0.11, 0]} castShadow raycast={NO_RAYCAST}>
+        <boxGeometry args={[0.34, 0.18, 0.22]} />
+        <meshStandardMaterial color={bag.color} roughness={0.72} metalness={0.08} />
+      </mesh>
+      {/* Front face: the real kit photograph. Plane normal is +Z, so it faces
+          outward from the case body toward the clinician. Tone-mapped off so
+          the bag keeps its authored saturation under the bay's ACES grade. */}
+      <mesh position={[0, 0.11, 0.111]} raycast={NO_RAYCAST}>
+        <planeGeometry args={[0.32, 0.16]} />
+        <meshBasicMaterial map={photo} toneMapped={false} />
+      </mesh>
+      {/* Lid seam */}
+      <mesh position={[0, 0.205, 0]} raycast={NO_RAYCAST}>
+        <boxGeometry args={[0.34, 0.02, 0.22]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.55} metalness={0.15} />
+      </mesh>
+      {/* Carry handle */}
+      <mesh position={[0, 0.255, 0]} raycast={NO_RAYCAST}>
+        <torusGeometry args={[0.07, 0.012, 8, 16, Math.PI]} />
+        <meshStandardMaterial color="#1e293b" roughness={0.45} metalness={0.25} />
+      </mesh>
+      {/* Kit letter badge — a dark disc with the letter cut out, so the bag is
+          identifiable from the overview without reading the photograph. */}
+      <mesh position={[0, 0.14, 0.112]} raycast={NO_RAYCAST}>
+        <planeGeometry args={[0.08, 0.08]} />
+        <meshBasicMaterial color="#0f172a" transparent opacity={0.55} />
+      </mesh>
     </group>
   );
 }
