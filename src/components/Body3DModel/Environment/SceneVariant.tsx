@@ -1720,10 +1720,16 @@ function WreckedSedan() {
   );
 }
 
-function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile, bystanders }: { shadowsEnabled: boolean; showPatientSeat: boolean; sceneProfile?: SceneProfile; bystanders?: string | null }) {
+function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile, bystanders, vehicleImpact }: { shadowsEnabled: boolean; showPatientSeat: boolean; sceneProfile?: SceneProfile; bystanders?: string | null; vehicleImpact?: boolean; }) {
   const traumaDressing = isTrauma008RoadsideProfile(sceneProfile)
     ? SCENE_ARCHETYPES.find(e => e.profile === 'trauma-008-roadside')
     : undefined;
+  // The wrecked car, debris shards, broken glass, fuel spill and downed
+  // motorcycle belong to a vehicle impact — a pedestrian struck by a car, a
+  // cyclist hit by a van. A generic roadside (moped spill, dropped groceries,
+  // fall from a kerb, twisted leg on a pitch) has no car in it, so all of that
+  // stays off unless the case text actually describes a struck vehicle.
+  const hasWreck = Boolean(vehicleImpact);
   return (
     <group>
       <OutdoorSky zenith="#8cb6d4" horizon="#e8d3ba" />
@@ -1770,17 +1776,23 @@ function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile, bystande
           <meshStandardMaterial color="#fffbe8" emissive="#fff6d0" emissiveIntensity={2.2} side={THREE.DoubleSide} />
         </mesh>
       ))}
-      {/* Real sedan when trauma-008 archetype is wired; otherwise Kenney CC0 wreck. */}
-      <Suspense fallback={null}>
-        {traumaDressing ? (
-          <ArchetypeSceneDressing entry={traumaDressing} shadowsEnabled={shadowsEnabled} />
-        ) : (
-          <WreckedSedan />
-        )}
-      </Suspense>
+      {/* The wrecked car, debris, broken glass, fuel spill and downed motorcycle
+          belong to a vehicle impact — a pedestrian struck by a car, a cyclist
+          hit by a van. A generic roadside (moped spill, fall from a kerb) has
+          no car in it, so all of that stays off unless the case text actually
+          describes a struck vehicle. */}
+      {hasWreck && (
+        <Suspense fallback={null}>
+          {traumaDressing ? (
+            <ArchetypeSceneDressing entry={traumaDressing} shadowsEnabled={shadowsEnabled} />
+          ) : (
+            <WreckedSedan />
+          )}
+        </Suspense>
+      )}
 
       {/* Downed motorcycle — generic roadside only. Pedestrian MVC already has the sedan. */}
-      {!traumaDressing && <group name="downed-motorcycle" position={[-3.6, 0, 1.6]} rotation={[0, 1.1, Math.PI / 2 - 0.1]}>
+      {hasWreck && !traumaDressing && <group name="downed-motorcycle" position={[-3.6, 0, 1.6]} rotation={[0, 1.1, Math.PI / 2 - 0.1]}>
         {/* Frame */}
         <mesh position={[0, 0.15, 0]} castShadow raycast={NO_RAYCAST}>
           <cylinderGeometry args={[0.06, 0.06, 1.8, 10]} />
@@ -1806,7 +1818,7 @@ function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile, bystande
       </group>}
 
       {/* Debris scattered across the road — small low-poly shards */}
-      {[
+      {hasWreck && [
         [-0.4, 0.01, -0.8], [0.3, 0.01, -1.4], [0.8, 0.01, 0.6],
         [-0.9, 0.01, 1.2], [1.2, 0.01, -1.6], [0.1, 0.01, 1.8],
       ].map(([dx, dy, dz], i) => (
@@ -1823,7 +1835,7 @@ function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile, bystande
       ))}
 
       {/* Broken glass shards — translucent sparkles near the car */}
-      {[
+      {hasWreck && [
         [1.2, 0.0, -0.6], [1.5, 0.0, -0.9], [2.1, 0.0, -0.4], [1.0, 0.0, -1.1],
       ].map(([gx, gy, gz], i) => (
         <mesh
@@ -1845,10 +1857,10 @@ function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile, bystande
       ))}
 
       {/* Fuel spill — dark glossy patch under the car */}
-      <mesh position={[1.6, -0.045, -0.3]} rotation={[-Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
+      {hasWreck && <mesh position={[1.6, -0.045, -0.3]} rotation={[-Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
         <circleGeometry args={[1.1, 24]} />
         <meshStandardMaterial color="#1a1a1a" roughness={0.08} metalness={0.6} transparent opacity={0.7} />
-      </mesh>
+      </mesh>}
 
       {/* Daylight: blue sky ambient + sun key. The headlights add warm rake. */}
       <hemisphereLight args={['#bcd7ff', '#3a3d42', 0.75]} />
@@ -1870,6 +1882,7 @@ export function SceneVariantEnvironment({
   sceneProfile,
   bystanders,
   onAnchorsReady,
+  vehicleImpact,
 }: {
   variant: Exclude<EnvironmentVariant, 'clinic'>;
   hideOverhead: boolean;
@@ -1879,6 +1892,8 @@ export function SceneVariantEnvironment({
   sceneProfile?: SceneProfile;
   bystanders?: string | null;
   onAnchorsReady?: (anchors: SceneAnchorSet) => void;
+  /** Roadside only: whether the case text describes a struck/damaged vehicle. */
+  vehicleImpact?: boolean;
 }) {
   if (variant === 'home') return <HomeScene variant={variant} hideOverhead={hideOverhead} shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} patientSeatKind={patientSeatKind} sceneProfile={sceneProfile} onAnchorsReady={onAnchorsReady} />;
   if (variant === 'public') return <PublicScene hideOverhead={hideOverhead} shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} bystanders={bystanders} />;
@@ -1887,7 +1902,7 @@ export function SceneVariantEnvironment({
   if (variant === 'water') return <WaterScene shadowsEnabled={shadowsEnabled} bystanders={bystanders} />;
   if (variant === 'heat') return <HeatScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} bystanders={bystanders} />;
   if (variant === 'agricultural') return <AgriculturalScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} bystanders={bystanders} />;
-  return <RoadsideScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} sceneProfile={sceneProfile} bystanders={bystanders} />;
+  return <RoadsideScene shadowsEnabled={shadowsEnabled} showPatientSeat={showPatientSeat} sceneProfile={sceneProfile} bystanders={bystanders} vehicleImpact={vehicleImpact} />;
 }
 
 useGLTF.preload('/models/props/kenney-sedan.glb');

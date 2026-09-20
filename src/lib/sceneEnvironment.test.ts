@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveSceneEnvironment } from './sceneEnvironment';
+import { deriveSceneEnvironment, isRoadsideVehicleImpact } from './sceneEnvironment';
 import type { CaseScenario } from '@/types';
 import { allCases } from '@/data/cases';
 
@@ -134,5 +134,24 @@ describe('deriveSceneEnvironment', () => {
       if (DISTINCTIVE.has(derived)) unauthored.push(`${caseData.id}: ${derived}`);
     }
     expect(unauthored, unauthored.join('\n')).toEqual([]);
+  });
+
+  it('does not dress a generic roadside with a struck vehicle', () => {
+    // A moped spill, a fall from a kerb, a twisted leg on a pitch: roadside,
+    // but no car, so the wrecked sedan must not render.
+    const roadside = allCases.filter(c => deriveSceneEnvironment(c) === 'roadside');
+    const nonImpact = roadside.filter(c => !isRoadsideVehicleImpact(c));
+    expect(nonImpact.length).toBeGreaterThan(0);
+    for (const c of nonImpact) {
+      expect(isRoadsideVehicleImpact(c)).toBe(false);
+    }
+  });
+
+  it('every vehicle-impacted case is roadside', () => {
+    const impacted = allCases.filter(c => isRoadsideVehicleImpact(c));
+    expect(impacted.length).toBeGreaterThan(0);
+    for (const c of impacted) {
+      expect(deriveSceneEnvironment(c)).toBe('roadside');
+    }
   });
 });

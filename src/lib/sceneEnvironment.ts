@@ -211,6 +211,31 @@ const PUBLIC_PATTERN = new RegExp(
  * a generic industrial bay, and a beach drowning must not become a road.
  * Roadside still wins over home/public (an RTA outside a villa is outdoors).
  */
+/**
+ * True when the case's scene text describes a road traffic / vehicle impact —
+ * the only roadside variant that carries a struck or damaged vehicle in it.
+ *
+ * A generic roadside (a moped spill, dropped groceries, a fall from a kerb, a
+ * twisted leg on a sports pitch) has no car in it, so the Kenney sedan, debris
+ * shards, broken glass and fuel spill belong to the vehicle-impact scenes and
+ * must not dress every roadside case. RoadsideScene reads this instead of
+ * rendering the wreck by default.
+ */
+export function isRoadsideVehicleImpact(caseData: CaseScenario): boolean {
+  const text = [
+    caseData.title,
+    caseData.subcategory,
+    caseData.dispatchInfo?.location,
+    caseData.dispatchInfo?.callReason,
+    caseData.sceneInfo?.description,
+    caseData.sceneInfo?.environment,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return VEHICLE_INCIDENT_PATTERN.test(text);
+}
+
 export function deriveSceneEnvironment(caseData: CaseScenario): EnvironmentVariant {
   const authoredVariant = caseData.sceneInfo?.environmentVariant;
   const text = [

@@ -839,6 +839,7 @@ export function TreatmentBayEnvironment({
   onAnchorsReady,
   kitAnchor,
   firstAidAnchor,
+  vehicleImpact,
 }: {
   hideOverhead?: boolean;
   patientSupportSurface?: PatientSupportSurface;
@@ -852,6 +853,8 @@ export function TreatmentBayEnvironment({
   onAnchorsReady?: (anchors: SceneAnchorSet) => void;
   kitAnchor?: SceneAnchorPoint;
   firstAidAnchor?: SceneAnchorPoint;
+  /** Roadside only: whether the case text describes a struck/damaged vehicle. */
+  vehicleImpact?: boolean;
 }) {
   const isClinic = variant === 'clinic';
   return (
@@ -874,6 +877,7 @@ export function TreatmentBayEnvironment({
           sceneProfile={sceneProfile}
           bystanders={bystanders}
           onAnchorsReady={onAnchorsReady}
+          vehicleImpact={vehicleImpact}
         />
       )}
       {/* Arrival scenes hide the trolley until the crew loads the patient —

@@ -39,7 +39,7 @@ import {
   type PatientSeatKind,
   type PatientSupportSurface,
 } from '@/lib/patientStaging';
-import { deriveSceneEnvironment, type EnvironmentVariant } from '@/lib/sceneEnvironment';
+import { deriveSceneEnvironment, isRoadsideVehicleImpact, type EnvironmentVariant } from '@/lib/sceneEnvironment';
 import { resolveSceneProfile } from './Environment/sceneProfile';
 import { sceneEntryOrigin } from '@/lib/cinematicPhase';
 import { cameraOrbitSafetyForEnvironment } from '@/lib/cameraOrbitSafety';
@@ -5520,6 +5520,11 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
   // Scene-contextual environment: villa cases render in a living room,
   // street cases at a roadside, mall cases in a public atrium.
   const bayVariant = useMemo(() => deriveSceneEnvironment(caseData), [caseData]);
+  // Roadside only: whether the case text describes a struck/damaged vehicle.
+  // A generic roadside (moped spill, fall from a kerb) has no car in it, so the
+  // wrecked sedan, debris shards, broken glass and fuel spill belong to the
+  // vehicle-impact scenes and must not dress every roadside case.
+  const vehicleImpact = useMemo(() => isRoadsideVehicleImpact(caseData), [caseData]);
   const cameraOrbitSafety = useMemo(
     () => cameraOrbitSafetyForEnvironment(bayVariant),
     [bayVariant],
@@ -6918,6 +6923,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 onAnchorsReady={caseData.id === 'resp-001' ? handleSceneAnchorsReady : undefined}
                 kitAnchor={villaAnchors?.kit}
                 firstAidAnchor={villaAnchors?.firstAid}
+                vehicleImpact={vehicleImpact}
               />
 
               {/* Cinematic ease-in when entering the treatment bay — slight
