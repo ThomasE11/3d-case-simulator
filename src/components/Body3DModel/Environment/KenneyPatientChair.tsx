@@ -30,6 +30,9 @@ function ChairIdle({ name, children }: { name: string; children: React.ReactNode
     const rock = Math.sin(t * hz * Math.PI * 2 + phase) * 0.035;
     const sway = Math.cos(t * hz * Math.PI * 2 * 0.5 + phase) * 0.008;
     g.rotation.z = rock;
+    // Sway is additive on the authored plant position, which the child
+    // primitive carries. Never overwrite position here or the chair drifts
+    // off the seated patient's pelvis.
     g.position.x = sway;
   });
   return <group ref={ref}>{children}</group>;
