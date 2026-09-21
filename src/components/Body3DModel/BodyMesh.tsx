@@ -52,7 +52,7 @@ import {
   type NeurologicalWeakSide,
   type PatientMobility,
   type PatientPosture,
-  patientGaitArmAdductionRadians,
+  patientUprightArmAdductionRadians,
 } from '@/lib/patientStaging';
 import {
   PATIENT_MOTION_MORPHS,
@@ -1898,10 +1898,10 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
     const armRelaxation = patientArmRestRadians(mobility, unconscious, patientAge);
     // Bring the clip's A-pose shoulders in to the body. Adduction is local Z
     // and mirrors per side; the flexion offset below is for static poses only.
-    const gaitAdduction = patientGaitArmAdductionRadians(mobility, patientAge);
-    if (skeletalMixer && gaitAdduction > 0) {
+    const uprightAdduction = patientUprightArmAdductionRadians(mobility, patientAge);
+    if (skeletalMixer && uprightAdduction > 0) {
       for (const arm of standingArmBones) {
-        arm.rotateZ(arm.name.toLowerCase().includes('left') ? -gaitAdduction : gaitAdduction);
+        arm.rotateZ(arm.name.toLowerCase().includes('left') ? -uprightAdduction : uprightAdduction);
       }
     }
     if (skeletalMixer && armRelaxation > 0) {
@@ -1937,6 +1937,11 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
       standingArmBones.forEach((arm, index) => {
         arm.quaternion.copy(standingArmRest[index]);
         if (armRelaxation > 0) arm.rotateX(armRelaxation);
+        // Close the rig's A-pose abduction on upright patients. No-op for
+        // seated and recumbent, whose flexion offsets are already calibrated.
+        if (uprightAdduction > 0) {
+          arm.rotateZ(arm.name.toLowerCase().includes('left') ? -uprightAdduction : uprightAdduction);
+        }
         arm.rotateX(braceBlend * TRIPOD_BRACE_CALIBRATION.upperArm);
         const isLeft = arm.name.toLowerCase().includes('left');
         arm.rotateX(isLeft ? idleLimb.leftArmDrift : idleLimb.rightArmDrift);

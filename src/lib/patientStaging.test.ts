@@ -16,7 +16,7 @@ import {
   patientForearmRestRadians,
   patientForearmSweepRadians,
   patientSpineLeanRadians,
-  patientGaitArmAdductionRadians,
+  patientUprightArmAdductionRadians,
 } from './patientStaging';
 import type { CaseScenario } from '@/types';
 
@@ -120,7 +120,7 @@ describe('patientSkeletalAction', () => {
   });
 
   it('uses a stable arm rest appropriate to each mobility state', () => {
-    expect(patientArmRestRadians('standing')).toBeCloseTo(0.65);
+    expect(patientArmRestRadians('standing')).toBeCloseTo(0.3);
     expect(patientArmRestRadians('seated')).toBeCloseTo(0.72);
     expect(patientArmRestRadians('recumbent')).toBeCloseTo(0.58);
     expect(patientArmRestRadians('recumbent', true)).toBeCloseTo(0.58);
@@ -334,24 +334,36 @@ describe('deriveTreatmentPositioningOverride', () => {
   });
 });
 
-describe('gait arm adduction', () => {
-  it('only applies to ambulatory patients', () => {
-    expect(patientGaitArmAdductionRadians('pacing')).toBeGreaterThan(0);
-    expect(patientGaitArmAdductionRadians('standing')).toBe(0);
-    expect(patientGaitArmAdductionRadians('seated')).toBe(0);
-    expect(patientGaitArmAdductionRadians('recumbent')).toBe(0);
+describe('upright arm adduction', () => {
+  it('applies to every upright unsupported pose, and only those', () => {
+    // Both carry the rig's A-pose abduction with nothing to disguise it.
+    expect(patientUprightArmAdductionRadians('pacing')).toBeGreaterThan(0);
+    expect(patientUprightArmAdductionRadians('standing')).toBeGreaterThan(0);
+    // Seated and recumbent flexion offsets are calibrated — leave them alone.
+    expect(patientUprightArmAdductionRadians('seated')).toBe(0);
+    expect(patientUprightArmAdductionRadians('recumbent')).toBe(0);
+  });
+
+  it('keeps standing arms hanging rather than reaching', () => {
+    // 0.65 of flexion measured 47% forward. A seated patient can carry that
+    // much only because their forward spine lean turns it into hands-on-thighs.
+    // Measured: 0.65 of flexion pointed the upper arms 47% forward; the tuned
+    // pair (0.3 flexion + 0.35 adduction) measures 16 degrees off vertical and
+    // 0.01 forward — hanging, not reaching.
+    expect(patientArmRestRadians('standing')).toBeLessThan(0.4);
+    expect(patientArmRestRadians('seated')).toBeGreaterThan(patientArmRestRadians('standing'));
   });
 
   it('scales down for smaller frames', () => {
-    const adult = patientGaitArmAdductionRadians('pacing');
-    expect(patientGaitArmAdductionRadians('pacing', 4)).toBeLessThan(adult);
-    expect(patientGaitArmAdductionRadians('pacing', 1)).toBeLessThan(
-      patientGaitArmAdductionRadians('pacing', 4),
+    const adult = patientUprightArmAdductionRadians('pacing');
+    expect(patientUprightArmAdductionRadians('pacing', 4)).toBeLessThan(adult);
+    expect(patientUprightArmAdductionRadians('pacing', 1)).toBeLessThan(
+      patientUprightArmAdductionRadians('pacing', 4),
     );
   });
 
   it('stays within a shoulder\'s range so the arms cannot cross the torso', () => {
-    expect(patientGaitArmAdductionRadians('pacing')).toBeLessThan(Math.PI / 3);
+    expect(patientUprightArmAdductionRadians('pacing')).toBeLessThan(Math.PI / 3);
   });
 });
 

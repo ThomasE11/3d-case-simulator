@@ -293,23 +293,31 @@ export function patientSkeletalAction(
 }
 
 /**
- * Shoulder ADDUCTION applied over the walk clip, in radians.
+ * Shoulder ADDUCTION for upright, unsupported poses, in radians.
  *
- * The donor clip is authored against a capture A-pose, so its shoulders keep
- * an abduction the model never sheds: measured live, the upper arms sat 41-48
- * degrees off vertical while walking, where an ordinary walk keeps them inside
- * about 20. The arms read as held out from the body.
+ * The rig is built on a capture A-pose whose shoulder abduction the model never
+ * sheds. Measured live, a walking patient's upper arms sat 41-48 degrees off
+ * vertical where an ordinary walk keeps them inside about 20, and a standing
+ * patient's pointed 47% FORWARD. Both read as arms held out from the body.
  *
  * This is deliberately NOT the same knob as patientArmRestRadians. That one is
- * a local-X flexion offset for STATIC poses; applying it over a clip swung both
- * arms forward into a sleepwalker's pose. Bringing the arms down to the sides
- * is adduction, which is local Z and mirrored per side.
+ * a local-X FLEXION offset, and flexion is the wrong correction for abduction:
+ * over the walk clip it swung both arms forward into a sleepwalker's pose, and
+ * on a standing patient it put them straight out in front. Bringing arms down
+ * to the sides is adduction — local Z, mirrored per side.
+ *
+ * Seated and recumbent patients are excluded on purpose. Their flexion offsets
+ * are calibrated and correct: a seated patient's forward rotation is what lands
+ * the hands on the thighs, and the forward spine lean keeps it looking right.
  */
-export function patientGaitArmAdductionRadians(
+export function patientUprightArmAdductionRadians(
   mobility: PatientMobility,
   ageYears?: number,
 ): number {
-  if (mobility !== 'pacing') return 0;
+  if (mobility !== 'pacing' && mobility !== 'standing') return 0;
+  // Pacing and standing start from different orientations — pacing from the
+  // walk clip's current arm rotation, standing from the raw bind pose — so the
+  // same Z rotation does not land in the same place. Measured separately.
   const paediatricScale = typeof ageYears === 'number' && ageYears < 2
     ? 0.49
     : typeof ageYears === 'number' && ageYears < 6
@@ -317,7 +325,7 @@ export function patientGaitArmAdductionRadians(
       : typeof ageYears === 'number' && ageYears < 12
         ? 0.78
         : 1;
-  return 0.8 * paediatricScale;
+  return (mobility === 'pacing' ? 0.8 : 0.35) * paediatricScale;
 }
 
 /** Scene support furniture must match the patient's rendered mobility. */
@@ -526,7 +534,12 @@ export function patientArmRestRadians(
   // of letting their upper arms settle beside the torso. Keep a little more
   // clearance than the seated pose for radial-pulse access and attached kit.
   if (mobility === 'recumbent') return 0.58 * paediatricScale;
-  return !unconscious ? 0.65 : 0;
+  // Standing. A seated patient can carry 0.72 of flexion because their forward
+  // spine lean turns it into hands-on-thighs; a standing patient has no lean,
+  // so the same rotation is pure reach. Measured at 0.65 the upper arms pointed
+  // 47% forward. Keep only the slight forward hang a relaxed arm really has and
+  // let the adduction knob above close the A-pose.
+  return !unconscious ? 0.3 * paediatricScale : 0;
 }
 
 /** Local forearm correction that lets a recumbent patient's hands settle. */
