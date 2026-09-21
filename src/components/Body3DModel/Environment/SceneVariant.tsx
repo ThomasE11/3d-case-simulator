@@ -1529,6 +1529,12 @@ function PropGltf({
  * space, and these land the crowd beside them. Re-measure both together if the
  * scene scale ever moves; the male/female ratio is the part that must hold.
  */
+/**
+ * Floor for the crowd's depth fade. Anything much lower and a distant figure's
+ * legs vanish into the ground and the bystander reads as a hovering ghost.
+ */
+export const BYSTANDER_MIN_OPACITY = 0.82;
+
 export const BYSTANDER_HEIGHT_MALE = 1.39;
 export const BYSTANDER_HEIGHT_FEMALE = 1.36;
 
@@ -1566,13 +1572,23 @@ function BystanderFigure({
         const mats = Array.isArray(m) ? m : [m];
         mats.forEach(mat => {
           if (mat instanceof THREE.MeshStandardMaterial) {
-            mat.transparent = true;
-            mat.depthWrite = false;
-            // Far figures fade toward the backdrop so the crowd reads as a
-            // depth field rather than a wall of identical cutouts. The fade
-            // is baked into the clone — keyed on depth01 so each distance
-            // band gets its own material set.
-            mat.opacity = 0.35 + 0.65 * depth01;
+            // Far figures sit back a little so the crowd reads as a depth
+            // field rather than a wall of identical cutouts. The fade is
+            // baked into the clone — keyed on depth01 so each distance band
+            // gets its own material set.
+            //
+            // It used to bottom out at 0.35, which was far too see-through:
+            // a distant bystander's legs dissolved into the dark roadway and
+            // only the lighter torso carried, so the figure read as an
+            // apparition hovering over the scene rather than a person
+            // standing on it. Keep the cue, lose the ghost.
+            const fade = BYSTANDER_MIN_OPACITY + (1 - BYSTANDER_MIN_OPACITY) * depth01;
+            // Only pay for transparency when the figure is actually
+            // translucent; a fully opaque mesh with depthWrite off sorts badly
+            // against the scene behind it.
+            mat.transparent = fade < 0.995;
+            mat.depthWrite = !mat.transparent;
+            mat.opacity = fade;
             // The bystander GLB ships ONE untextured material (flat grey
             // 0.55,0.52,0.48, no maps, one primitive, no per-part split) —
             // without a tint it renders as a white plastic mannequin, which

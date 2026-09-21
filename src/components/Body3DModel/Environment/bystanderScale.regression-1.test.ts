@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { BYSTANDER_HEIGHT_MALE, BYSTANDER_HEIGHT_FEMALE } from './SceneVariant';
+import {
+  BYSTANDER_HEIGHT_MALE,
+  BYSTANDER_HEIGHT_FEMALE,
+  BYSTANDER_MIN_OPACITY,
+} from './SceneVariant';
 
 /**
  * The shipped bystander GLBs are NOT human scale: measured from the files,
@@ -49,3 +53,14 @@ describe('bystander scale normalisation', () => {
     expect(ratio).toBeLessThan(1);
   });
 });
+
+describe('bystander depth fade', () => {
+  it('keeps distant figures solid enough to read as people', () => {
+    // The fade bottomed out at 0.35, which dissolved a distant bystander's
+    // legs into the dark roadway and left the torso hovering — a ghost at a
+    // trauma scene. The depth cue is worth keeping; the transparency is not.
+    expect(BYSTANDER_MIN_OPACITY).toBeGreaterThan(0.7);
+    expect(BYSTANDER_MIN_OPACITY).toBeLessThan(1);
+  });
+});
+
