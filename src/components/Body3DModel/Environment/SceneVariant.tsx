@@ -1515,6 +1515,23 @@ function PropGltf({
  * owns the spacing. The figure stands on the floor plane (min-Y = 0) and is
  * yawed to face the treatment lane; the layout passes the yaw as a Z rotation.
  */
+/**
+ * Standing height a bystander is normalised to, in the figure's own local
+ * units, calibrated so the crowd renders at the patient's scale.
+ *
+ * Do not trust the asset: the shipped GLBs measure 2.39 m (male) and 1.30 m
+ * (female), so a mixed crowd stood 2.5 m giants beside 1.3 m children and
+ * neither was adult scale.
+ *
+ * These are local units rather than metres because the environment tree sits
+ * under its own transform chain. The numbers are calibrated against the
+ * patient as rendered — a standing patient measures 1.62 head-to-toe in world
+ * space, and these land the crowd beside them. Re-measure both together if the
+ * scene scale ever moves; the male/female ratio is the part that must hold.
+ */
+export const BYSTANDER_HEIGHT_MALE = 1.39;
+export const BYSTANDER_HEIGHT_FEMALE = 1.36;
+
 function BystanderFigure({
   url,
   position,
@@ -1534,9 +1551,10 @@ function BystanderFigure({
   depth01?: number;
 }) {
   const { scene } = useGLTF(url);
+  const isFemaleFigure = url.endsWith('bystander-female.glb');
   const clone = useMemo(() => {
     const next = scene.clone(true);
-    const isFemale = url.endsWith('bystander-female.glb');
+    const isFemale = isFemaleFigure;
     next.traverse(object => {
       object.raycast = NO_RAYCAST;
       object.castShadow = true;
@@ -1578,7 +1596,7 @@ function BystanderFigure({
       }
     });
     return next;
-  }, [url, scene, depth01]);
+  }, [isFemaleFigure, scene, depth01]);
 
   // Posture drives a grounded silhouette. The bystander GLB is a single
   // standing mesh normalised to min-Y = 0, so a non-authored posture is a
@@ -1598,6 +1616,22 @@ function BystanderFigure({
   };
   const s = scaleByPosture[posture];
 
+  // Normalise the figure to a human height instead of trusting the asset.
+  // Measured from the shipped GLBs: the male is 2.39 m tall and the female
+  // 1.30 m, so a mixed crowd put 2.5 m giants beside 1.3 m children and
+  // neither was adult scale. Deriving the factor from the mesh's own bounds
+  // keeps the crowd human whatever the asset is re-exported at.
+  const heightScale = useMemo(() => {
+    // Measure with matrices resolved. Box3.setFromObject walks matrixWorld, and
+    // an unmounted clone has stale ones — which silently measured the figure
+    // short and left the crowd oversized by the difference.
+    clone.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(clone);
+    const height = box.max.y - box.min.y;
+    if (!Number.isFinite(height) || height <= 0.01) return 1;
+    return (isFemaleFigure ? BYSTANDER_HEIGHT_FEMALE : BYSTANDER_HEIGHT_MALE) / height;
+  }, [clone, isFemaleFigure]);
+
   const groupRef = useRef<THREE.Group>(null);
   useEffect(() => {
     const g = groupRef.current;
@@ -1605,9 +1639,14 @@ function BystanderFigure({
     return () => { onReady?.(null); };
   }, [onReady]);
 
+
   return (
     <group ref={groupRef} position={[position[0], 0, position[2]]} rotation={[0, yaw, 0]}>
-      <primitive name={`bystander-${posture}`} object={clone} scale={[1, s, 1]} />
+      <primitive
+        name={`bystander-${posture}`}
+        object={clone}
+        scale={[heightScale, heightScale * s, heightScale]}
+      />
     </group>
   );
 }
