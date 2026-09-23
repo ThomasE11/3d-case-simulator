@@ -167,19 +167,55 @@ if ratio < 1.0:
     bpy.ops.object.modifier_apply(modifier=dec.name)
     print(f"decimated ratio={ratio:.3f} -> {len(human.data.vertices)} verts")
 
-# --- Plain neutral material. Bystanders are scenery, not clinical surfaces. ---
-mat = bpy.data.materials.new(f'bystander_{SEX}')
-mat.use_nodes = True
-nt = mat.node_tree
-nt.nodes.clear()
-out = nt.nodes.new('ShaderNodeOutputMaterial')
-bsdf = nt.nodes.new('ShaderNodeBsdfPrincipled')
-bsdf.inputs['Base Color'].default_value = (0.55, 0.52, 0.48, 1.0)
-bsdf.inputs['Roughness'].default_value = 0.85
-bsdf.inputs['Metallic'].default_value = 0.0
-nt.links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
+# --- Lightweight workwear, separated by body region -------------------------
+# The original single grey material rendered as a nude ghost after the app's
+# warm tint. Polygon-level bands are deliberately coarse on a 1.5k-vertex
+# crowd mesh: clothing is readable from the scene camera without textures or
+# extra geometry. Keep skin only on face/neck and exposed hands.
+def material(name, rgba):
+    mat = bpy.data.materials.new(f'bystander_{SEX}_{name}')
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new('ShaderNodeOutputMaterial')
+    bsdf = nt.nodes.new('ShaderNodeBsdfPrincipled')
+    bsdf.inputs['Base Color'].default_value = rgba
+    bsdf.inputs['Roughness'].default_value = 0.86
+    bsdf.inputs['Metallic'].default_value = 0.0
+    nt.links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
+    return mat
+
+palette = [
+    material('skin', (0.53, 0.35, 0.27, 1.0) if SEX == 'male' else (0.62, 0.43, 0.34, 1.0)),
+    material('shirt', (0.09, 0.19, 0.29, 1.0) if SEX == 'male' else (0.22, 0.25, 0.31, 1.0)),
+    material('trousers', (0.12, 0.15, 0.18, 1.0)),
+    material('shoes', (0.045, 0.05, 0.055, 1.0)),
+    material('hair', (0.055, 0.042, 0.035, 1.0)),
+]
 human.data.materials.clear()
-human.data.materials.append(mat)
+for mat in palette:
+    human.data.materials.append(mat)
+
+mesh_z = [v.co.z for v in human.data.vertices]
+min_z, max_z = min(mesh_z), max(mesh_z)
+height = max_z - min_z
+for poly in human.data.polygons:
+    verts = [human.data.vertices[i].co for i in poly.vertices]
+    z = (sum(v.z for v in verts) / len(verts) - min_z) / height
+    x = abs(sum(v.x for v in verts) / len(verts))
+    if z < 0.075:
+        poly.material_index = 3  # shoes
+    elif z < 0.48:
+        poly.material_index = 2  # trousers
+    elif z > 0.965:
+        poly.material_index = 4  # hair/crown
+    elif z > 0.84:
+        poly.material_index = 0  # face / neck
+    elif x > 0.27 and z < 0.57:
+        poly.material_index = 0  # exposed hands below a short sleeve
+    else:
+        poly.material_index = 1  # shirt and sleeves
+print('material polygons:', {palette[i].name: sum(p.material_index == i for p in human.data.polygons) for i in range(len(palette))})
 
 human.name = "Bystander"
 human.data.name = "Bystander"

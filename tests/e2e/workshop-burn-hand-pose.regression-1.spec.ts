@@ -32,3 +32,45 @@ test('workshop scene opens without a render boundary at a narrow viewport', asyn
   await expect(page.getByText('StudentPanel Error')).toHaveCount(0);
   await expect.poll(() => renderedSceneFraction(page), { timeout: 30_000 }).toBeGreaterThan(.25);
 });
+
+test('workshop witnesses stay upright during idle motion', async ({ page }, info) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('paramedic-studio-voice-enabled', 'false');
+    sessionStorage.setItem('capturePinQuality', '1');
+  });
+  await page.goto('/?devLiveCase=y2-004');
+  await expect.poll(() => renderedSceneFraction(page), { timeout: 30_000 }).toBeGreaterThan(.25);
+  await page.waitForTimeout(700);
+  const crowd = await page.evaluate(() => {
+    const root = window.__r3f!.get().scene.getObjectByName('bystander-crowd');
+    return root?.children.filter(child => child.type === 'Group').map(child => ({
+      pitch: child.rotation.x,
+      yaw: child.rotation.y,
+      roll: child.rotation.z,
+      heightScale: child.scale.y,
+    })) ?? [];
+  });
+  const witnessMaterials = await page.evaluate(() => {
+    const root = window.__r3f!.get().scene.getObjectByName('bystander-crowd');
+    const figures = root?.children.filter(child => child.type === 'Group') ?? [];
+    return figures.slice(0, 2).map(figure => {
+      const names = new Set<string>();
+      figure.traverse(object => {
+        if (object.type !== 'Mesh') return;
+        const material = (object as THREE.Mesh).material;
+        (Array.isArray(material) ? material : [material]).forEach(item => names.add(item.name));
+      });
+      return [...names];
+    });
+  });
+  await info.attach('witness-transforms', { body: JSON.stringify(crowd), contentType: 'application/json' });
+  await page.locator('.tactical-patient-viewport').screenshot({ path: info.outputPath('upright-witnesses.png') });
+  expect(crowd.length).toBeGreaterThan(0);
+  expect(witnessMaterials[0].some(name => name.includes('shirt'))).toBe(true);
+  expect(witnessMaterials[0].some(name => name.includes('trousers'))).toBe(true);
+  for (const witness of crowd) {
+    expect(Math.abs(witness.roll)).toBeLessThan(0.04);
+    expect(witness.heightScale).toBeGreaterThan(0.98);
+    expect(witness.heightScale).toBeLessThan(1.02);
+  }
+});

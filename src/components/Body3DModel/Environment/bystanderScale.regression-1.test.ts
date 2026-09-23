@@ -22,9 +22,12 @@ const glbHeight = (file: string): number => {
   const buf = readFileSync(resolve(process.cwd(), 'public/models', file));
   const jsonLength = buf.readUInt32LE(12);
   const gltf = JSON.parse(buf.subarray(20, 20 + jsonLength).toString('utf8'));
-  const primitive = gltf.meshes[0].primitives[0];
-  const accessor = gltf.accessors[primitive.attributes.POSITION];
-  return accessor.max[1] - accessor.min[1];
+  // Clothed figures use separate skin/shirt/trouser/shoe/hair primitives. A
+  // single primitive's bounds are no longer the whole person's height.
+  const bounds = gltf.meshes.flatMap((mesh: { primitives: Array<{ attributes: { POSITION: number } }> }) =>
+    mesh.primitives.map(primitive => gltf.accessors[primitive.attributes.POSITION]));
+  return Math.max(...bounds.map((accessor: { max: number[] }) => accessor.max[1]))
+    - Math.min(...bounds.map((accessor: { min: number[] }) => accessor.min[1]));
 };
 
 describe('bystander scale normalisation', () => {
@@ -63,4 +66,3 @@ describe('bystander depth fade', () => {
     expect(BYSTANDER_MIN_OPACITY).toBeLessThan(1);
   });
 });
-

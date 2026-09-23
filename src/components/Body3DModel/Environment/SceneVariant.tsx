@@ -1677,6 +1677,14 @@ function BystanderFigure({
   const isFemaleFigure = url.endsWith('bystander-female.glb');
   const clone = useMemo(() => {
     const next = scene.clone(true);
+    const sourceMaterials = new Set<THREE.Material>();
+    scene.traverse(object => {
+      if (object instanceof THREE.Mesh) {
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach(material => sourceMaterials.add(material));
+      }
+    });
+    const legacySingleMaterial = sourceMaterials.size <= 1;
     const isFemale = isFemaleFigure;
     next.traverse(object => {
       object.raycast = NO_RAYCAST;
@@ -1685,8 +1693,12 @@ function BystanderFigure({
       // Deep clone gives each figure its own material set, so a depth fade
       // on one witness never bleeds onto another.
       if (object instanceof THREE.Mesh) {
-        const m = object.material;
-        const mats = Array.isArray(m) ? m : [m];
+        // Object3D.clone shares material instances. Give each witness its own
+        // copy so distance opacity cannot turn every person translucent.
+        object.material = Array.isArray(object.material)
+          ? object.material.map(material => material.clone())
+          : object.material.clone();
+        const mats = Array.isArray(object.material) ? object.material : [object.material];
         mats.forEach(mat => {
           if (mat instanceof THREE.MeshStandardMaterial) {
             // Far figures sit back a little so the crowd reads as a depth
@@ -1706,23 +1718,15 @@ function BystanderFigure({
             mat.transparent = fade < 0.995;
             mat.depthWrite = !mat.transparent;
             mat.opacity = fade;
-            // The bystander GLB ships ONE untextured material (flat grey
-            // 0.55,0.52,0.48, no maps, one primitive, no per-part split) —
-            // without a tint it renders as a white plastic mannequin, which
-            // is exactly the ghost the audit flagged on trauma-005. A warm,
-            // gendered tone is the whole fix available at this mesh: there is
-            // no separate hair/garment material to darken, so any
-            // luminance-based "skin vs clothing" split paints the entire
-            // figure one colour (verified in Blender — the single material
-            // sits at lum 0.52, above any threshold). The real fix is a
-            // clothed bystander GLB with per-part materials; this buys the
-            // tone in the meantime. baseColorFactor multiplies any future
-            // texture, so it stays correct if maps are added later.
-            mat.color.set(
-              isFemale ? 0.52 : 0.46,
-              isFemale ? 0.37 : 0.33,
-              isFemale ? 0.30 : 0.27,
-            );
+            // Keep the Blender-authored shirt/trousers/skin palette intact.
+            // Only tint older one-material assets if they are still cached.
+            if (legacySingleMaterial) {
+              mat.color.set(
+                isFemale ? 0.52 : 0.46,
+                isFemale ? 0.37 : 0.33,
+                isFemale ? 0.30 : 0.27,
+              );
+            }
             mat.roughness = Math.max(mat.roughness, 0.75);
           }
         });
@@ -1810,8 +1814,13 @@ function BystanderIdle({
       const breath = Math.sin(t * breathHz * Math.PI * 2 + phase) * 0.012;
       const sway = Math.sin(t * 0.42 + phase * 0.5) * 0.016;
       const base = baseYaws[i] ?? 0;
-      g.rotation.z = base + sway;
-      g.scale.set(1, g.scale.y + breath, 1);
+      // Layout yaw is around the vertical Y axis. Applying it to Z tipped
+      // witnesses onto their sides and sent pale limbs through the camera.
+      g.rotation.y = base + sway;
+      g.rotation.z = 0;
+      // Animate around the rest scale, never accumulate frame-to-frame: the
+      // old += made height depend on frame rate and session duration.
+      g.scale.set(1, 1 + breath, 1);
     }
   });
   return null;
