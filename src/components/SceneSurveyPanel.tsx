@@ -26,7 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { useVoiceNarration } from '@/hooks/useVoiceNarration';
 import { caseSceneNeedsPatientOverlay, inferSceneImage } from '@/lib/sceneImageSelection';
 import { patientAgeBand, patientAgeScale } from '@/lib/patientAgePresentation';
-import { dispatchAccessNotes, mandatoryScenePpe, unifiedSceneHazards } from '@/lib/sceneSafety';
+import { dispatchAccessNotes, isFillerHazardLabel, mandatoryScenePpe, unifiedSceneHazards } from '@/lib/sceneSafety';
 import { sceneAccessFromIntroduction, sceneRequiresExtrication } from '@/lib/sceneDispatchPreview';
 import { deriveSceneEnvironment, sceneEnvironmentLabel } from '@/lib/sceneEnvironment';
 import {
@@ -1266,7 +1266,28 @@ function getHotspotPosition(
 }
 
 function isNoHazardLabel(label: string): boolean {
-  return /^(none|none identified|no obvious hazards?|no hazards?|none -|clean home)/i.test(label.trim());
+  return isFillerHazardLabel(label);
+}
+
+/** Keep markers clickable — two labels can resolve to the same art-directed
+ *  slot (e.g. two heat/moisture cues). Nudge the later one so every required
+ *  hazard stays selectable; otherwise Enter Scene is unsatisfiable. */
+function dedupeHotspotPosition(
+  desired: { x: number; y: number },
+  taken: Set<string>,
+): { x: number; y: number } {
+  let { x, y } = desired;
+  for (let guard = 0; guard < 24; guard += 1) {
+    const key = `${Math.round(x)},${Math.round(y)}`;
+    if (!taken.has(key)) {
+      taken.add(key);
+      return { x, y };
+    }
+    x = ((x + 9 + guard * 3) % 86) + 7;
+    y = ((y + 6 + guard * 2) % 70) + 16;
+  }
+  taken.add(`${Math.round(x)},${Math.round(y)}`);
+  return { x, y };
 }
 
 function classifyHazard(label: string): string {
@@ -1303,27 +1324,30 @@ export function sceneSurveyGateHint({
   mandatoryPpe: string[];
   ppeSelected: string[];
 }): string {
+  const missingPpe = mandatoryPpe.filter(id => !ppeSelected.includes(id));
+  if (missingPpe.length > 0) {
+    const names: Record<string, string> = {
+      gloves: 'gloves', helmet: 'helmet', hivis: 'hi-vis', mask: 'mask',
+      n95: 'N95', eye: 'eye protection', gown: 'gown',
+    };
+    return `Don required PPE first: ${missingPpe.map(id => names[id] ?? id).join(' + ')}.`;
+  }
   if (!hasReviewedEveryHazard(hazardIds, selectedHazards)) {
+    const left = hazardIds.filter(id => !selectedHazards.includes(id)).length;
     return hazardIds.length > 0
-      ? 'Identify every visible hazard on this scene.'
+      ? `Acknowledge the remaining hazard${left === 1 ? '' : 's'} (${left} left) — tap the marker or the chip.`
       : 'Complete the visual sweep before declaring the scene safe.';
   }
   if (sceneSafe === null) return 'Declare scene safety to continue.';
-  // After a full sweep + PPE the learner may make the scene safe to work
-  // (hazards mitigated) or keep it unsafe and call for more resources. Both
-  // are valid EMS decisions — do not trap them on "safe" just because
-  // markers exist on the photograph.
   if (sceneSafe === false && resourcesRequested.length === 0) {
     return 'Request at least one additional resource.';
-  }
-  if (mandatoryPpe.some(id => !ppeSelected.includes(id))) {
-    return 'Select every scene-required PPE item.';
   }
   return '';
 }
 
 function buildHazardHotspots(caseData: CaseScenario): HazardHotspot[] {
   return unifiedSceneHazards(caseData)
+    .filter((hazard) => !isFillerHazardLabel(hazard))
     .map((hazard, index) => {
       const kind = classifyHazard(hazard);
       const option = HAZARD_OPTIONS.find(o => o.id === kind) || HAZARD_OPTIONS[0];
@@ -1824,10 +1848,16 @@ function SceneArrivalVisual({
               {cue.label}
             </div>
           ))}
-          {showHazardHotspots && hazardHotspots.map(({ id, label, icon: Icon, x, y }) => {
+          {showHazardHotspots && (() => {
+            // Two labels can resolve to the same art-directed slot. Nudge the
+            // later one so every required hazard stays clickable — stacked
+            // markers made Enter Scene unsatisfiable on multi-hazard scenes.
+            const taken = new Set<string>();
+            return hazardHotspots.map(({ id, label, icon: Icon, x, y }, hazardIndex) => {
             const selected = selectedHazards.includes(id);
             const isClickable = Boolean(onHazardToggle);
-            const position = getHotspotPosition({ id, label, kind: classifyHazard(label), icon: Icon, x, y }, hazardHotspots.findIndex(h => h.id === id), tone, sceneImage);
+            const desired = getHotspotPosition({ id, label, kind: classifyHazard(label), icon: Icon, x, y }, hazardIndex, tone, sceneImage);
+            const position = dedupeHotspotPosition(desired, taken);
             // Unacknowledged hotspots pulse with an outward amber glow so
             // the eye is drawn to them; once the student clicks one, the
             // animation stops and the chip locks confirmed. This reinforces
@@ -1862,7 +1892,8 @@ function SceneArrivalVisual({
                 </span>
               </button>
             );
-          })}
+            });
+          })()}
           {focus === 'hazards' && sceneImage && hazardHotspots.length > 0 && (
             <div className="absolute bottom-4 left-4 z-10 rounded-xl border border-amber-200/25 bg-black/55 px-3 py-2 text-[13px] leading-tight text-amber-50 shadow-xl backdrop-blur-md">
               <span className="block font-semibold uppercase tracking-[0.14em] text-amber-100">Scan the image</span>
@@ -2193,16 +2224,28 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
                   Select the amber markers above; confirmed findings appear here.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5" aria-live="polite">
-                  {hazardsIdentified.filter(id => id !== 'none').length > 0 ? (
-                    hazardsIdentified.filter(id => id !== 'none').map(id => (
-                      <span key={id} className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-100 px-2.5 py-1 text-xs text-amber-950 dark:border-amber-700 dark:bg-amber-950/70 dark:text-amber-100">
-                        <CheckCircle2 className="h-3 w-3" />
-                        {id}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-amber-900/70 dark:text-amber-100/70">No markers confirmed yet</span>
-                  )}
+                  {/* Chips are clickable — reading the list also counts as
+                      acknowledging the hazard. Requiring photo-hotspot clicks
+                      alone left students stuck after "I noted every hazard". */}
+                  {hazardHotspots.filter(h => !isNoHazardLabel(h.label)).map(h => {
+                    const on = hazardsIdentified.includes(h.id);
+                    return (
+                      <button
+                        key={h.id}
+                        type="button"
+                        onClick={() => toggleHazard(h.id)}
+                        aria-pressed={on}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition ${
+                          on
+                            ? 'border-amber-300/70 bg-amber-100 text-amber-950 dark:border-amber-700 dark:bg-amber-950/70 dark:text-amber-100'
+                            : 'border-amber-200/60 bg-transparent text-amber-900/70 hover:bg-amber-50 dark:text-amber-100/70'
+                        }`}
+                      >
+                        {on ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                        {h.label.length > 42 ? `${h.label.slice(0, 40)}…` : h.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -2315,41 +2358,41 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
         </Card>
       )}
 
-      {/* Action bar */}
-      <div className="flex gap-2 sm:gap-3 pt-1">
-        <Button variant="outline" onClick={goBack} className="gap-1.5 rounded-xl">
-          <ArrowLeft className="h-4 w-4" />
-          {step === 'approach' ? 'Back to Pre-Brief' : 'Previous'}
-        </Button>
-        <Button
-          onClick={goNext}
-          disabled={!canAdvance}
-          variant={step === 'hazards' ? 'outline' : 'default'}
-          size="lg"
-          style={step === 'hazards'
-            ? canAdvance
-              ? { background: '#16a34a', borderColor: '#15803d', color: '#ffffff' }
-              : { background: '#e2e8f0', borderColor: '#cbd5e1', color: '#475569' }
-            : undefined}
-          className={`flex-1 gap-2 rounded-xl shadow-sm transition-all ${
-            step === 'hazards' && canAdvance
-              ? '!bg-green-600 !text-white hover:!bg-green-700 hover:-translate-y-0.5 [&_svg]:!text-white'
-              : step === 'hazards'
-                ? '!border !border-slate-300 !bg-slate-100 !text-slate-500 shadow-none opacity-70 dark:!border-slate-700 dark:!bg-slate-900 dark:!text-slate-400'
-                : ''
-          }`}
-        >
-          {step === 'hazards' ? 'Enter Scene' : 'Next'}
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+      {/* Action bar + gate hint (kept beside the button so the reason is not below the fold) */}
+      <div className="space-y-2 pt-1">
+        <div className="flex gap-2 sm:gap-3">
+          <Button variant="outline" onClick={goBack} className="gap-1.5 rounded-xl">
+            <ArrowLeft className="h-4 w-4" />
+            {step === 'approach' ? 'Back to Pre-Brief' : 'Previous'}
+          </Button>
+          <Button
+            onClick={goNext}
+            disabled={!canAdvance}
+            variant={step === 'hazards' ? 'outline' : 'default'}
+            size="lg"
+            style={step === 'hazards'
+              ? canAdvance
+                ? { background: '#16a34a', borderColor: '#15803d', color: '#ffffff' }
+                : { background: '#e2e8f0', borderColor: '#cbd5e1', color: '#475569' }
+              : undefined}
+            className={`flex-1 gap-2 rounded-xl shadow-sm transition-all ${
+              step === 'hazards' && canAdvance
+                ? '!bg-green-600 !text-white hover:!bg-green-700 hover:-translate-y-0.5 [&_svg]:!text-white'
+                : step === 'hazards'
+                  ? '!border !border-slate-300 !bg-slate-100 !text-slate-500 shadow-none opacity-70 dark:!border-slate-700 dark:!bg-slate-900 dark:!text-slate-400'
+                  : ''
+            }`}
+          >
+            {step === 'hazards' ? 'Enter Scene' : 'Next'}
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+        {!canAdvance && step === 'hazards' && gateHint && (
+          <p className="text-center text-xs font-medium text-amber-700 dark:text-amber-300" role="status">
+            {gateHint}
+          </p>
+        )}
       </div>
-
-      {/* Gating hint */}
-      {!canAdvance && step === 'hazards' && (
-        <p className="text-xs text-muted-foreground text-center" role="status">
-          {gateHint}
-        </p>
-      )}
     </div>
   );
 }

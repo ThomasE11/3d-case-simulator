@@ -1,25 +1,19 @@
 /**
  * Pre-arrival story beat — “this is what you are walking into.”
  *
- * Every case should open the way a real call does: dispatch reads the job,
- * you hear what happened before you got there (lifeguards pulled the child
- * out, a colleague started CPR…), THEN you size up and enter.
- *
- * Media:
- *   1. Authored arrival video when the case has one (mp4 in scene-assets)
- *   2. Scene plate still with a slow Ken Burns drift (game cinematic)
- *   3. Captioned story beats over the still
- * Voice:
- *   Dispatcher reads the call reason; narrator reads the pre-arrival story.
+ * Media carries the scene; the dispatcher voice carries the job card.
+ * Text overlays are deliberately minimal: a presence chip (who is already
+ * there) and nothing else. Long captions over the video competed with the
+ * voiceover and forced the student to re-read the call.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Play, Volume2, VolumeX, Radio, Film } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Play, Volume2, VolumeX, Radio, Film, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { CaseScenario } from '@/types';
 import { useVoiceNarration } from '@/hooks/useVoiceNarration';
 import { inferSceneImage, hasSceneVideoAsset, inferSceneVideo } from '@/lib/sceneImageSelection';
 import { sceneIntroductionFor } from '@/lib/sceneIntroductions';
-import { buildSceneSizeUp } from './SceneSurveyPanel';
+import { SceneSensoryStrip } from '@/components/SceneSensoryStrip';
 
 export interface PreArrivalBeat {
   /** Short caption over the cinematic. */
@@ -38,8 +32,7 @@ export function buildPreArrivalBeats(caseData: CaseScenario): PreArrivalBeat[] {
   if (call) {
     beats.push({ label: 'Dispatch', text: call.replace(/\.$/, '') + '.' });
   }
-  // Prior actions: witnesses / staff already did something. Pull from
-  // events + intro bystander line + additionalInfo (e.g. "staff started CPR").
+  // Prior actions: witnesses / staff already did something.
   const prior: string[] = [];
   if (events) prior.push(events.replace(/\.$/, '') + '.');
   if (intro?.bystanderDetail) prior.push(intro.bystanderDetail.replace(/\.$/, '') + '.');
@@ -51,10 +44,7 @@ export function buildPreArrivalBeats(caseData: CaseScenario): PreArrivalBeat[] {
   if (prior.length) {
     beats.push({ label: 'Before you arrive', text: prior.slice(0, 2).join(' ') });
   }
-
-  const size = buildSceneSizeUp(caseData);
-  beats.push({ label: 'On scene', text: [size.headline, ...size.bullets].join(' · ') });
-  return beats.slice(0, 4);
+  return beats;
 }
 
 /** Dispatcher voice line — the actual job card, not a story. */
@@ -64,6 +54,22 @@ export function buildDispatchCallLine(caseData: CaseScenario): string {
   return where
     ? `Dispatch: ${call}. ${where}.`
     : `Dispatch: ${call}.`;
+}
+
+/** One short spoken follow-up after the job card — prior actions only. */
+function buildFollowOnNarration(caseData: CaseScenario): string {
+  const intro = sceneIntroductionFor(caseData);
+  const events = caseData.history?.eventsLeading?.trim();
+  const parts: string[] = [];
+  if (events) parts.push(events.replace(/\.$/, '') + '.');
+  if (intro?.bystanderDetail) {
+    const line = intro.bystanderDetail.replace(/\.$/, '') + '.';
+    // Keep only operational presence / prior action, not a colour story.
+    if (/police|lifeguard|security|staff|started|pulled|rescued|cpr|aed/i.test(line)) {
+      parts.push(line);
+    }
+  }
+  return parts.slice(0, 2).join(' ');
 }
 
 function mediaFor(caseData: CaseScenario): { kind: 'video' | 'image'; src: string } | null {
@@ -82,30 +88,21 @@ export function PreArrivalCinematic({
   onReady?: () => void;
 }) {
   const media = useMemo(() => mediaFor(caseData), [caseData]);
-  const beats = useMemo(() => buildPreArrivalBeats(caseData), [caseData]);
   const dispatchLine = useMemo(() => buildDispatchCallLine(caseData), [caseData]);
+  const followOn = useMemo(() => buildFollowOnNarration(caseData), [caseData]);
+  const location = caseData.dispatchInfo?.location?.trim();
   const { speak, stop, enabled, toggleEnabled, isSpeaking } = useVoiceNarration();
-  const [beatIndex, setBeatIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const timerRef = useRef<number | null>(null);
-
-  // Auto-advance captions ~4.5 s each while playing.
-  useEffect(() => {
-    if (!playing) return;
-    if (beatIndex >= beats.length - 1) return;
-    timerRef.current = window.setTimeout(() => setBeatIndex(i => i + 1), 4500);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [playing, beatIndex, beats.length]);
 
   const play = () => {
     setPlaying(true);
-    setBeatIndex(0);
     if (enabled) {
       speak(dispatchLine, { role: 'dispatcher' });
-      // Story after the call line.
-      window.setTimeout(() => {
-        speak(beats.map(b => b.text).join(' '), { role: 'narrator' });
-      }, 2800);
+      if (followOn) {
+        window.setTimeout(() => {
+          speak(followOn, { role: 'narrator' });
+        }, 2800);
+      }
     }
     onReady?.();
   };
@@ -114,7 +111,6 @@ export function PreArrivalCinematic({
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950 text-white shadow-2xl">
-      {/* Ken Burns plate / video */}
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-900">
         {media?.kind === 'video' ? (
           <video
@@ -140,25 +136,16 @@ export function PreArrivalCinematic({
             <Film className="h-10 w-10 text-white/30" />
           </div>
         )}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/40" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-black/35" />
 
-        {/* Dispatch chip */}
-        <div className="absolute left-4 top-4 z-10 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/55 px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.14em] backdrop-blur">
-          <Radio className="h-3.5 w-3.5 text-amber-300" />
-          Pre-arrival
+        {/* Presence only — the dispatcher voice reads the job card. */}
+        <div className="absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/55 px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.14em] backdrop-blur">
+            <Radio className="h-3.5 w-3.5 text-amber-300" />
+            Pre-arrival
+          </span>
+          <SceneSensoryStrip caseData={caseData} />
         </div>
-
-        {/* Caption */}
-        {playing && beats[beatIndex] && (
-          <div className="absolute inset-x-4 bottom-4 z-10 rounded-xl border border-white/15 bg-black/65 px-4 py-3 backdrop-blur-md">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200/90">
-              {beats[beatIndex].label}
-            </p>
-            <p className="mt-1 text-sm leading-relaxed text-white/95 sm:text-base">
-              {beats[beatIndex].text}
-            </p>
-          </div>
-        )}
 
         {!playing && (
           <button
@@ -169,13 +156,16 @@ export function PreArrivalCinematic({
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-xl">
               <Play className="h-7 w-7 translate-x-0.5" />
             </span>
-            <span className="text-sm font-medium text-white/90">Play what happened before you arrived</span>
+            <span className="text-sm font-medium text-white/90">Play dispatch</span>
           </button>
         )}
       </div>
 
       <div className="flex items-center justify-between gap-2 border-t border-white/10 bg-slate-950/80 px-3 py-2">
-        <p className="truncate text-[12px] text-white/70">{dispatchLine}</p>
+        <p className="inline-flex min-w-0 items-center gap-1.5 truncate text-[12px] text-white/70">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-white/50" />
+          <span className="truncate">{location || 'Location pending'}</span>
+        </p>
         <div className="flex shrink-0 items-center gap-1">
           <Button
             variant="ghost"

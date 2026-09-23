@@ -47,6 +47,14 @@ describe('hasReviewedEveryHazard', () => {
     expect(hasReviewedEveryHazard([], [])).toBe(false);
     expect(hasReviewedEveryHazard([], ['none'])).toBe(true);
   });
+
+  it('does not require a hidden clear-scene filler label as a hazard id', () => {
+    // "None" used to land in hazardIds via generated accessIssues while its
+    // chip was filtered out — the gate could never open. After filtering,
+    // the list is empty and the clear-scene button is the only requirement.
+    expect(hasReviewedEveryHazard([], ['none'])).toBe(true);
+    expect(hasReviewedEveryHazard(['None'], [])).toBe(false); // pre-filter behaviour, documented
+  });
 });
 
 describe('sceneSurveyGateHint', () => {

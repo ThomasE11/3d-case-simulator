@@ -529,6 +529,37 @@ const SCENE_VIDEO_OVERRIDES: Record<string, string> = {
   'asthma-mod-001': '/scene-assets/dispatch-villa-living.mp4',
   'y1-012': '/scene-assets/dispatch-panic-apartment.mp4',
   'y1-008': '/scene-assets/dispatch-panic-apartment.mp4',
+  'trauma-001': '/scene-assets/arrival-trauma-001-rtc.mp4',
+};
+
+/**
+ * Still plate → Ken Burns dispatch clip. Covers the main scene families so
+ * the pre-arrival cinematic is animated without a per-case override. Cases
+ * without a mapped plate stay on the still (still Ken Burns in the UI).
+ */
+const PLATE_TO_DISPATCH_VIDEO: Record<string, string> = {
+  '/scene-assets/plate-pool-deck.png': '/scene-assets/dispatch-pool-deck.mp4',
+  '/scene-assets/water-beach-drowning-dubai.png': '/scene-assets/dispatch-pool-deck.mp4',
+  '/scene-assets/road-traffic-male-dubai.png': '/scene-assets/dispatch-roadside-crash.mp4',
+  '/scene-assets/pedestrian-road-night.png': '/scene-assets/dispatch-roadside-crash.mp4',
+  '/scene-assets/pedestrian-road-night-female-45.png': '/scene-assets/dispatch-roadside-crash.mp4',
+  '/scene-assets/trauma-005-trapped-driver-flail-chest.png': '/scene-assets/dispatch-roadside-crash.mp4',
+  '/scene-assets/mci-highway-uae.png': '/scene-assets/dispatch-roadside-crash.mp4',
+  '/scene-assets/plate-villa-living.png': '/scene-assets/dispatch-villa-plate.mp4',
+  '/scene-assets/asthma-villa-male-uae.png': '/scene-assets/dispatch-asthma-villa.mp4',
+  '/scene-assets/cardiac-arrest-mall-male-dubai.png': '/scene-assets/dispatch-cardiac-mall.mp4',
+  '/scene-assets/gym-cardiac-arrest-male-dubai.png': '/scene-assets/dispatch-cardiac-mall.mp4',
+  '/scene-assets/construction-fall-male-29-dubaihills.png': '/scene-assets/dispatch-construction-fall.mp4',
+  '/scene-assets/resp-002-construction-tension-pneumothorax.png': '/scene-assets/dispatch-construction-fall.mp4',
+  '/scene-assets/construction-anaphylaxis-male-uae.png': '/scene-assets/dispatch-construction-fall.mp4',
+  '/scene-assets/home-stroke-elderly-male-uae.png': '/scene-assets/dispatch-home-stroke.mp4',
+  '/scene-assets/hotel-room-medical-uae.png': '/scene-assets/dispatch-hotel-room.mp4',
+  '/scene-assets/industrial-workshop-male-uae.png': '/scene-assets/dispatch-industrial.mp4',
+  '/scene-assets/trauma-011-industrial-hand-amputation.png': '/scene-assets/dispatch-industrial.mp4',
+  '/scene-assets/y2-004-workshop-flash-burn.png': '/scene-assets/dispatch-industrial.mp4',
+  '/scene-assets/burn-001-jebel-ali-industrial-fire-burns.png': '/scene-assets/dispatch-industrial.mp4',
+  '/scene-assets/kitchen-scald-burn-female-uae.png': '/scene-assets/dispatch-kitchen-scald.mp4',
+  '/scene-assets/mall-foodcourt-chestpain-male-65.png': '/scene-assets/dispatch-mall-foodcourt.mp4',
 };
 
 const KNOWN_SCENE_VIDEOS = new Set<string>([
@@ -536,6 +567,17 @@ const KNOWN_SCENE_VIDEOS = new Set<string>([
   '/scene-assets/arrival-resp-001-villa.mp4',
   '/scene-assets/dispatch-panic-apartment.mp4',
   '/scene-assets/dispatch-villa-living.mp4',
+  '/scene-assets/dispatch-pool-deck.mp4',
+  '/scene-assets/dispatch-roadside-crash.mp4',
+  '/scene-assets/dispatch-villa-plate.mp4',
+  '/scene-assets/dispatch-asthma-villa.mp4',
+  '/scene-assets/dispatch-cardiac-mall.mp4',
+  '/scene-assets/dispatch-construction-fall.mp4',
+  '/scene-assets/dispatch-home-stroke.mp4',
+  '/scene-assets/dispatch-hotel-room.mp4',
+  '/scene-assets/dispatch-industrial.mp4',
+  '/scene-assets/dispatch-kitchen-scald.mp4',
+  '/scene-assets/dispatch-mall-foodcourt.mp4',
 ]);
 
 /**
@@ -553,15 +595,20 @@ export function hasSceneVideoAsset(src: string): boolean {
 
 /**
  * Resolve the animated arrival clip for a case, or null. Mirrors
- * `inferSceneImage` but for the (optional, sparse) video layer.
+ * `inferSceneImage` but for the (optional) video layer: case override →
+ * authored clip → still-plate family clip.
  */
 export function inferSceneVideo(caseData: CaseScenario): string | null {
   const caseId = caseData.id;
-  if (!caseId) return null;
-  const override = SCENE_VIDEO_OVERRIDES[caseId];
-  if (override && hasSceneVideoAsset(override)) return override;
+  if (caseId) {
+    const override = SCENE_VIDEO_OVERRIDES[caseId];
+    if (override && hasSceneVideoAsset(override)) return override;
+  }
   const authored = caseData.sceneInfo?.sceneVideoPath;
   if (authored && hasSceneVideoAsset(authored)) return authored;
+  const plate = inferSceneImage(caseData);
+  const family = PLATE_TO_DISPATCH_VIDEO[plate];
+  if (family && hasSceneVideoAsset(family)) return family;
   return null;
 }
 

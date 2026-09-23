@@ -1,11 +1,33 @@
 import type { CaseScenario } from '@/types';
 import { sceneIntroductionFor } from '@/lib/sceneIntroductions';
 
+/**
+ * Labels that must never become required hazard hotspots.
+ *
+ * Two families:
+ *  1. Clear-scene filler ("None", "no hazards") — authored lists and some
+ *     generated accessIssues carry these. Folding them into the scan made
+ *     Enter Scene unsatisfiable: the chip is hidden as a no-hazard label and
+ *     the "None identified" sweep button is hidden because a hotspot exists.
+ *  2. Patient posture / clinical state ("patient seated at desk") — size-up
+ *     copy, not an environmental hazard the student tags on the photograph.
+ *     Exception: entrapment / submersion wording is a real scene hazard.
+ */
+export function isFillerHazardLabel(label: string): boolean {
+  const value = label.trim();
+  if (!value) return true;
+  if (/^(none|none identified|no obvious hazards?|no hazards?|none -|clean home)/i.test(value)) return true;
+  if (/^patient\b/i.test(value) && !/submerged|trapped|entrap|crush|unstable vehicle/i.test(value)) {
+    return true;
+  }
+  return false;
+}
+
 function uniqueMeaningful(values: Array<string | undefined>): string[] {
   const seen = new Set<string>();
   return values
     .filter((value): value is string => Boolean(value?.trim()))
-    .filter((value) => !/^(none|none identified|no obvious hazards?|no hazards?|none -|clean home)/i.test(value.trim()))
+    .filter((value) => !isFillerHazardLabel(value))
     .filter((value) => {
       const key = value.trim().toLowerCase();
       if (seen.has(key)) return false;
@@ -84,10 +106,12 @@ export function unifiedSceneHazards(caseData: CaseScenario): string[] {
     ...sceneIntroAccessIssues(caseData),
     ...sceneIntroHazards(caseData),
   ]) {
-    const key = hazard.trim().toLowerCase();
-    if (!key || seen.has(key)) continue;
+    const trimmed = hazard.trim();
+    if (!trimmed || isFillerHazardLabel(trimmed)) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
     seen.add(key);
-    out.push(hazard.trim());
+    out.push(trimmed);
   }
   return out;
 }
@@ -105,26 +129,25 @@ export function mandatoryScenePpe(caseData: CaseScenario): string[] {
     caseData.sceneInfo?.description,
     caseData.sceneInfo?.environment,
     ...(caseData.sceneInfo?.hazards ?? []),
-    // The generated arrival layer carries scene-side signals (bystander smoking,
-    // chemical smells, retching sounds, infection cues) that the student sees on
-    // arrival — the PPE decision must read the same evidence the survey does.
     ...(unifiedSceneHazards(caseData) ?? []),
   ].filter(Boolean).join(' ').toLowerCase();
 
+  // Gloves always. At most ONE scene-specific extra — a long mandatory PPE
+  // shopping list blocked Enter Scene after the student had already made a
+  // sensible call ("I put on all my protection" and still could not enter).
   const required = new Set<string>(['gloves']);
-  if (/construction|worksite|active site|hard hat|industrial|factory|scaffold/.test(text)) {
-    required.add('helmet');
-    required.add('hivis');
-  }
   if (/chemical|hazmat|contamination|pesticide|organophosphate/.test(text)) {
     required.add('mask');
-    required.add('eye');
-    required.add('gown');
   } else if (/respiratory|infect|airborne|mening|tuberculosis|covid/.test(text)) {
     required.add('n95');
-    required.add('eye');
+  } else if (/construction|worksite|hard hat|industrial|factory|scaffold/.test(text)) {
+    required.add('helmet');
+  } else if (/traffic|roadside|highway|motorway|collision|\brtc\b|crash/.test(text)) {
+    required.add('hivis');
   } else if (/trauma|burn|bleed|blood|obstet|delivery/.test(text)) {
     required.add('eye');
   }
   return [...required];
 }
+
+

@@ -106,6 +106,12 @@ describe('animated arrival clips', () => {
     expect(inferSceneVideo(caseData!)).toBe('/scene-assets/dispatch-villa-living.mp4');
   });
 
+  it('falls back to the plate-family dispatch clip when no case override exists', () => {
+    const caseData = allCases.find(({ id }) => id === 'cardiac-005');
+    expect(caseData).toBeDefined();
+    expect(inferSceneVideo(caseData!)).toBe('/scene-assets/dispatch-mall-foodcourt.mp4');
+  });
+
   it('falls back to null when a case has no registered clip', () => {
     const caseData = allCases.find(({ id }) => id === 'y2-007');
     expect(caseData).toBeDefined();

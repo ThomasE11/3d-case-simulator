@@ -56,6 +56,22 @@ describe('unifiedSceneHazards — fold + dedupe', () => {
     expect(unifiedSceneHazards(c)).toEqual([]);
   });
 
+  it('never requires a clear-scene filler access issue as a hazard hotspot', () => {
+    // Regression: generated accessIssues sometimes contain "None". Folding
+    // that into the scan hid the clear-scene button (a hotspot existed) while
+    // also hiding the chip (isNoHazardLabel) — Enter Scene was impossible.
+    // cardiac-001's generated layer has accessIssues: ["none"].
+    const c = { ...authored({ hazards: [] }), id: 'cardiac-001' } as unknown as CaseScenario;
+    expect(unifiedSceneHazards(c)).toEqual([]);
+  });
+
+  it('drops patient posture/clinical access lines from the hazard scan', () => {
+    // Size-up copy ("patient seated at desk") is not an environmental hazard
+    // the student tags on the photograph — it only inflated the gate.
+    const c = { ...authored({ hazards: [] }), id: 'cardiac-003' } as unknown as CaseScenario;
+    expect(unifiedSceneHazards(c)).not.toContain('patient seated at desk');
+  });
+
   it('keeps authored and generated hazards in source order, authored first', () => {
     const c = authored({ hazards: ['a', 'b'] });
     const out = unifiedSceneHazards(c);
@@ -133,11 +149,16 @@ describe('mandatoryScenePpe — keyword-driven', () => {
     expect(mandatoryScenePpe(authored())).toContain('gloves');
   });
 
-  it('adds helmet + hivis on a worksite', () => {
+  it('adds scene-specific extras by keyword (construction → helmet)', () => {
     const c = authored({ description: 'active construction site with scaffolding' });
     const ppe = mandatoryScenePpe(c);
     expect(ppe).toContain('helmet');
-    expect(ppe).toContain('hivis');
+    expect(ppe).toContain('gloves');
+  });
+
+  it('adds hi-vis on a roadside scene', () => {
+    const c = authored({ description: 'roadside collision on the highway' });
+    expect(mandatoryScenePpe(c)).toContain('hivis');
   });
 
   it('adds respiratory protection for infectious cases', () => {
