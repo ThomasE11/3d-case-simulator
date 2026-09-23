@@ -1921,6 +1921,38 @@ body {
   text-shadow: 0 0 16px rgba(34, 211, 238, 0.26);
 }
 
+/* Medical monitor channel colours — same convention as Philips / GE / Zoll
+   bedside displays so the bay reads as equipment, not a web form. */
+.tactical-hud-tile[data-channel='hr'] strong {
+  color: #3dff8a;
+  text-shadow: 0 0 16px rgba(61, 255, 138, 0.35);
+}
+.tactical-hud-tile[data-channel='spo2'] strong {
+  color: #5ce1ff;
+  text-shadow: 0 0 16px rgba(92, 225, 255, 0.35);
+}
+.tactical-hud-tile[data-channel='rr'] strong {
+  color: #f5f7fa;
+  text-shadow: 0 0 14px rgba(245, 247, 250, 0.25);
+}
+.tactical-hud-tile[data-channel='bp'] strong {
+  color: #ff6b6b;
+  text-shadow: 0 0 16px rgba(255, 107, 107, 0.3);
+}
+.tactical-hud-tile[data-channel='temp'] strong {
+  color: #ffd166;
+  text-shadow: 0 0 14px rgba(255, 209, 102, 0.3);
+}
+.tactical-hud-tile[data-channel='hr'] {
+  border-color: rgba(61, 255, 138, 0.22);
+}
+.tactical-hud-tile[data-channel='spo2'] {
+  border-color: rgba(92, 225, 255, 0.22);
+}
+.tactical-hud-tile[data-channel='bp'] {
+  border-color: rgba(255, 107, 107, 0.22);
+}
+
 .tactical-hud-warning strong {
   color: #fbbf24;
   text-shadow: 0 0 16px rgba(251, 191, 36, 0.38);

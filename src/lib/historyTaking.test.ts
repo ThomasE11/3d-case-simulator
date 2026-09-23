@@ -215,3 +215,39 @@ describe('generatePatientResponse', () => {
     expect(withRadiation).toMatch(/left arm and jaw/i);
   });
 });
+
+describe('patient voice is first-person, never the caller script', () => {
+  it('does not echo "Wife having panic attack" back as the patient', () => {
+    const c = fakeCase({
+      dispatchInfo: {
+        callReason: 'Wife having panic attack, cannot breathe, chest pain',
+        timeOfDay: 'evening',
+        location: 'Apartment in Jumeirah, Dubai',
+        callerInfo: 'Husband',
+      },
+      initialPresentation: {
+        generalImpression: 'Young female, visibly distressed, breathing rapidly',
+        appearance: 'Anxious, tearful, hyperventilating',
+        position: 'Sitting on floor against wall, knees drawn up',
+        consciousness: 'Alert but highly anxious',
+      },
+      history: {
+        eventsLeading: 'Felt chest tightness, heart racing, could not catch breath.',
+        medications: [],
+        allergies: ['No known allergies'],
+        medicalConditions: ['Anxiety disorder'],
+        surgicalHistory: ['None'],
+        lastMeal: 'Coffee only',
+      },
+    });
+    const answer = generatePatientResponse(c, 'signs-symptoms', {
+      severity: 'severe', altered: false, breathless: true,
+    });
+    expect(answer).toBeTruthy();
+    expect(answer!.toLowerCase()).not.toContain('wife');
+    expect(answer!.toLowerCase()).not.toContain('husband');
+    // Breathless patient still owns the symptom in first person.
+    expect(answer!.toLowerCase()).toMatch(/breath|chest|can.?t/);
+  });
+});
+

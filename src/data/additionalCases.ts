@@ -4431,7 +4431,7 @@ export const additionalTraumaCases: CaseScenario[] = [
       bystanders: 'Parents, lifeguard',
       environment: 'Outdoor, hot weather',
       environmentVariant: 'water',
-      sceneImagePath: '/scene-assets/paediatric-pool-rescue-environment.png',
+      sceneImagePath: '/scene-assets/plate-pool-deck.png',
       sceneImageCaption: 'Paediatric drowning — villa pool, Emirates Hills'
     },
     initialPresentation: {

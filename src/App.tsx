@@ -14,11 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
-import {
-  Stethoscope, GraduationCap, ClipboardCheck, RotateCcw,
+import {Stethoscope, GraduationCap, ClipboardCheck, RotateCcw,
   FileText, Sparkles, Home, ChevronRight, ArrowLeft,
-  History, BarChart3, Loader2, Activity, Target, Users,
-} from 'lucide-react';
+  History, BarChart3, Loader2, Activity, Target, Users, BookOpen } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
 // ── Lazy Imports (each wrapped with ErrorBoundary) ──
@@ -26,6 +24,7 @@ import { Toaster, toast } from 'sonner';
 const StudentPanel = lazy(() => import('@/components/StudentPanel'));
 const ClassroomHost = lazy(() => import('@/components/classroom/ClassroomHost'));
 const ClassroomJoin = lazy(() => import('@/components/classroom/ClassroomJoin'));
+const CaseLibraryPage = lazy(() => import('@/components/CaseLibraryPage'));
 const ClinicalReferenceDialog = lazy(() => import('@/components/ClinicalReferenceDialog').then(m => ({ default: m.ClinicalReferenceDialog })));
 const AttributionsDialog = lazy(() => import('@/components/AttributionsDialog').then(m => ({ default: m.AttributionsDialog })));
 const ObjectiveSetupPanel = lazy(() => import('@/components/ObjectiveSetupPanel').then(m => ({ default: m.ObjectiveSetupPanel })));
@@ -153,6 +152,7 @@ type EducatorPanelProps = ReturnType<typeof useEducatorPanel>;
 
 function EducatorPanel(ep: EducatorPanelProps) {
   const { t } = useTranslation();
+  const [showCaseLibrary, setShowCaseLibrary] = useState(false);
 
   // Complication manager (local, not persisted)
   const {
@@ -210,6 +210,70 @@ function EducatorPanel(ep: EducatorPanelProps) {
     }
   }, [treat.animatedVitals, treat.isVitalsAnimating]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (showCaseLibrary && !ep.currentCase) {
+    return (
+      <div className="clinical-shell min-h-screen relative overflow-x-hidden">
+        <AmbientBackground />
+        <div className="relative z-10">
+          <CaseLibraryPage
+            cases={ep.allCases}
+            onLaunch={(c) => { setShowCaseLibrary(false); ep.loadCaseFromHistory(c); }}
+            onBack={() => setShowCaseLibrary(false)}
+            onCoursePractice={() => { setShowCaseLibrary(false); ep.setShowObjectiveSetup(true); }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (showCaseLibrary && !ep.currentCase) {
+    return (
+      <div className="clinical-shell min-h-screen relative overflow-x-hidden">
+        <AmbientBackground />
+        <div className="relative z-10">
+          <CaseLibraryPage
+            cases={ep.allCases}
+            onLaunch={(c) => { setShowCaseLibrary(false); ep.loadCaseFromHistory(c); }}
+            onBack={() => setShowCaseLibrary(false)}
+            onCoursePractice={() => { setShowCaseLibrary(false); ep.setShowObjectiveSetup(true); }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (showCaseLibrary && !ep.currentCase) {
+    return (
+      <div className="clinical-shell min-h-screen relative overflow-x-hidden">
+        <AmbientBackground />
+        <div className="relative z-10">
+          <CaseLibraryPage
+            cases={ep.allCases}
+            onLaunch={(c) => { setShowCaseLibrary(false); ep.loadCaseFromHistory(c); }}
+            onBack={() => setShowCaseLibrary(false)}
+            onCoursePractice={() => { setShowCaseLibrary(false); ep.setShowObjectiveSetup(true); }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (showCaseLibrary && !ep.currentCase) {
+    return (
+      <div className="clinical-shell min-h-screen relative overflow-x-hidden">
+        <AmbientBackground />
+        <div className="relative z-10">
+          <CaseLibraryPage
+            cases={ep.allCases}
+            onLaunch={(c) => { setShowCaseLibrary(false); ep.loadCaseFromHistory(c); }}
+            onBack={() => setShowCaseLibrary(false)}
+            onCoursePractice={() => { setShowCaseLibrary(false); ep.setShowObjectiveSetup(true); }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // ── Render: no case (home / objective setup) ──
   if (!ep.currentCase) {
     return (
@@ -257,6 +321,7 @@ function EducatorPanel(ep: EducatorPanelProps) {
               setShowObjectiveSetup={ep.setShowObjectiveSetup}
               loadCaseFromHistory={ep.loadCaseFromHistory}
               onHostClassroom={() => ep.setUserRole('classroom-host')}
+              onOpenLibrary={() => setShowCaseLibrary(true)}
             />
           )}
         </main>
@@ -439,6 +504,7 @@ function HomeScreen({
   allCases, caseHistory, caseCountsByCategory, categoryLookup,
   isGenerating, generateCase, setShowObjectiveSetup, loadCaseFromHistory,
   onHostClassroom,
+  onOpenLibrary,
 }: {
   selectedYear: StudentYear;
   setSelectedYear: (y: StudentYear) => void;
@@ -453,6 +519,7 @@ function HomeScreen({
   setShowObjectiveSetup: (v: boolean) => void;
   loadCaseFromHistory: (c: CaseScenario) => void;
   onHostClassroom: () => void;
+  onOpenLibrary: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -548,6 +615,10 @@ function HomeScreen({
               <Button onClick={onHostClassroom} disabled={isGenerating}
                 variant="secondary" size="lg" className="w-full gap-3 text-base py-6 font-medium">
                 <Users className="h-5 w-5" /> Open classroom discussion
+              </Button>
+              <Button onClick={onOpenLibrary} disabled={isGenerating}
+                variant="ghost" size="lg" className="w-full gap-3 text-base py-5 font-medium">
+                <BookOpen className="h-5 w-5" /> Library — browse all cases
               </Button>
             </div>
             {/* Stats */}

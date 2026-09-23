@@ -130,8 +130,10 @@ describe('patientSkeletalAction', () => {
     expect(patientArmRestRadians('pacing')).toBe(0);
     expect(patientArmRestRadians('pacing', false, 4)).toBe(0);
     expect(patientArmRestRadians('standing', true)).toBe(0);
-    expect(patientArmRestRadians('seated', false, 0.5)).toBeCloseTo(0.3528);
-    expect(patientArmRestRadians('seated', false, 4)).toBeCloseTo(0.4536);
+    // Children share the adult A-pose bind; angles stay near 1.0 (see
+    // paediatricAngleScale). The old 0.49/0.63 factors left kids' arms splayed.
+    expect(patientArmRestRadians('seated', false, 0.5)).toBeCloseTo(0.72 * 0.92);
+    expect(patientArmRestRadians('seated', false, 4)).toBeCloseTo(0.72 * 0.95);
   });
 
   it('settles recumbent forearms onto the support plane without altering ambulatory poses', () => {

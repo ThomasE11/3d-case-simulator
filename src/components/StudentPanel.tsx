@@ -2659,6 +2659,23 @@ export function StudentPanel({
   const missionCompetencies = missionPreviewCase ? getCaseCompetencyTags(missionPreviewCase, skillFocus) : [];
   const missionEquipment = missionPreviewCase ? getCaseEquipmentTags(missionPreviewCase, equipmentFocus) : [];
 
+  /** Stop / remove a treatment the student started. Masks come off, lines
+   *  come out, devices detach — the body visual state follows because it is
+   *  derived from appliedTreatmentIds. */
+  const discontinueTreatment = useCallback((treatmentId: string) => {
+    if (readOnly) {
+      toast.info('You are watching — the driver is treating this case.', { duration: 1800 });
+      return;
+    }
+    setAppliedTreatments(prev => prev.filter(t => t.id !== treatmentId));
+    setAppliedTreatmentIds(prev => prev.filter(id => id !== treatmentId));
+    setReassessedTreatmentIds(prev => prev.filter(id => id !== treatmentId));
+    toast.success('Treatment discontinued', {
+      description: 'The device has been removed from the patient.',
+      duration: 2200,
+    });
+  }, [readOnly]);
+
   // Shared case initialization helper
   const initializeCase = useCallback((newCase: CaseScenario, conditionMode: boolean, condition?: string) => {
     stopNarration();
@@ -5430,24 +5447,45 @@ export function StudentPanel({
                     scene introduction. Renders nothing otherwise, so plain
                     clinic-bay cases keep their current brief untouched. */}
                 <SceneSensoryStrip caseData={currentCase} />
-                <div className={`grid gap-4 ${(prebriefSceneImage || prebriefSceneVideo) ? 'lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.9fr)]' : ''}`}>
-                  {prebriefSceneVideo ? (
-                    <video
-                      src={prebriefSceneVideo}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      aria-label={currentCase.sceneInfo?.sceneImageCaption || 'Scene overview'}
-                      className="h-full max-h-[23rem] min-h-[15rem] w-full rounded-xl border border-border/40 object-cover"
-                    />
-                  ) : prebriefSceneImage ? (
-                    <img
-                      src={prebriefSceneImage}
-                      alt={currentCase.sceneInfo?.sceneImageCaption || 'Scene overview'}
-                      className="h-full max-h-[23rem] min-h-[15rem] w-full rounded-xl border border-border/40 object-cover"
-                    />
-                  ) : null}
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.9fr)]">
+                  {/* Always fill the media cell. A missing plate used to leave a
+                      tall empty white gap in the Scene Brief — the student saw
+                      blank card. Now: real mp4 → animated still → dusk gradient. */}
+                  <div className="relative h-full max-h-[23rem] min-h-[15rem] w-full overflow-hidden rounded-xl border border-border/40 bg-slate-900">
+                    {prebriefSceneVideo ? (
+                      <video
+                        src={prebriefSceneVideo}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        aria-label={currentCase.sceneInfo?.sceneImageCaption || 'Scene overview'}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : prebriefSceneImage ? (
+                      <>
+                        <img
+                          src={prebriefSceneImage}
+                          alt={currentCase.sceneInfo?.sceneImageCaption || 'Scene overview'}
+                          className="absolute inset-0 h-full w-full object-cover"
+                          style={{
+                            animation: 'dispatch-kenburns 18s ease-in-out infinite alternate',
+                            transformOrigin: '55% 45%',
+                          }}
+                        />
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/20" />
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/70 to-transparent" />
+                        <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/90 backdrop-blur">
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
+                          Dispatch replay
+                        </span>
+                      </>
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950">
+                        <p className="text-xs uppercase tracking-[0.2em] text-white/40">Scene loading…</p>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="flex flex-col gap-4 rounded-xl bg-muted/25 p-4">
                     {currentCase.initialPresentation && (
@@ -6076,7 +6114,7 @@ export function StudentPanel({
                     const vitalsWon = hrGained && spo2Gained && rrGained;
                     return (
                       <div className="tactical-bay-vitals grid grid-cols-3 gap-2" role="group" aria-label={vitalsWon ? 'Live vital signs summary' : 'Initial impressions — power on the monitor to measure vital signs'}>
-                        <div className="tactical-hud-tile">
+                        <div className="tactical-hud-tile" data-channel="hr">
                           <HUDValue
                             label={vitalsWon ? 'HR' : (lastPulseAssessment ? 'Pulse' : 'Look')}
                             value={vitalsWon ? (currentVitals?.pulse ?? '--') : (lastPulseAssessment ? (lastPulseAssessment.palpable ? `~${Math.round(currentVitals?.pulse ?? 0)}` : 'Absent') : 'Observe')}
@@ -6084,7 +6122,7 @@ export function StudentPanel({
                             critical={vitalsWon && currentVitals != null && (currentVitals.pulse < 50 || currentVitals.pulse > 130)}
                           />
                         </div>
-                        <div className="tactical-hud-tile">
+                        <div className="tactical-hud-tile" data-channel="spo2">
                           <HUDValue
                             label={vitalsWon ? 'SpO2' : 'Breathing'}
                             value={vitalsWon ? (currentVitals?.spo2 ?? '--') : 'Listen'}
@@ -6690,6 +6728,31 @@ export function StudentPanel({
                   onTreat={openSuggestedTreatment}
                   onReassess={handlePerformAssessment}
                 />
+
+                {/* Live interventions — stop anything the patient is still
+                    wearing/connected to. Removing it drops the device visual. */}
+                {appliedTreatments.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">In use</span>
+                    {appliedTreatments.map((t) => (
+                      <span
+                        key={t.id}
+                        className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-800 dark:text-emerald-200"
+                      >
+                        {t.name || t.id}
+                        <button
+                          type="button"
+                          aria-label={`Discontinue ${t.name || t.id}`}
+                          title="Discontinue / remove"
+                          className="rounded-full p-0.5 hover:bg-emerald-500/20"
+                          onClick={() => discontinueTreatment(t.id)}
+                        >
+                          <XCircle className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 <RoadmapDebriefPanel
                   items={tacticalTimelineItems}

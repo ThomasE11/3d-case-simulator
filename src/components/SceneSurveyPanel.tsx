@@ -17,10 +17,9 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import type { CaseScenario } from '@/types';
-import { inferAnatomy, inferInjuries, type BodyInjury } from '@/lib/injuryMap';
+import {  inferInjuries, type BodyInjury } from '@/lib/injuryMap';
 import { getSceneTimeLabel, getScenePatientDescriptor } from '@/lib/sceneNarrative';
 import { SceneSensoryStrip } from '@/components/SceneSensoryStrip';
-import { sceneIntroductionFor } from '@/lib/sceneIntroductions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -301,19 +300,63 @@ export function buildArrivalSentence(c: CaseScenario): string {
  * paramedic actually stepped into — not just the dispatch shorthand.
  */
 function buildApproachNarration(c: CaseScenario): string {
-  const parts: string[] = [];
-  const intro = sceneIntroductionFor(c);
-  if (intro?.arrivalNarrative) {
-    parts.push(intro.arrivalNarrative.trim().replace(/\.$/, ''));
-  } else {
-    parts.push(buildArrivalSentence(c));
-  }
-  if (c.dispatchInfo?.location) parts.push(`You're at ${c.dispatchInfo.location.replace(/\.$/, '')}.`);
-  // bystanders strings already read as a sentence ("Partner and restaurant
-  // staff present, other diners observing") — emit as-is, don't append "present".
-  if (c.sceneInfo?.bystanders) parts.push(`${c.sceneInfo.bystanders.trim().replace(/\.$/, '')}.`);
-  parts.push('Size up the scene before you approach.');
-  return parts.join(' ');
+  // Scene size-up voice: where we are, who we find, the impression. Short.
+  const size = buildSceneSizeUp(c);
+  return [size.headline, ...size.bullets, 'Size up the scene before you approach.'].join(' ');
+}
+
+/**
+ * EMS scene size-up — two seconds of glance value. Not a first-person story.
+ *   headline: place + light + how many patients
+ *   bullets:  who / how they look / who else is here / threats
+ */
+function clean(value?: string | number | null): string {
+  return String(value ?? '').trim();
+}
+
+export function buildSceneSizeUp(c: CaseScenario): { headline: string; bullets: string[] } {
+  const place = cleanLocation(c.dispatchInfo?.location) || cleanLocation(c.sceneInfo?.description) || 'Scene';
+  const time = getSceneTimeLabel(c);
+  const patients = countPatients(c);
+  const who = getScenePatientDescriptor(c);
+  const impression = clean(c.initialPresentation?.generalImpression) || clean(c.initialPresentation?.appearance) || '';
+  const position = clean(c.initialPresentation?.position);
+  const consciousness = clean(c.initialPresentation?.consciousness);
+  const bystanders = clean(c.sceneInfo?.bystanders);
+  const threats = (c.sceneInfo?.hazards ?? []).filter(h => h && !/^none/i.test(h)).slice(0, 3);
+
+  const headline = patients > 1
+    ? `${place} · ${time} · ${patients} patients`
+    : `${place} · ${time}`;
+
+  const bullets: string[] = [];
+  bullets.push(
+    patients > 1
+      ? `${patients} patients — ${who}`
+      : `${who}${position ? ` — ${position.toLowerCase()}` : ''}${consciousness ? `, ${consciousness.toLowerCase()}` : ''}`,
+  );
+  if (impression) bullets.push(impression.replace(/\.$/, ''));
+  if (bystanders) bullets.push(bystanders.replace(/\.$/, ''));
+  if (threats.length) bullets.push(`Threats: ${threats.join(' · ')}`);
+  return { headline, bullets: bullets.filter(Boolean).slice(0, 4) };
+}
+
+function cleanLocation(raw?: string): string {
+  const s = (raw ?? '').trim().replace(/\.$/, '');
+  if (!s) return '';
+  // Drop the "I step through…" novel; keep the place noun phrase if present.
+  const place = s.match(/(?:into|onto|onto the|at) (?:the )?([^,.;]+?)(?:,|\.| where| and| I | finding)/i);
+  const fallback = s.split(/,|\.| where/)[0];
+  const value = (place?.[1] || fallback).trim();
+  return value.length > 48 ? value.slice(0, 45) + '…' : value;
+}
+
+function countPatients(c: CaseScenario): number {
+  const text = `${c.title} ${c.dispatchInfo?.callReason ?? ''} ${c.sceneInfo?.description ?? ''}`.toLowerCase();
+  if (/multiple|mass casualty|\bmci\b|several (?:patients|casualt)|patients? requiring/.test(text)) return 3;
+  const m = text.match(/(\d+)\s*(?:patients|casualt|victims|people)/);
+  if (m) return Math.min(9, Number(m[1]));
+  return 1;
 }
 
 export function sceneSurveySetting(caseData: CaseScenario): SceneTone['setting'] | null {
@@ -1266,9 +1309,10 @@ export function sceneSurveyGateHint({
       : 'Complete the visual sweep before declaring the scene safe.';
   }
   if (sceneSafe === null) return 'Declare scene safety to continue.';
-  if (hazardIds.length > 0 && sceneSafe === true) {
-    return 'Visible hazards remain — declare the scene unsafe and request support.';
-  }
+  // After a full sweep + PPE the learner may make the scene safe to work
+  // (hazards mitigated) or keep it unsafe and call for more resources. Both
+  // are valid EMS decisions — do not trap them on "safe" just because
+  // markers exist on the photograph.
   if (sceneSafe === false && resourcesRequested.length === 0) {
     return 'Request at least one additional resource.';
   }
@@ -1380,86 +1424,35 @@ function inferPatientVisualCue(caseData: CaseScenario): string {
 // anatomical findings are present in the case data.
 function ProceduralPatient({
   caseData,
-  tone,
   sceneImage = null,
 }: {
   caseData: CaseScenario;
-  tone: SceneTone;
+  tone?: SceneTone;
   sceneImage?: string | null;
 }) {
-  const anatomy = inferAnatomy(caseData);
   const ageBand = patientAgeBand(caseData.patientInfo?.age);
   const ageScale = patientAgeScale(caseData.patientInfo?.age);
-  const headSize = ageBand === 'infant'
-    ? 'h-14 w-14 -top-11'
-    : ageBand === 'toddler'
-      ? 'h-12 w-12 -top-9'
-      : ageBand === 'child'
-        ? 'h-11 w-11 -top-8'
-        : ageBand === 'adolescent'
-          ? 'h-10 w-10 -top-8'
-          : 'h-9 w-9 -top-7';
   const presentationText = [
     caseData.initialPresentation?.position,
     caseData.initialPresentation?.generalImpression,
   ].filter(Boolean).join(' ');
   const recumbent = /supine|lying|on (?:the )?(?:ground|floor|deck|towel|bed|cot)|unresponsive/i.test(presentationText);
+  // Photoreal body plate (Higgsfield / GPT Image 2.5). Falls back by age band
+  // so a child case never shows an adult. White studio ground is treated as
+  // a cutout card — a real human, not CSS blobs.
+  const bodySrc = ageBand === 'infant' || ageBand === 'toddler' || ageBand === 'child' || ageBand === 'adolescent'
+    ? '/scene-assets/patient-child-supine.png'
+    : '/scene-assets/patient-adult-supine.png';
   const placement = sceneImage?.includes('y1-010-park-bicycle')
-    ? { left: '62%', bottom: '11%' }
-    : sceneImage?.includes('paediatric-pool-rescue')
-      ? { left: '63%', bottom: '28%' }
-      : sceneImage?.includes('infant-nursery')
-        ? { left: '66%', bottom: '42%' }
-        : { left: '50%', bottom: '3rem' };
-
-  // Skin tone reflects pallor / cyanosis when reported
-  const torsoSkin = anatomy.cyanotic
-    ? 'from-[#9bb4c4] to-[#647a8c]'
-    : anatomy.pale
-      ? 'from-[#e5d2c4] to-[#b39687]'
-      : 'from-[#d2a284] to-[#8f5d4c]';
-
-  // Drive a subtle chest-rise animation at the case's actual respiratory
-  // rate. RR=12 → 5s cycle, RR=32 → 1.875s, RR=8 → 7.5s (agonal). When
-  // RR is missing or zero we still want the patient to "be there" so we
-  // fall back to a calm 5s cycle. Apnea (rate === 0) stops the animation
-  // entirely — visually conveys "this patient isn't breathing".
-  const rr = caseData.abcde?.breathing?.rate
-    ?? caseData.vitalSignsProgression?.initial?.respiration
-    ?? 12;
-  const apneic = typeof rr === 'number' && rr === 0;
+    ? { left: '58%', bottom: '8%' }
+    : sceneImage?.includes('plate-pool-deck') || sceneImage?.includes('paediatric-pool')
+      ? { left: '62%', bottom: '18%' }
+    : sceneImage?.includes('infant-nursery')
+      ? { left: '66%', bottom: '38%' }
+      : { left: '52%', bottom: '2rem' };
+  const apneic = (caseData.abcde?.breathing?.rate ?? caseData.vitalSignsProgression?.initial?.respiration ?? 12) === 0;
+  const rr = caseData.abcde?.breathing?.rate ?? caseData.vitalSignsProgression?.initial?.respiration ?? 12;
   const cycleSec = apneic ? 0 : Math.max(1.2, 60 / Math.max(6, rr));
-  // Shallow breathing (rapid + distressed) gets a smaller amplitude so it
-  // reads as "fast shallow" not "fast deep". Standard breathing is fuller.
-  const breathAmplitude = rr >= 28 ? 1.025 : rr <= 10 ? 1.05 : 1.04;
-  const breathStyle: React.CSSProperties = apneic
-    ? { animation: 'none' }
-    : {
-        animation: `paramedic-breathe ${cycleSec.toFixed(2)}s ease-in-out infinite`,
-        transformOrigin: 'bottom center',
-        // Set CSS var so the keyframes can interpolate to the right scale
-        ['--breathe-peak' as string]: String(breathAmplitude),
-      };
-
-  // Leg styling reacts to detected deformities. External rotation pushes the
-  // foot outward; shortening pulls the limb up; deformity adds a bend +
-  // angled accent stroke. These are stylised, not anatomically literal —
-  // intent is "you can SEE something is wrong with that leg" at a glance.
-  const legStyle = (side: 'left' | 'right') => {
-    const l = side === 'left' ? anatomy.leftLeg : anatomy.rightLeg;
-    const baseX = side === 'left' ? '-translate-x-[18px]' : 'translate-x-[18px]';
-    const rotate = l.externallyRotated
-      ? (side === 'left' ? 'rotate-[-32deg]' : 'rotate-[32deg]')
-      : l.deformed
-        ? (side === 'left' ? 'rotate-[-14deg]' : 'rotate-[14deg]')
-        : 'rotate-0';
-    const height = l.shortened ? 'h-16' : 'h-24';
-    const origin = 'origin-top';
-    return { baseX, rotate, height, origin, injured: l.deformed || l.shortened || l.externallyRotated, bleeding: l.bleeding, externallyRotated: l.externallyRotated, shortened: l.shortened };
-  };
-
-  const leftL = legStyle('left');
-  const rightL = legStyle('right');
 
   return (
     <div
@@ -1468,43 +1461,34 @@ function ProceduralPatient({
       style={{
         left: placement.left,
         bottom: placement.bottom,
-        transform: `translateX(-50%) rotate(${recumbent ? 88 : 0}deg) scale(${ageScale})`,
+        width: ageBand === 'child' || ageBand === 'toddler' ? 150 : ageBand === 'infant' ? 110 : 210,
+        transform: `translateX(-50%) rotate(${recumbent ? 82 : 0}deg) scale(${Math.min(1.15, Math.max(0.55, ageScale))})`,
         transformOrigin: 'bottom center',
+        filter: 'drop-shadow(0 14px 18px rgba(0,0,0,0.45))',
       }}
     >
-      <div className={`relative ${tone.patientPose}`}>
-      {/* Torso — breathes at the case's respiratory rate. Apneic patients
-          stay perfectly still, which reads as "something is very wrong"
-          even before the student reads the vitals. */}
-      <div
-        className={`relative h-28 w-16 rounded-t-full bg-gradient-to-b ${torsoSkin} shadow-2xl`}
-        style={breathStyle}
-      >
-        {/* Head */}
-        <div className={`absolute left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-b ${torsoSkin} ${headSize} ${anatomy.facialInjury ? 'ring-2 ring-rose-500/70 ring-offset-1 ring-offset-transparent' : ''}`} />
-        {/* Arms */}
-        <div className={`absolute -left-7 top-7 h-3 w-12 rounded-full ${tone.accent} opacity-70 rotate-[-22deg] ${anatomy.leftArm.deformed ? 'ring-2 ring-rose-500/70' : ''}`} />
-        <div className={`absolute -right-7 top-7 h-3 w-12 rounded-full ${tone.accent} opacity-70 rotate-[22deg] ${anatomy.rightArm.deformed ? 'ring-2 ring-rose-500/70' : ''}`} />
-      </div>
-      {/* Apnea annotation — only shown when the patient isn't breathing.
-          Placed near the head to draw the eye toward the missing motion. */}
+      <img
+        src={bodySrc}
+        alt="Patient on scene"
+        draggable={false}
+        className="w-full select-none"
+        style={{
+          borderRadius: 12,
+          mixBlendMode: 'normal',
+          opacity: 0.96,
+          animation: apneic
+            ? 'none'
+            : `paramedic-breathe ${cycleSec.toFixed(2)}s ease-in-out infinite`,
+          transformOrigin: 'center bottom',
+        }}
+      />
       {apneic && (
-        <div className="absolute -top-14 left-1/2 -translate-x-1/2 rounded-full bg-rose-600/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-white shadow-lg ring-1 ring-rose-200/40">
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-full bg-rose-600/95 px-2.5 py-0.5 text-xs font-bold uppercase tracking-[0.18em] text-white shadow-lg">
           Apneic
         </div>
       )}
-      {/* Legs container — anchored to torso base, each leg rotates independently */}
-      <div className="absolute left-1/2 top-[112px] flex -translate-x-1/2 gap-1">
-        <div className={`${leftL.height} w-3 origin-top rounded-full bg-gradient-to-b ${torsoSkin} ${leftL.rotate} ${leftL.injured ? 'ring-2 ring-rose-500/60' : ''}`} />
-        <div className={`${rightL.height} w-3 origin-top rounded-full bg-gradient-to-b ${torsoSkin} ${rightL.rotate} ${rightL.injured ? 'ring-2 ring-rose-500/60' : ''}`} />
-      </div>
-      {/* Injury annotation pip — placed near the injured side to draw the eye */}
-      {(leftL.injured || rightL.injured) && (
-        <div className={`absolute top-[120px] ${leftL.injured ? '-left-10' : '-right-10'} flex items-center gap-1 rounded-full bg-rose-500/85 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-white shadow-lg`}>
-          <AlertTriangle className="h-3 w-3" />
-          {leftL.externallyRotated || rightL.externallyRotated ? 'Ext. rotation' : leftL.shortened || rightL.shortened ? 'Shortened' : 'Deformity'}
-        </div>
-      )}
+      <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/20 bg-black/55 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/90 backdrop-blur">
+        Patient · {ageBand}
       </div>
     </div>
   );
@@ -1650,9 +1634,9 @@ function DispatchApproachBeat({ caseData }: { caseData: CaseScenario }) {
           <span className="flex h-5 w-5 items-center justify-center rounded-full border border-cyan-200/35 bg-cyan-300/10 text-cyan-100">
             {beat === 'dispatch' ? <Radio className="h-3 w-3" /> : beat === 'approach' ? <Footprints className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
           </span>
-          <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-cyan-100/90">{message.label}</span>
+          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100/90">{message.label}</span>
         </div>
-        <p className="mt-1 text-[10px] leading-snug text-white/75">{message.value}</p>
+        <p className="mt-1 text-[13px] leading-snug text-white/75">{message.value}</p>
       </div>
       {beat === 'approach' && (
         <div aria-hidden="true" className="paramedic-arrival-crew absolute bottom-1 left-0 flex items-end gap-1.5 text-white/90">
@@ -1698,7 +1682,6 @@ function SceneArrivalVisual({
     : focus === 'approach'
       ? sceneCallouts.filter(c => c.id === 'patient')
       : [];
-  const intro = sceneIntroductionFor(caseData);
   const visualModeLabel = focus === 'hazards'
     ? 'Hazard scan'
     : focus === 'impression'
@@ -1710,24 +1693,25 @@ function SceneArrivalVisual({
       <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(255,255,255,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.12)_1px,transparent_1px)] [background-size:28px_28px]" />
       <div className={`relative z-10 grid gap-4 ${sceneImage ? 'lg:grid-cols-[minmax(260px,0.82fr)_minmax(520px,1.55fr)]' : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]'}`}>
         <div className="min-w-0 space-y-3 self-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[13px] font-semibold uppercase tracking-[0.18em]">
             <Radio className="h-3 w-3" />
             On Arrival
           </div>
-          {/* The minimal arrival statement — what the student sees + hears.
-              No scene-metadata dump, no hazard list (hazards are scanned, not
-              told), no image-fidelity checklist. When a case has a generated
-              scene introduction the first-person arrival narrative replaces the
-              dispatch shorthand; otherwise the derived sentence is used. */}
-          <h3 className="text-lg font-semibold leading-snug">{buildArrivalSentence(caseData)}</h3>
-          {intro?.arrivalNarrative && (
-            <p className="text-sm leading-relaxed text-white/80">{intro.arrivalNarrative}</p>
-          )}
+          {/* Scene size-up — what you find, not a first-person novel. */}
+          <h3 className="text-xl font-semibold leading-snug">{buildSceneSizeUp(caseData).headline}</h3>
+          <ul className="space-y-1.5 text-sm leading-relaxed text-white/90">
+            {buildSceneSizeUp(caseData).bullets.map((line) => (
+              <li key={line} className="flex items-start gap-2">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300/90" />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
           {/* Additive first-person arrival layer (sensory cues, access/extrication,
               bystander micro-behaviour). Renders only when a case has generated
               scene-introduction enrichment; otherwise leaves the minimal view intact. */}
           <SceneSensoryStrip caseData={caseData} />
-          <div className="grid gap-2 text-[11px]">
+          <div className="grid gap-2 text-sm">
             <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/8 px-3 py-2">
               <MapPin className="h-3.5 w-3.5 shrink-0 text-white/60" />
               <span className="truncate">{caseData.dispatchInfo?.location || 'Location pending'}</span>
@@ -1772,12 +1756,12 @@ function SceneArrivalVisual({
             <ProceduralPatient caseData={caseData} tone={tone} sceneImage={sceneImage} />
           )}
           {sceneImage && (
-            <div className="absolute left-4 top-4 z-10 rounded-full border border-white/15 bg-black/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/85 shadow-xl backdrop-blur-md">
+            <div className="absolute left-4 top-4 z-10 rounded-full border border-white/15 bg-black/50 px-3 py-1 text-[13px] font-semibold uppercase tracking-[0.16em] text-white/85 shadow-xl backdrop-blur-md">
               {visualModeLabel}
             </div>
           )}
           {focus !== 'approach' && !sceneImage && (
-            <div className={`absolute right-4 top-4 z-10 max-w-[210px] rounded-xl border px-3 py-2 text-[10px] leading-tight shadow-xl backdrop-blur-md ${temporal.chipClass}`}>
+            <div className={`absolute right-4 top-4 z-10 max-w-[210px] rounded-xl border px-3 py-2 text-[13px] leading-tight shadow-xl backdrop-blur-md ${temporal.chipClass}`}>
               <span className="block font-semibold uppercase tracking-[0.16em]">Lighting</span>
               <span className="mt-1 block text-white/75">{temporal.note}</span>
             </div>
@@ -1788,7 +1772,7 @@ function SceneArrivalVisual({
               className={`absolute z-10 max-w-[155px] ${align === 'right' ? '-translate-x-full' : ''}`}
               style={{ left: `${x}%`, top: `${y}%` }}
             >
-              <div className="flex items-start gap-2 rounded-xl border border-white/15 bg-black/55 px-2.5 py-1.5 text-[9px] leading-tight text-white/90 shadow-xl backdrop-blur-md">
+              <div className="flex items-start gap-2 rounded-xl border border-white/15 bg-black/55 px-2.5 py-1.5 text-xs leading-tight text-white/90 shadow-xl backdrop-blur-md">
                 <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/12 text-cyan-100">
                   <Icon className="h-3 w-3" />
                 </span>
@@ -1809,7 +1793,7 @@ function SceneArrivalVisual({
                 className="absolute z-20 max-w-[170px] -translate-x-1/2 -translate-y-1/2"
                 style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
               >
-                <div className={`rounded-xl border px-2.5 py-1.5 text-[10px] leading-tight shadow-xl backdrop-blur-md ${
+                <div className={`rounded-xl border px-2.5 py-1.5 text-[13px] leading-tight shadow-xl backdrop-blur-md ${
                   isBleeding
                     ? 'border-rose-200/70 bg-rose-600/90 text-white'
                     : 'border-orange-200/70 bg-orange-500/85 text-slate-950'
@@ -1831,7 +1815,7 @@ function SceneArrivalVisual({
           {focus === 'impression' && inspectionCues.slice(0, 3).map((cue, index) => (
             <div
               key={cue.label}
-              className="absolute left-1/2 rounded-full border border-cyan-300/50 bg-cyan-300/15 px-2.5 py-1 text-[10px] font-medium text-cyan-50 shadow-lg shadow-cyan-950/30"
+              className="absolute left-1/2 rounded-full border border-cyan-300/50 bg-cyan-300/15 px-2.5 py-1 text-[13px] font-medium text-cyan-50 shadow-lg shadow-cyan-950/30"
               style={{
                 top: `${18 + index * 13}%`,
                 transform: `translateX(${index === 1 ? '-25%' : '-55%'})`,
@@ -1864,7 +1848,7 @@ function SceneArrivalVisual({
                 disabled={!isClickable}
                 aria-pressed={isClickable ? selected : undefined}
                 aria-label={`${selected ? 'Acknowledged' : 'Identify hazard'}: ${label}`}
-                className={`absolute z-20 max-w-[150px] -translate-x-1/2 -translate-y-1/2 rounded-xl border px-2.5 py-1.5 text-left text-[10px] leading-tight shadow-xl transition-all ${
+                className={`absolute z-20 max-w-[150px] -translate-x-1/2 -translate-y-1/2 rounded-xl border px-2.5 py-1.5 text-left text-[13px] leading-tight shadow-xl transition-all ${
                   selected
                     ? 'border-amber-200 bg-amber-300 text-slate-950'
                     : 'border-amber-300/60 bg-black/55 text-amber-50'
@@ -1880,23 +1864,23 @@ function SceneArrivalVisual({
             );
           })}
           {focus === 'hazards' && sceneImage && hazardHotspots.length > 0 && (
-            <div className="absolute bottom-4 left-4 z-10 rounded-xl border border-amber-200/25 bg-black/55 px-3 py-2 text-[10px] leading-tight text-amber-50 shadow-xl backdrop-blur-md">
+            <div className="absolute bottom-4 left-4 z-10 rounded-xl border border-amber-200/25 bg-black/55 px-3 py-2 text-[13px] leading-tight text-amber-50 shadow-xl backdrop-blur-md">
               <span className="block font-semibold uppercase tracking-[0.14em] text-amber-100">Scan the image</span>
               <span className="text-white/70">Select visible hazards before declaring the scene safe.</span>
             </div>
           )}
           {showHazardHotspots && !hazardHotspots.length && (
-            <div className={`absolute z-10 rounded-full border border-emerald-300/40 bg-black/55 px-3 py-1.5 text-[10px] text-emerald-50 shadow-xl backdrop-blur-md ${sceneImage ? 'right-4 top-4' : 'left-5 top-5'}`}>
+            <div className={`absolute z-10 rounded-full border border-emerald-300/40 bg-black/55 px-3 py-1.5 text-[13px] text-emerald-50 shadow-xl backdrop-blur-md ${sceneImage ? 'right-4 top-4' : 'left-5 top-5'}`}>
               No obvious hazards visible
             </div>
           )}
           {!sceneImage && (
             <>
-              <div className="absolute bottom-5 left-5 flex items-center gap-2 rounded-full border border-white/10 bg-black/45 px-3 py-1.5 text-[10px] text-white/85 backdrop-blur-sm">
+              <div className="absolute bottom-5 left-5 flex items-center gap-2 rounded-full border border-white/10 bg-black/45 px-3 py-1.5 text-[13px] text-white/85 backdrop-blur-sm">
                 <span className={`h-2 w-2 rounded-full ${tone.accent} shadow-[0_0_12px_currentColor]`} />
                 {caseData.initialPresentation?.position || 'Patient position unknown'}
               </div>
-              <div className="absolute right-4 top-4 max-w-[210px] rounded-xl border border-white/10 bg-black/45 p-3 text-[10px] leading-relaxed text-white/85 shadow-xl backdrop-blur-sm">
+              <div className="absolute right-4 top-4 max-w-[210px] rounded-xl border border-white/10 bg-black/45 p-3 text-[13px] leading-relaxed text-white/85 shadow-xl backdrop-blur-sm">
                 {caseData.initialPresentation?.appearance || caseData.sceneInfo?.description || 'Observe from a distance before entering.'}
               </div>
             </>
@@ -1906,7 +1890,7 @@ function SceneArrivalVisual({
       {sceneImage && focus === 'impression' && (
         <div className="relative z-10 mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {sceneCallouts.map(({ id, label, value, icon: Icon }) => (
-            <div key={`${id}-summary`} className="flex min-w-0 items-start gap-2 rounded-xl border border-white/10 bg-white/8 px-3 py-2 text-[10px] leading-tight">
+            <div key={`${id}-summary`} className="flex min-w-0 items-start gap-2 rounded-xl border border-white/10 bg-white/8 px-3 py-2 text-[13px] leading-tight">
               <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-100/80" />
               <span className="min-w-0">
                 <span className="block font-semibold uppercase tracking-[0.14em] text-white/80">{label}</span>
@@ -1993,10 +1977,12 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
         // learner to sweep and acknowledge every authored visual hotspot.
         const hazardsReviewed = hasReviewedEveryHazard(hazardHotspots.map(hazard => hazard.id), hazardsIdentified);
         if (!hazardsReviewed) return false;
-        // Authored hazards cannot be reconciled with a "safe" declaration.
-        // The learner must declare the scene unsafe and request support.
-        if (sceneSafe === true) return hazardHotspots.length === 0;
-        if (sceneSafe === false) return hazardHotspots.length > 0 && resourcesRequested.length > 0;
+        // Full sweep + PPE done. Safe = enter after mitigation. Unsafe = must
+        // request at least one extra resource before entry. Previously "safe"
+        // was blocked whenever any marker existed — which made the gate
+        // unsatisfiable on every hazard scene after the markers were cleared.
+        if (sceneSafe === true) return true;
+        if (sceneSafe === false) return resourcesRequested.length > 0;
         return false;
       }
     }
@@ -2163,7 +2149,7 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
                 <div className="flex items-center gap-2 text-xs font-semibold text-sky-900 dark:text-sky-100">
                   <Radio className="h-3.5 w-3.5" /> Dispatch access notes
                 </div>
-                <p className="mt-1 text-[11px] text-muted-foreground">Known before arrival; these are not visual hazard hotspots.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Known before arrival; these are not visual hazard hotspots.</p>
                 <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
                   {accessNotes.map((note) => (
                     <li key={note} className="flex items-start gap-1.5 text-xs text-foreground/80">
@@ -2179,7 +2165,7 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
                 <div className="flex items-center gap-2 text-xs font-semibold text-cyan-900 dark:text-cyan-100">
                   <Footprints className="h-3.5 w-3.5" /> What you will walk into
                 </div>
-                <p className="mt-1 text-[11px] text-muted-foreground">From the scene arrival layer — real obstacles implied by the scene itself.</p>
+                <p className="mt-1 text-sm text-muted-foreground">From the scene arrival layer — real obstacles implied by the scene itself.</p>
                 <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
                   {introAccessNotes.map((note) => (
                     <li key={note} className="flex items-start gap-1.5 text-xs text-foreground/80">
@@ -2195,7 +2181,7 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
                 <div className="flex items-center gap-2 text-xs font-semibold text-rose-950 dark:text-rose-100">
                   <AlertTriangle className="h-3.5 w-3.5" /> Extrication required
                 </div>
-                <p className="mt-1 text-[11px] text-muted-foreground">The patient cannot be left in place. Plan a carry, step, or lift before you make contact — treatment starts after movement.</p>
+                <p className="mt-1 text-sm text-muted-foreground">The patient cannot be left in place. Plan a carry, step, or lift before you make contact — treatment starts after movement.</p>
               </div>
             )}
             {hazardHotspots.length > 0 && (
@@ -2203,7 +2189,7 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
                 <p className="text-xs font-semibold text-amber-950 dark:text-amber-100">
                   Confirm hazards on the photograph
                 </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Select the amber markers above; confirmed findings appear here.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5" aria-live="polite">
@@ -2319,7 +2305,7 @@ export function SceneSurveyPanel({ caseData, onEnterScene, onBack }: SceneSurvey
                         {selected && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
                         {label}
                       </span>
-                      {required && <Badge variant="outline" className="text-[10px] py-0 px-1.5">Required</Badge>}
+                      {required && <Badge variant="outline" className="text-[13px] py-0 px-1.5">Required</Badge>}
                     </button>
                   );
                 })}

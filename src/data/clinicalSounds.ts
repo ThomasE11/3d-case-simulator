@@ -295,7 +295,8 @@ declare const require: (id: './treatmentProtocols') => typeof import('./treatmen
  */
 export function reconcileLungsWithFindings(state: ClinicalSoundState, findingsStr: string): ClinicalSoundState {
   const f = findingsStr.toLowerCase();
-  const positive = (term: string) => new RegExp(`(?<!no )(?<!without )(?<!nil )(?<!denies )${term}`).test(f);
+  const positive = (term: string) => !new RegExp(`\\b(?:no|without|nil|denies|negative for)\\s+(?:[\\w/]+\\s+){0,2}${term}`, 'i').test(f)
+    && new RegExp(term, 'i').test(f);
 
   const wantsSilent = positive('silent chest') || positive('absent breath');
   const wantsStridor = positive('stridor');
@@ -371,6 +372,16 @@ function computeBaseSounds(
   const cat = caseCategory.toLowerCase();
   const sub = (subcategory || '').toLowerCase();
   const findingsStr = (findings || []).join(' ').toLowerCase();
+  // Negation-aware finder. "No signs of anaphylaxis" and "No wheeze" must NOT
+  // light the anaphylaxis / asthma sound branches — that is how a panic
+  // attack ended up playing a wheeze and teaching the wrong treatment.
+  const says = (term: string) => {
+    const negated = new RegExp(
+      `\\b(?:no|without|nil|denies|negative for|absent|rule out|r/o)\\s+(?:[\\w/]+\\s+){0,3}${term}`,
+      'i',
+    ).test(findingsStr);
+    return !negated && new RegExp(term, 'i').test(findingsStr);
+  };
 
   // ----- TRY SEVERITY-AWARE PROTOCOL SOUNDS FIRST -----
   // Lazily import to avoid circular deps
@@ -418,10 +429,10 @@ function computeBaseSounds(
     sub.includes('tracheitis') ||
     sub.includes('upper-airway') ||
     sub.includes('laryng') ||
-    findingsStr.includes('stridor') ||
+    says('stridor') ||
     findingsStr.includes('barking cough') ||
     findingsStr.includes('laryngospasm') ||
-    findingsStr.includes('angioedema');
+    says('angioedema');
   if (hasStridorFeatures) {
     const spo2 = initialVitals?.spo2 ?? 95;
     // Critical — silent chest with exhaustion (pre-arrest)
@@ -450,12 +461,12 @@ function computeBaseSounds(
   // Anaphylaxis — combination of stridor (upper airway) and wheeze (lower airway)
   if (
     sub.includes('anaphyla') ||
-    findingsStr.includes('anaphyla') ||
+    says('anaphyla') ||
     (cat === 'metabolic' && sub.includes('allerg'))
   ) {
     const spo2 = initialVitals?.spo2 ?? 94;
     // Severe anaphylaxis — stridor from laryngeal angioedema + tachycardia
-    if (spo2 < 90 || findingsStr.includes('angioedema') || findingsStr.includes('throat swelling')) {
+    if (spo2 < 90 || says('angioedema') || says('throat swelling')) {
       return {
         leftLung: 'stridor',
         rightLung: 'wheeze',
@@ -523,7 +534,7 @@ function computeBaseSounds(
 
   // Respiratory cases
   if (cat === 'respiratory') {
-    if (sub.includes('asthma') || findingsStr.includes('wheez') || findingsStr.includes('bronchospasm')) {
+    if (sub.includes('asthma') || says('wheez') || says('bronchospasm')) {
       // Severity-based asthma sounds (fallback when protocol not matched)
       const spo2 = initialVitals?.spo2 ?? 94;
       const rr = initialVitals?.respiration ?? 24;
@@ -627,7 +638,18 @@ function computeBaseSounds(
         description: 'Lungs surprisingly clear despite hypoxia. Tachycardic. Consider PE if hypoxic with clear lungs.'
       };
     }
-    // Default respiratory
+    // Default respiratory. A hyperventilation / PE / clear-lung presentation
+    // must NOT inherit the asthma wheeze — that is how students were taught
+    // to reach for salbutamol on a panic attack.
+    if (says('clear lung') || says('no wheeze') || says('clear bilaterally') || says('good air entry') || says('lungs clear') || says('clear lungs')) {
+      return {
+        leftLung: 'clear',
+        rightLung: 'clear',
+        heartSound: 'tachycardic',
+        additionalSounds: ['Fast, deep breathing', 'Clear chest'],
+        description: 'Clear lungs bilaterally with good air entry. Tachycardic from distress, not bronchospasm.',
+      };
+    }
     return {
       leftLung: 'wheeze',
       rightLung: 'wheeze',
@@ -751,15 +773,29 @@ function computeBaseSounds(
   // wheeze / stridor / diminished, we should play those — otherwise a
   // metabolic case with "bibasilar crackles" as a fluid-overload finding
   // ended up silently returning 'clear'.
+  // Negation-aware: "No wheeze" must NOT play a wheeze. The old
+  // `includes('wheeze')` routed panic-attack (clear lungs) students onto an
+  // asthma track — a case that says "No wheeze / Clear lung sounds" sounded
+  // like bronchospasm.
+  // NOTE: the strip MUST be a RegExp built from a string. A regex literal
+  // cannot interpolate ${term}, so "No wheeze" never got stripped and the
+  // lookbehind still saw a positive "wheez".
+  const hasPositive = (term: string) => {
+    const stripped = findingsStr.replace(
+      new RegExp(`\\b(?:no|without|nil|denies|negative for|absent)\\s+(?:[\\w/]+\\s+){0,2}${term}[^,.;]*`, 'gi'),
+      '',
+    );
+    return new RegExp(`(?<![\\w-])${term}`, 'i').test(stripped);
+  };
   const mapLungFromFindings = (): BreathSoundType | null => {
-    if (findingsStr.includes('crackle') || findingsStr.includes('rales') || findingsStr.includes('pulmonary oedema') || findingsStr.includes('pulmonary edema')) {
-      return findingsStr.includes('coarse') ? 'crackles-coarse' : 'crackles-fine';
+    if (hasPositive('crackle') || hasPositive('rales') || hasPositive('pulmonary oedema') || hasPositive('pulmonary edema')) {
+      return /coarse/i.test(findingsStr) ? 'crackles-coarse' : 'crackles-fine';
     }
-    if (findingsStr.includes('wheeze')) return 'wheeze';
-    if (findingsStr.includes('rhonchi')) return 'rhonchi';
-    if (findingsStr.includes('stridor')) return 'stridor';
-    if (findingsStr.includes('absent breath') || findingsStr.includes('silent chest')) return 'absent';
-    if (findingsStr.includes('diminished') || findingsStr.includes('reduced air entry')) return 'diminished';
+    if (hasPositive('wheez')) return 'wheeze';
+    if (hasPositive('rhonchi')) return 'rhonchi';
+    if (hasPositive('stridor')) return 'stridor';
+    if (hasPositive('absent breath') || hasPositive('silent chest')) return 'absent';
+    if (hasPositive('diminished') || hasPositive('reduced air entry')) return 'diminished';
     return null;
   };
   const findingsLung = mapLungFromFindings();

@@ -69,6 +69,12 @@ const TREATMENT_POSITIONING: Record<string, Omit<PatientPositioningOverride, 'tr
   supine_position: { mobility: 'recumbent', posture: 'supine' },
   recovery_position: { mobility: 'recumbent', posture: 'recovery' },
   fowlers_position: { mobility: 'seated', posture: 'tripod' },
+  // "Sit down for us" / calm seating — must STOP a pacing patient.
+  sit_down: { mobility: 'seated', posture: 'seated' },
+  sit: { mobility: 'seated', posture: 'seated' },
+  sitting: { mobility: 'seated', posture: 'seated' },
+  seated_position: { mobility: 'seated', posture: 'seated' },
+  calm_environment: { mobility: 'seated', posture: 'seated' },
   left_lateral_tilt: { mobility: 'recumbent', posture: 'recovery' },
   leg_elevation: { mobility: 'recumbent', posture: 'supine' },
   assisted_ambulation: { mobility: 'pacing', posture: null },
@@ -156,7 +162,7 @@ export function derivePatientMobility(
   if (unconscious) return 'recumbent';
   const position = (caseData.initialPresentation?.position ?? '').toLowerCase();
 
-  if (/\bpacing\b|\bwalking\b|\bwandering\b|\bambulatory\b/.test(position)) {
+  if (/\bpacing\b|\bwalking\b|\bwandering\b|\bambulatory\b|\bwalking around\b|\brestless\b|\bcannot sit still\b/.test(position)) {
     return 'pacing';
   }
   if (/\bstanding\b|\bstood\b|\bon (?:their|his|her) feet\b/.test(position)) {
@@ -318,14 +324,10 @@ export function patientUprightArmAdductionRadians(
   // Pacing and standing start from different orientations — pacing from the
   // walk clip's current arm rotation, standing from the raw bind pose — so the
   // same Z rotation does not land in the same place. Measured separately.
-  const paediatricScale = typeof ageYears === 'number' && ageYears < 2
-    ? 0.49
-    : typeof ageYears === 'number' && ageYears < 6
-      ? 0.63
-      : typeof ageYears === 'number' && ageYears < 12
-        ? 0.78
-        : 1;
-  return (mobility === 'pacing' ? 0.8 : 0.35) * paediatricScale;
+  const paediatricScale = paediatricAngleScale(ageYears);
+  // Pacing used 0.8 rad which locked the arms like a robot mid-swing.
+  // 0.42 closes the A-pose without fighting the walk clip's opposing swing.
+  return (mobility === 'pacing' ? 0.42 : 0.35) * paediatricScale;
 }
 
 /** Scene support furniture must match the patient's rendered mobility. */
@@ -452,7 +454,10 @@ export function patientPlantOffsetForSupport(
   mobility: PatientMobility,
 ): { z: number } | undefined {
   if (mobility !== 'seated') return undefined;
-  if (support === 'seat' || support === 'sofa') return { z: 0.86 };
+  // Sit farther forward than the old 0.86: seat styles plus thigh volume
+  // drove knees/shins through the sofa cushion and arms. 0.98 clears a
+  // 0.78 m-deep seat with hanging lower legs without floating the pelvis.
+  if (support === 'seat' || support === 'sofa') return { z: 0.98 };
   return undefined;
 }
 
@@ -509,19 +514,30 @@ export function deriveHandGuardRegion(caseData: CaseScenario): HandGuardRegion {
   return null;
 }
 
+/**
+ * Paediatric ANGLE scale for rest corrections.
+ *
+ * The donor bind pose is the same A-pose at every age — a 2-year-old's shoulder
+ * is abducted the same number of degrees as an adult's. The old 0.49 infant
+ * factor therefore left children with half an arm-drop and they read as arms
+ * splayed / elbows bent backwards. Keep a whisper of reduction for the very
+ * small (short levers travel further through the silhouette) but never below 0.9.
+ */
+function paediatricAngleScale(ageYears?: number): number {
+  if (typeof ageYears !== 'number') return 1;
+  if (ageYears < 2) return 0.92;
+  if (ageYears < 6) return 0.95;
+  if (ageYears < 12) return 0.98;
+  return 1;
+}
+
 /** Local upper-arm rotation that turns the donor clip's A-pose into rest. */
 export function patientArmRestRadians(
   mobility: PatientMobility,
   unconscious = false,
   ageYears?: number,
 ): number {
-  const paediatricScale = typeof ageYears === 'number' && ageYears < 2
-    ? 0.49
-    : typeof ageYears === 'number' && ageYears < 6
-      ? 0.63
-      : typeof ageYears === 'number' && ageYears < 12
-        ? 0.78
-        : 1;
+  const paediatricScale = paediatricAngleScale(ageYears);
   // Ambulatory patients take their arm position from the walk clip plus a
   // dedicated ADDUCTION correction — see patientGaitArmAdductionRadians. The
   // flexion offset below is a rest-pose correction; stacking it on a clip that

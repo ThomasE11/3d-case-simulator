@@ -58,9 +58,11 @@ describe('sceneSurveyGateHint', () => {
     ppeSelected: ['gloves'],
   };
 
-  it('explains why a safe declaration contradicts an authored hazard', () => {
-    expect(sceneSurveyGateHint({ ...reviewedHazard, sceneSafe: true }))
-      .toBe('Visible hazards remain — declare the scene unsafe and request support.');
+  it('allows a safe declaration after the hazards were swept and PPE is on', () => {
+    // Regression: the old gate refused "scene is safe" whenever any hotspot
+    // existed, so Enter Scene was impossible on every hazard scene once the
+    // markers were confirmed. Safe after mitigation is a valid EMS call.
+    expect(sceneSurveyGateHint({ ...reviewedHazard, sceneSafe: true })).toBe('');
   });
 
   it('asks for support after an unsafe declaration', () => {

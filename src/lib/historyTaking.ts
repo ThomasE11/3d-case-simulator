@@ -334,8 +334,16 @@ export function generatePatientResponse(
   };
   const degradeNarrative = (s: string): string => {
     if (ctx.breathless) {
-      const firstClause = s.split(/[.,;]/)[0].trim();
-      return `Can't... talk much... ${firstClause.charAt(0).toLowerCase() + firstClause.slice(1)}...`;
+      // Hyperventilation / severe dyspnoea: keep the STORY in short bursts.
+      // The old "Can't... talk much... <first clause>" made "what happened?"
+      // unanswerable and read as a UI bug. A panic patient between breaths
+      // still tells you the precipitant.
+      const clauses = s.split(/[.;]/).map(c => c.trim()).filter(Boolean).slice(0, 3);
+      const bursts = clauses.map(c => {
+        const short = c.length > 48 ? `${c.slice(0, 44).trim()}…` : c;
+        return short.charAt(0).toLowerCase() + short.slice(1);
+      });
+      return bursts.map((b, i) => (i === 0 ? `${b}` : `… ${b}`)).join('') + '…';
     }
     if (!ctx.altered) return s;
     const firstClause = s.split(/[.,;]/)[0].trim();
@@ -536,10 +544,38 @@ export function generatePatientResponse(
 
     case 'signs-symptoms': {
       if (ctx.breathingImproved) return 'Breathing feels easier now. I can talk more comfortably.';
-      const reason = caseData.dispatchInfo?.callReason;
-      const impression = ip?.generalImpression;
-      if (reason) return `${reason.replace(/[.!?]$/, '')}.`;
-      if (impression) return `${impression.replace(/[.!?]$/, '')}.`;
+      // NEVER answer from callReason — that is the CALLER's words
+      // ("Wife having panic attack, cannot breathe") and the patient would
+      // never say "wife having panic attack" about themselves. Speak only
+      // from what the patient can feel / how they present.
+      const felt = [
+        ...(ip?.sounds ?? []),
+        ...(caseData.abcde?.breathing?.findings ?? []).filter(f =>
+          /breath|short|tight|wheez|dizz|tingl|numb|weak|pain|nausea|faint|palpit|anxious|can'?t|cannot/i.test(f),
+        ),
+        ip?.appearance,
+      ].filter(Boolean).join(' ');
+      if (ctx.breathless) {
+        return pick([
+          `Can't… catch my breath… chest feels tight…`,
+          `Everything's… closing in… I… can't get air…`,
+          `Heart's pounding… can't… breathe… please…`,
+        ]);
+      }
+      if (/tingl|carpopedal|spasm|hyperventilat|anxious|panic/i.test(felt + ' ' + String(ip?.generalImpression ?? ''))) {
+        return pick([
+          "My chest feels tight and my heart is racing. I can't get a proper breath.",
+          "I feel like I can't breathe — hands are tingling, I feel like I'm going to die.",
+          "Everything feels wrong. Chest tight, can't catch my breath, really scared.",
+        ]);
+      }
+      if (/wheez|short|breath|dyspn/i.test(felt)) {
+        return pick([
+          "I can't get my breath. My chest feels tight.",
+          'Breathing is hard work. I can only say a few words.',
+        ]);
+      }
+      if (ip?.appearance) return `${ip.appearance.replace(/[.!?]$/, '')} — that is how I feel.`;
       return `Something's just not right — I felt it come on, and... here we are.`;
     }
 
@@ -551,13 +587,19 @@ export function generatePatientResponse(
   })();
 
   if (answer == null) return null;
+  // Guard: a patient never refers to themselves as "wife/husband/son of…".
+  // Callers say that. Keep the voice first-person.
+  const cleaned = answer
+    .replace(/\b(?:my )?(?:wife|husband|son|daughter|mother|father) (?:is |was |having |has )/gi, 'I am ')
+    .replace(/\bWife having\b/gi, 'I am having')
+    .replace(/\bHusband (?:called|says)\b/gi, 'I');
   // OPQRST / symptom paths historically returned full sentences. Severe asthma
   // (and any breathless patient) must still fragment — Criterion 4 requires
   // broken speech, not a fluent monologue while "unable to speak in sentences".
-  if (ctx.breathless && !/\.\.\./.test(answer)) {
-    return hesitate(answer);
+  if (ctx.breathless && !/\.\.\./.test(cleaned)) {
+    return hesitate(cleaned);
   }
-  return answer;
+  return cleaned;
 }
 
 const PATIENT_REPROMPTS = [

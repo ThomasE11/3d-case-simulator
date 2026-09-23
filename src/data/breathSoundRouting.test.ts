@@ -28,10 +28,17 @@ function findingsText(c: (typeof allCases)[number]): string {
   ].join(' ').toLowerCase();
 }
 
-// Positive assertion only when the finding is stated, not negated
-// ("no wheeze", "without stridor", "nil wheeze" must not assert).
-const positive = (text: string, term: string) =>
-  new RegExp(`(?<!no )(?<!without )(?<!nil )(?<!denies )${term}`).test(text);
+// Positive assertion only when the finding is stated, not negated.
+// "No wheeze", "without stridor", "nil wheeze", and "no crackles/wheeze"
+// must not assert — the old lookbehind missed slash/or compounds and the
+// suite demanded a wheeze on panic / PE cases that correctly play clear.
+const positive = (text: string, term: string) => {
+  const negated = new RegExp(
+    `\\b(?:no|without|nil|denies|negative for|absent|rule out|r/o)\\s+(?:[\\w/]+\\s+){0,2}${term}`,
+    'i',
+  ).test(text);
+  return !negated && new RegExp(term, 'i').test(text);
+};
 
 describe('breath-sound routing (findings → played recording)', () => {
   it('wheeze/crackles/stridor/silent-chest findings route to matching lung sounds', () => {

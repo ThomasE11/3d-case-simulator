@@ -13,7 +13,7 @@ Helper strip mirrors generate-mpfb-skinned.py exactly: MPFB ships joint /
 clothes-fitting helper geometry alongside the body, and without the strip those
 export as blocky artefacts in the crowd.
 """
-import bpy, importlib, bmesh, os, sys
+import bpy, importlib, bmesh, math, os, sys
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 SEX = (argv[0] if argv else "male").lower()
@@ -88,23 +88,76 @@ if height_now > 1e-6:
     bpy.ops.object.select_all(action='DESELECT')
     human.select_set(True)
     bpy.context.view_layer.objects.active = human
-    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     bpy.context.view_layer.update()
     zs2 = [(human.matrix_world @ v.co).z for v in human.data.vertices]
     print(f"height {height_now:.3f} m -> scaled x{factor:.4f}; verified {max(zs2)-min(zs2):.3f} m")
 
-# --- Decimate to crowd density -----------------------------------------------
-# A bystander is scenery: 12 instances at 1.5k verts each is ~18k verts, which
-# the iPad tier can carry. The raw MPFB body is 13k verts — fine for one
-# patient, wasteful for a dozen. Collapse to a fixed ratio and cap the result.
-#
-# MPFB ships shape keys on the basemesh; modifier_apply refuses them, so strip
-# them first. Bystanders are static scenery — no morphs to preserve.
+# --- Strip MPFB shape keys FIRST ---------------------------------------------
+# Removing Basis while other keys exist re-seats the mesh onto another key and
+# silently undoes any vertex edits. Bystanders are static scenery — no morphs.
 if human.data.shape_keys:
     for key in list(human.data.shape_keys.key_blocks):
         human.shape_key_remove(key)
     print("stripped shape keys")
 
+# --- Relaxed standing arms (kill the zombie reach) ---------------------------
+# MPFB create_human() here is an unskinned mesh whose arms hang at hip height
+# but thrust forward and outboard (hands at x≈±0.5, y≈-0.27) — the classic
+# zombie scarecrow. Pull each arm into a natural standing hang beside the
+# thighs: laterals compress toward the ribs, the forward reach collapses to
+# y≈0, vertical hang is kept. Geometry-only — run BEFORE decimate.
+import mathutils
+
+def _pose_relaxed_arms(mesh_obj):
+    me = mesh_obj.data
+    coords = [v.co for v in me.vertices]
+    if not coords:
+        return False
+    xs = [c.x for c in coords]
+    zs = [c.z for c in coords]
+    min_z, max_z = min(zs), max(zs)
+    height = max_z - min_z
+    if height < 1e-6:
+        return False
+    # Torso half-width at chest (z@0.80). Arms live outboard of this.
+    chest_z = min_z + height * 0.80
+    torso_band = [c.x for c in coords if abs(c.z - chest_z) < height * 0.03]
+    torso_half = max((abs(x) for x in torso_band), default=0.18)
+    shoulder_x = torso_half * 0.95
+    # Hand extremes define the reach we are correcting.
+    hand_x = max(abs(x) for x in xs)
+    if hand_x <= shoulder_x + 0.05:
+        print('WARN: arms already tucked — leaving pose as-is')
+        return False
+    # Lateral keep-factor and forward-kill. Hands end ~0.28 from midline.
+    X_KEEP = 0.32
+    Y_KEEP = 0.12
+    posed = 0
+    for v in me.vertices:
+        ax = abs(v.co.x)
+        if ax < shoulder_x:
+            continue
+        if v.co.z < min_z + height * 0.35 or v.co.z > min_z + height * 0.95:
+            continue  # not an arm/hand band
+        # Compress outboard distance relative to the shoulder, not the origin,
+        # so the deltoid stays put and only the reach collapses.
+        reach = ax - shoulder_x
+        v.co.x = math.copysign(shoulder_x + reach * X_KEEP, v.co.x)
+        # Kill the zombie forward thrust; keep a whisper of natural swing.
+        v.co.y = v.co.y * Y_KEEP + 0.01
+        posed += 1
+    me.update()
+    print(f'relaxed arms: posed={posed} shoulder_x={shoulder_x:.3f} '
+          f'hand_x {hand_x:.3f} -> {shoulder_x + (hand_x - shoulder_x) * X_KEEP:.3f}')
+    return True
+
+_pose_relaxed_arms(human)
+
+# --- Decimate to crowd density -----------------------------------------------
+# A bystander is scenery: 12 instances at 1.5k verts each is ~18k verts, which
+# the iPad tier can carry. The raw MPFB body is 13k verts — fine for one
+# patient, wasteful for a dozen. Collapse to a fixed ratio and cap the result.
 TARGET_VERTS = 1500
 ratio = min(1.0, TARGET_VERTS / max(1, len(human.data.vertices)))
 if ratio < 1.0:
@@ -131,8 +184,14 @@ human.data.materials.append(mat)
 human.name = "Bystander"
 human.data.name = "Bystander"
 
+# Sanity: local AABB must match the 1.72 m target and tucked hands.
+loc = [v.co for v in human.data.vertices]
+print(f"local AABB x=[{min(c.x for c in loc):.3f},{max(c.x for c in loc):.3f}] "
+      f"y=[{min(c.y for c in loc):.3f},{max(c.y for c in loc):.3f}] "
+      f"z=[{min(c.z for c in loc):.3f},{max(c.z for c in loc):.3f}]")
+
 bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True,
-                          export_apply=False, use_selection=False,
+                          export_apply=True, use_selection=False,
                           export_image_format="AUTO")
 print("EXPORTED", OUT)
 print(f"bystander height={human.dimensions.z:.3f}m verts={len(human.data.vertices)}")

@@ -87,7 +87,7 @@ export const KNOWN_SCENE_ASSETS = new Set<string>([
   '/scene-assets/office-abdominal-male-uae.png',
   '/scene-assets/office-medical-dubai.png',
   '/scene-assets/outdoor-heat-illness-uae.png',
-  '/scene-assets/paediatric-pool-rescue-environment.png',
+  '/scene-assets/plate-pool-deck.png',
   '/scene-assets/parking-garage-opioid-od-uae.png',
   '/scene-assets/postd-001-post-op-wound-infection-ajman.png',
   '/scene-assets/pedestrian-road-night-female-45.png',
@@ -130,7 +130,8 @@ export const PROMPT_SCENE_IMAGE_OVERRIDES: Record<string, string> = {
   'cardiac-012': '/scene-assets/cardiac-012-rehab-dizziness-pacemaker.png',
   'cardiac-ecg-001': '/scene-assets/cardiac-ecg-001-epigastric-mi-burdubai.png',
   'cardiac-013': '/scene-assets/gym-cardiac-arrest-male-dubai.png',
-  'cardiac-014': '/scene-assets/paediatric-pool-rescue-environment.png',
+  'cardiac-014': '/scene-assets/plate-pool-deck.png',
+  'resp-001': '/scene-assets/plate-villa-living.png',
   'cardiac-017': '/scene-assets/infant-nursery-environment.png',
   'tox-002': '/scene-assets/parking-garage-opioid-od-uae.png',
   'cardiac-007': '/scene-assets/hotel-room-medical-uae.png',
@@ -216,7 +217,7 @@ export const PROMPT_SCENE_IMAGE_OVERRIDES: Record<string, string> = {
   'trauma-007': '/scene-assets/trauma-007-mvc-splenic-luq.png',
   'trauma-010': '/scene-assets/beach-spinal-injury-uae.png',
   'trauma-011': '/scene-assets/trauma-011-industrial-hand-amputation.png',
-  'trauma-012': '/scene-assets/paediatric-pool-rescue-environment.png',
+  'trauma-012': '/scene-assets/plate-pool-deck.png',
   'y1-005': '/scene-assets/home-pediatric-uae-family.png',
   'y1-008': '/scene-assets/y1-008-university-library-panic-female.png',
   'y1-010': '/scene-assets/y1-010-park-bicycle-wrist-fall.png',
@@ -234,7 +235,7 @@ const PATIENT_OVERLAY_SCENE_ASSETS = new Set<string>([
   // adds the case-driven procedural patient at the correct age and posture,
   // avoiding an adult stock patient in paediatric/infant scenarios.
   '/scene-assets/infant-nursery-environment.png',
-  '/scene-assets/paediatric-pool-rescue-environment.png',
+  '/scene-assets/plate-pool-deck.png',
   '/scene-assets/y1-010-park-bicycle-wrist-fall.png',
 ]);
 
@@ -522,13 +523,29 @@ export function inferSceneImage(caseData: CaseScenario): string {
 /** Case-id → arrival clip path. Deliberately tiny: video is expensive to
  *  generate, so this is the sparse high-value layer, not blanket coverage. */
 const SCENE_VIDEO_OVERRIDES: Record<string, string> = {
-  'resp-001': '/scene-assets/arrival-resp-001-villa.mp4',
+  'resp-001': '/scene-assets/dispatch-villa-living.mp4',
+  // Anxiety / panic in the apartment — husband calling, wife on the sofa.
+  'y2-002': '/scene-assets/dispatch-panic-apartment.mp4',
+  'asthma-mod-001': '/scene-assets/dispatch-villa-living.mp4',
+  'y1-012': '/scene-assets/dispatch-panic-apartment.mp4',
+  'y1-008': '/scene-assets/dispatch-panic-apartment.mp4',
 };
 
 const KNOWN_SCENE_VIDEOS = new Set<string>([
   '/scene-assets/arrival-trauma-001-rtc.mp4',
   '/scene-assets/arrival-resp-001-villa.mp4',
+  '/scene-assets/dispatch-panic-apartment.mp4',
+  '/scene-assets/dispatch-villa-living.mp4',
 ]);
+
+/**
+ * Still plate → family key for the in-app DispatchCinematic. Real mp4s win
+ * when present; otherwise the UI animates the still (Ken Burns + vignette)
+ * so the Scene Brief is never a blank rectangle.
+ */
+export function dispatchCinematicStill(caseData: CaseScenario): string | null {
+  return inferSceneImage(caseData);
+}
 
 export function hasSceneVideoAsset(src: string): boolean {
   return KNOWN_SCENE_VIDEOS.has(src);

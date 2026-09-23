@@ -6,7 +6,8 @@ import { patientAgeShortLabel } from './patientAgePresentation';
 // Report: .gstack/qa-reports/qa-report-127-0-0-1-2026-08-30.md
 describe('patient age label', () => {
   it.each([
-    [0, '1mo'],
+    [0, '0d'],
+    [0.04, '15d'],
     [0.08, '1mo'],
     [0.5, '6mo'],
     [0.67, '8mo'],

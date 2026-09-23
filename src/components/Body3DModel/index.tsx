@@ -42,6 +42,8 @@ import {
   type PatientSeatKind,
   type PatientSupportSurface,
 } from '@/lib/patientStaging';
+import { deriveSeatStyle, deriveStandingStance } from '@/lib/patientSeatStyle';
+import { derivePatientAppearance } from '@/lib/patientAppearance';
 import { deriveSceneEnvironment, isRoadsideVehicleImpact, type EnvironmentVariant } from '@/lib/sceneEnvironment';
 import { resolveSceneProfile } from './Environment/sceneProfile';
 import { sceneEntryOrigin } from '@/lib/cinematicPhase';
@@ -97,7 +99,7 @@ import {
   nearestPupilExamAction,
   type PupilProfile,
 } from '@/lib/pupilExam';
-import { ActiveBleedSprites } from './ActiveBleedLayer';
+import { ActiveBleedSprites, ContinuousBleedField } from './ActiveBleedLayer';
 import { FocusedWoundLayer } from './FocusedWoundLayer';
 import { spriteKindFor } from './WoundLayer';
 import type { PatientVisualState, PatientWoundOverlay } from '@/lib/patientVisualState';
@@ -5611,6 +5613,12 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
     [patientMobility, patientSupportSurface, villaPlant],
   );
 
+  // Skin / hair / habitus from the authored case — one shell, many people.
+  const patientAppearance = useMemo(
+    () => derivePatientAppearance(caseData),
+    [caseData],
+  );
+
   const neurologicalWeakSide = useMemo<NeurologicalWeakSide>(
     () => deriveNeurologicalWeakSide(caseData),
     [caseData],
@@ -7022,6 +7030,18 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 braceHandsOnKnees={caseData.id === 'resp-001'}
                 handGuardRegion={handGuardRegion}
                 neurologicalWeakSide={neurologicalWeakSide}
+                appearance={patientAppearance}
+                seatStyle={deriveSeatStyle({
+                  caseId: caseData.id,
+                  mobility: patientMobility,
+                  posture: patientPosture,
+                  handGuardRegion,
+                  ageYears: activePatientAge,
+                  position: caseData.initialPresentation?.position,
+                })}
+                standingStance={patientMobility === 'standing'
+                  ? deriveStandingStance(caseData.id)
+                  : null}
                 mobility={patientMobility}
                 plantOffset={plantOffset}
                 seatedSupportLift={seatedSupportLift}
@@ -7057,6 +7077,14 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
                 controlledIds={buildTreatmentEquipmentState(appliedTreatmentIds).controlledBleedIds}
                 sampler={surfaceSampler}
                 bpm={isInArrest ? 0 : (vitals?.pulse ?? 80)}
+              />
+              {/* Blood keeps coming until source control: drips + a floor pool
+                  that grows while the wound is open and freezes when it is not. */}
+              <ContinuousBleedField
+                overlays={patientVisualState?.woundOverlays ?? []}
+                controlledIds={buildTreatmentEquipmentState(appliedTreatmentIds).controlledBleedIds}
+                sampler={surfaceSampler}
+                floorY={bayStage === 'floor' ? -0.04 : 0.5}
               />
 
               <PreExistingWoundDressing

@@ -31,7 +31,13 @@ export function buildPatientBrief(caseData: CaseScenario): string {
   add('Occupation', p?.occupation);
   add('Where I am', d?.location);
   add('Time of day', d?.timeOfDay);
-  add('Why the ambulance was called', d?.callReason);
+  // Call reason is the CALLER's script ("Wife having panic attack").
+  // Re-cast it as what I feel so the model never speaks third-person.
+  if (d?.callReason) {
+    add('What I tell people is wrong', d.callReason
+      .replace(/\b(?:my )?(?:wife|husband|son|daughter|mother|father)\b/gi, 'I')
+      .replace(/^Wife\b/gi, 'I'));
+  }
   add('What I look like right now', ip?.generalImpression);
   add('My position', ip?.position);
   add('What happened / events leading up', h?.eventsLeading);

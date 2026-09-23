@@ -55,8 +55,8 @@ describe('patient scene realism regressions', () => {
   });
 
   it('moves seated chair and sofa patients clear of the backrest without altering beds', () => {
-    expect(patientPlantOffsetForSupport('seat', 'seated')).toEqual({ z: 0.86 });
-    expect(patientPlantOffsetForSupport('sofa', 'seated')).toEqual({ z: 0.86 });
+    expect(patientPlantOffsetForSupport('seat', 'seated')).toEqual({ z: 0.98 });
+    expect(patientPlantOffsetForSupport('sofa', 'seated')).toEqual({ z: 0.98 });
     expect(patientPlantOffsetForSupport('bed', 'seated')).toBeUndefined();
     expect(patientPlantOffsetForSupport('sofa', 'recumbent')).toBeUndefined();
   });

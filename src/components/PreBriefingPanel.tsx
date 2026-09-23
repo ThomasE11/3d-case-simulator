@@ -14,6 +14,7 @@
 import { useMemo } from 'react';
 import type { CaseScenario, SimulationObjective } from '@/types';
 import { getResourcesForPreBriefing } from '@/data/diversifiedResources';
+import { PreArrivalCinematic } from './PreArrivalCinematic';
 import { buildSceneDispatchPreview, sceneAccessFromIntroduction } from '@/lib/sceneDispatchPreview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -233,12 +234,11 @@ export function PreBriefingPanel({
         </CardContent>
       </Card>
 
-      {/* Scene preview — what the student will walk into.
-          Renders the same first-person arrival layer the On Arrival panel
-          shows, but here BEFORE the student presses Enter Scene, so they
-          form a scene expectation from the briefing rather than discovering
-          it on approach. Cases with no generated introduction keep the
-          existing minimal scene-description line. */}
+      {/* Pre-arrival cinematic — what happened before the crew got there,
+          with dispatcher voiceover. This is the game's opening beat. */}
+      <PreArrivalCinematic caseData={caseData} />
+
+      {/* Scene preview — what the student will walk into. */}
       {preview && (
         <Card className="border-l-4 border-l-cyan-500">
           <CardHeader className="pb-3">

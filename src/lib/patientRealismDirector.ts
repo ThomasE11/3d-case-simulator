@@ -6,6 +6,7 @@ import {
   type PatientRealismCue,
   type RealismSeverity,
 } from '@/data/clinicalRealism';
+import { deriveExpectedDevices, fallbackDeviceAnchor } from '@/lib/deviceAttachment';
 import {
   deriveRealismScenarioState,
   type EquipmentAnchorSpec,
@@ -423,7 +424,18 @@ export function deriveRealismDirectorState(input: RealismDirectorInput): Realism
     activeProblems: scenarioState.activeProblems,
     activeVisualEffects: scenarioState.activeVisualEffects,
     visualEffects: scenarioState.visualEffects,
-    equipmentAnchors: scenarioState.equipmentAnchors,
+    equipmentAnchors: (() => {
+      const covered = new Set(
+        scenarioState.equipmentAnchors.flatMap(a => a.treatmentIdFragments),
+      );
+      const extras = deriveExpectedDevices(input.caseData)
+        .filter(family => {
+          const probe = fallbackDeviceAnchor(family);
+          return !probe.treatmentIdFragments.some(f => covered.has(f));
+        })
+        .map(fallbackDeviceAnchor);
+      return [...scenarioState.equipmentAnchors, ...extras];
+    })(),
     patientBehavior: scenarioState.patientBehavior,
     treatmentResponses: scenarioState.treatmentResponses,
     reassessmentRequirements: scenarioState.reassessmentRequirements,

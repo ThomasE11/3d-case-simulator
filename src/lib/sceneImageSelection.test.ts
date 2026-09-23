@@ -72,8 +72,8 @@ describe('scene image demographic consistency', () => {
 
   it.each([
     ['y1-010', '/scene-assets/y1-010-park-bicycle-wrist-fall.png'],
-    ['cardiac-014', '/scene-assets/paediatric-pool-rescue-environment.png'],
-    ['trauma-012', '/scene-assets/paediatric-pool-rescue-environment.png'],
+    ['cardiac-014', '/scene-assets/plate-pool-deck.png'],
+    ['trauma-012', '/scene-assets/plate-pool-deck.png'],
     ['cardiac-017', '/scene-assets/infant-nursery-environment.png'],
   ])('uses an age-safe scene plate for %s', (caseId, expectedImage) => {
     const caseData = allCases.find(({ id }) => id === caseId);
@@ -103,7 +103,7 @@ describe('animated arrival clips', () => {
   it('resolves the registered arrival clip for resp-001', () => {
     const caseData = allCases.find(({ id }) => id === 'resp-001');
     expect(caseData).toBeDefined();
-    expect(inferSceneVideo(caseData!)).toBe('/scene-assets/arrival-resp-001-villa.mp4');
+    expect(inferSceneVideo(caseData!)).toBe('/scene-assets/dispatch-villa-living.mp4');
   });
 
   it('falls back to null when a case has no registered clip', () => {
@@ -118,9 +118,9 @@ describe('critical distinct-scene cases', () => {
   // variant but previously had no authored image/caption, so the arrival
   // chyron never fired and the scene photo silently used a resolver fallback.
   it.each([
-    ['cardiac-014', '/scene-assets/paediatric-pool-rescue-environment.png', 'water'],
+    ['cardiac-014', '/scene-assets/plate-pool-deck.png', 'water'],
     ['trauma-010', '/scene-assets/beach-spinal-injury-uae.png', 'water'],
-    ['trauma-012', '/scene-assets/paediatric-pool-rescue-environment.png', 'water'],
+    ['trauma-012', '/scene-assets/plate-pool-deck.png', 'water'],
     ['resp-006', '/scene-assets/resp-002-construction-tension-pneumothorax.png', 'industrial'],
     ['env-002', '/scene-assets/env-002-heat-stroke-jebel-ali.png', 'industrial'],
   ] as const)('%s authors an image, caption and environment variant', (caseId, expectedImage, expectedVariant) => {

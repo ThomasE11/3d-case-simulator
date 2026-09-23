@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import { hairHexFor, type HairStyleId, type PatientAppearance } from '@/lib/patientAppearance';
 
 type PatientGender = 'male' | 'female' | undefined;
 
-function hairColour(gender: PatientGender, age?: number): THREE.Color {
+function hairColour(gender: PatientGender, age?: number, appearance?: PatientAppearance | null): THREE.Color {
+  if (appearance) return new THREE.Color(hairHexFor(appearance.hairColour));
   if ((age ?? 35) >= 70) return new THREE.Color('#8a857e');
   if ((age ?? 35) >= 55) return new THREE.Color('#5d554e');
   return new THREE.Color(gender === 'female' ? '#30231f' : '#29211d');
@@ -79,7 +81,41 @@ function attachBodyDeformation(
   return result;
 }
 
-function buildScalp(body: THREE.Mesh, colour: THREE.Color, gender: PatientGender): THREE.Mesh | null {
+
+/**
+ * Simple cloth head cover for patients whose cultural dress includes a hijab.
+ * Reads as a soft cap + shoulder drape derived from the head surface scale —
+ * not a fashion mesh, but unmistakably not a bald mannequin.
+ */
+function buildHijab(body: THREE.Mesh, appearance?: PatientAppearance | null): THREE.Mesh | null {
+  const source = body.geometry as THREE.BufferGeometry;
+  const positions = source.getAttribute('position') as THREE.BufferAttribute | undefined;
+  if (!positions) return null;
+  let minY = Infinity, maxY = -Infinity, maxR = 0;
+  for (let i = 0; i < positions.count; i++) {
+    const y = positions.getY(i);
+    const r = Math.hypot(positions.getX(i), positions.getZ(i));
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    if (y > minY + (maxY - minY) * 0.8) maxR = Math.max(maxR, r);
+  }
+  const height = maxY - minY;
+  if (!Number.isFinite(height) || height <= 0) return null;
+  const headY = minY + height * 0.9;
+  const radius = Math.max(0.08, maxR * 1.12);
+  const colour = new THREE.Color(hairHexFor(appearance?.hairColour ?? 'black')).multiplyScalar(1.15);
+  const mat = new THREE.MeshStandardMaterial({ color: colour, roughness: 0.92, metalness: 0 });
+  const geo = new THREE.SphereGeometry(radius, 18, 14, 0, Math.PI * 2, 0, Math.PI * 0.62);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.name = 'patient-hijab';
+  mesh.position.set(0, headY - radius * 0.15, 0);
+  mesh.scale.set(1.05, 1.0, 1.15);
+  return mesh;
+}
+
+function buildScalp(body: THREE.Mesh, colour: THREE.Color, gender: PatientGender, style: HairStyleId = 'short'): THREE.Mesh | null {
+  // Coverage: bald = brows only (caller skips scalp), short = tight cap,
+  // long/medium/curly = fuller sides. Used to bias the hairline threshold.
+  const coverage = style === 'bald' ? 0 : style === 'short' ? 0.86 : style === 'curly' ? 0.8 : 0.82;
   const source = body.geometry as THREE.BufferGeometry;
   const positions = source.getAttribute('position') as THREE.BufferAttribute | undefined;
   if (!positions) return null;
@@ -104,7 +140,7 @@ function buildScalp(body: THREE.Mesh, colour: THREE.Color, gender: PatientGender
   let headMinZ = Infinity;
   let headMaxZ = -Infinity;
   for (let i = 0; i < positions.count; i++) {
-    if (positions.getY(i) < minY + height * 0.84) continue;
+    if (positions.getY(i) < minY + height * coverage) continue;
     headMinZ = Math.min(headMinZ, positions.getZ(i));
     headMaxZ = Math.max(headMaxZ, positions.getZ(i));
   }
@@ -294,9 +330,17 @@ function buildEyebrow(body: THREE.Mesh, colour: THREE.Color, side: -1 | 1): THRE
 }
 
 /** Add body-derived hair and attached eyebrows without an independent rig. */
-export function buildHairLayer(body: THREE.Mesh, gender: PatientGender, age?: number): THREE.Group | null {
-  const colour = hairColour(gender, age);
-  const scalp = buildScalp(body, colour, gender);
+export function buildHairLayer(
+  body: THREE.Mesh,
+  gender: PatientGender,
+  age?: number,
+  appearance?: PatientAppearance | null,
+): THREE.Group | null {
+  const colour = hairColour(gender, age, appearance);
+  const style: HairStyleId = appearance?.hairStyle ?? (gender === 'female' ? 'medium' : 'short');
+  const scalp = style === 'hijab'
+    ? buildHijab(body, appearance)
+    : buildScalp(body, colour, gender, style);
   const leftBrow = buildEyebrow(body, colour.clone().multiplyScalar(0.82), 1);
   const rightBrow = buildEyebrow(body, colour.clone().multiplyScalar(0.82), -1);
   if (!scalp && !leftBrow && !rightBrow) return null;

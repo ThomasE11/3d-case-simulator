@@ -13,7 +13,7 @@
  *   index.tsx in every variant — the paramedic brings it to the scene
  */
 import { Suspense, useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
@@ -22,6 +22,44 @@ import type { PatientSeatKind } from '@/lib/patientStaging';
 import { RESP001_VILLA_ENTRY, RESP001_VILLA_EXTERIOR, RESP001_VILLA_SHELL } from '@/lib/cameraOrbitSafety';
 import { getVillaTextures } from './textures';
 import { KenneyPatientChair } from './KenneyPatientChair';
+import {
+  AirConditioner,
+  AedCabinet,
+  BeachTowel,
+  CeilingFan,
+  CoffeeTable,
+  CrashScatter,
+  Curtain,
+  DustMotes,
+  FireEmbers,
+  FruitBowl,
+  HardHat,
+  HazardDrum,
+  HeatShimmer,
+  LivedInSofa,
+  LivingTelevision,
+  MedicationClutter,
+  PesticideTank,
+  PhotoFrame,
+  PottedPlant,
+  PrayerMat,
+  ProduceCrate,
+  PublicStreetFurniture,
+  RescueTube,
+  ServiceCounter,
+  SkidMarks,
+  Slippers,
+  SteamVent,
+  StreetLamp,
+  SunHat,
+  ToolCrate,
+  TrafficBarrier,
+  WalkingStick,
+  WallArtCluster,
+  WallClock,
+  WaterBottleCluster,
+  WorkLight,
+} from './SceneLivingProps';
 import { Resp001VillaDressing } from './Resp001VillaDressing';
 import {
   isResp001VillaProfile,
@@ -48,6 +86,11 @@ function ensureRectAreaLightUniforms(): void {
 }
 
 /** Shadow-casting key spot aimed at the patient — shared rig, per-scene color. */
+/**
+ * Professional clinical key — tight pool on the patient, soft penumbra,
+ * slightly cool white (5600K-ish) so skin and blood read honestly. Practical
+ * lamps stay warm so rooms feel lived-in, not like an operating-theatre flood.
+ */
 function KeyLight({
   color,
   intensity,
@@ -99,33 +142,59 @@ function OutdoorSky({ zenith, horizon }: { zenith: string; horizon: string }) {
     zenithColour: { value: new THREE.Color(zenith) },
     horizonColour: { value: new THREE.Color(horizon) },
   }), [horizon, zenith]);
+  const cloudRef = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }) => {
+    if (!cloudRef.current) return;
+    cloudRef.current.rotation.y = clock.elapsedTime * 0.01;
+  });
 
   return (
-    <mesh renderOrder={-1000} frustumCulled={false} raycast={NO_RAYCAST}>
-      <sphereGeometry args={[18, 32, 16]} />
-      <shaderMaterial
-        side={THREE.BackSide}
-        depthWrite={false}
-        toneMapped={false}
-        uniforms={uniforms}
-        vertexShader={/* glsl */ `
-          varying float vSkyHeight;
-          void main() {
-            vSkyHeight = normalize(position).y;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `}
-        fragmentShader={/* glsl */ `
-          uniform vec3 zenithColour;
-          uniform vec3 horizonColour;
-          varying float vSkyHeight;
-          void main() {
-            float blend = smoothstep(-0.12, 0.72, vSkyHeight);
-            gl_FragColor = vec4(mix(horizonColour, zenithColour, blend), 1.0);
-          }
-        `}
-      />
-    </mesh>
+    <group>
+      <mesh renderOrder={-1000} frustumCulled={false} raycast={NO_RAYCAST}>
+        <sphereGeometry args={[18, 32, 16]} />
+        <shaderMaterial
+          side={THREE.BackSide}
+          depthWrite={false}
+          toneMapped={false}
+          uniforms={uniforms}
+          vertexShader={/* glsl */ `
+            varying float vSkyHeight;
+            void main() {
+              vSkyHeight = normalize(position).y;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `}
+          fragmentShader={/* glsl */ `
+            uniform vec3 zenithColour;
+            uniform vec3 horizonColour;
+            varying float vSkyHeight;
+            void main() {
+              float blend = smoothstep(-0.12, 0.72, vSkyHeight);
+              gl_FragColor = vec4(mix(horizonColour, zenithColour, blend), 1.0);
+            }
+          `}
+        />
+      </mesh>
+      {/* Sun disc — a hard light source the eye can find, like a game skybox. */}
+      <mesh position={[6.5, 7.2, -4.0]} renderOrder={-999} raycast={NO_RAYCAST}>
+        <sphereGeometry args={[0.55, 16, 12]} />
+        <meshBasicMaterial color="#fff4c8" toneMapped={false} />
+      </mesh>
+      <mesh position={[6.5, 7.2, -4.0]} renderOrder={-998} raycast={NO_RAYCAST}>
+        <sphereGeometry args={[1.1, 16, 12]} />
+        <meshBasicMaterial color="#ffe9a0" transparent opacity={0.22} toneMapped={false} depthWrite={false} />
+      </mesh>
+      {/* Slow-drifting cloud bank near the horizon. */}
+      <group ref={cloudRef}>
+        {([[-4.5, 3.2, -9], [2.5, 3.8, -10], [7.5, 2.9, -8.5], [-8, 3.5, -7.5], [0.5, 4.4, -11]] as const).map(([x, y, z], i) => (
+          <mesh key={`cloud-${i}`} position={[x, y, z]} scale={[1.6 + (i % 3) * 0.4, 0.35, 0.8]} raycast={NO_RAYCAST}>
+            <sphereGeometry args={[1, 10, 8]} />
+            <meshBasicMaterial color="#f4f7fa" transparent opacity={0.55} toneMapped={false} depthWrite={false} />
+          </mesh>
+        ))}
+      </group>
+    </group>
   );
 }
 
@@ -781,33 +850,29 @@ function HomeScene({
         </mesh>
       </group>
 
-      {/* Generic sofa stays unchanged for every unprofiled home case. */}
-      {!hideGenericHomeFurniture && <group position={[-1.65, 0, ROOM.backZ + 0.55]}>
-        {/* Seat base */}
-        <mesh position={[0, 0.24, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
-          <boxGeometry args={[1.7, 0.34, 0.75]} />
-          <meshStandardMaterial map={tex.sofa.map} normalMap={tex.sofa.normalMap} normalScale={[0.6, 0.6]} roughness={0.98} />
-        </mesh>
-        {/* Backrest */}
-        <mesh position={[0, 0.6, -0.3]} castShadow raycast={NO_RAYCAST}>
-          <boxGeometry args={[1.7, 0.55, 0.16]} />
-          <meshStandardMaterial map={tex.sofa.map} normalMap={tex.sofa.normalMap} normalScale={[0.6, 0.6]} roughness={0.98} />
-        </mesh>
-        {/* Arms */}
-        {[-0.82, 0.82].map((x) => (
-          <mesh key={`arm-${x}`} position={[x, 0.42, 0]} castShadow raycast={NO_RAYCAST}>
-            <boxGeometry args={[0.16, 0.46, 0.75]} />
-            <meshStandardMaterial map={tex.sofa.map} normalMap={tex.sofa.normalMap} normalScale={[0.6, 0.6]} roughness={0.98} />
-          </mesh>
-        ))}
-        {/* Seat cushions */}
-        {[-0.42, 0.42].map((x) => (
-          <mesh key={`cush-${x}`} position={[x, 0.44, 0.03]} castShadow raycast={NO_RAYCAST}>
-            <boxGeometry args={[0.72, 0.14, 0.66]} />
-            <meshStandardMaterial color="#6b7758" roughness={0.98} />
-          </mesh>
-        ))}
-      </group>}
+      {/* Lived-in sofa: cushions askew, throw knocked over — someone got up fast. */}
+      {!hideGenericHomeFurniture && (
+        <LivedInSofa position={[-1.65, 0, ROOM.backZ + 0.55]} fabric="#6b7758" />
+      )}
+      {/* Profile homes keep their authored GLB furniture but still need life:
+          asthma inhaler on a side table, prayer mat, wall art, a fan turning. */}
+      {hasResp001Dressing && (
+        <>
+          <MedicationClutter position={[2.55, 0, -1.55]} variant="asthma" />
+          <WalkingStick position={[-2.55, 0, 0.55]} />
+          <PrayerMat position={[2.7, 0.04, 0.9]} rotation={0.2} />
+          <FruitBowl position={[-1.1, 0.48, 0.2]} />
+          <WallArtCluster position={[-1.9, 1.65, roomBackZ + 0.08]} />
+          <WallClock position={[0.4, 1.9, roomBackZ + 0.08]} rotation={[Math.PI / 2, 0, 0]} />
+          <LivingTelevision position={[2.4, 1.2, roomBackZ + 0.12]} width={0.95} height={0.54} tint="#6eb6ff" />
+          <CeilingFan position={[0.3, roomHeight - 0.2, 0.3]} />
+          <Curtain position={[-2.15, 1.35, roomBackZ + 0.1]} color="#f0e6d2" />
+          <Curtain position={[-0.75, 1.35, roomBackZ + 0.1]} color="#f0e6d2" />
+          <PottedPlant position={[2.7, 0, -1.0]} scale={0.85} />
+          <Slippers position={[-0.9, 0, 0.7]} />
+          <DustMotes count={24} bounds={[2.4, 1.6, 2.2]} centre={[0, 1.1, 0]} />
+        </>
+      )}
 
       {/* Kenney dining chair, scaled onto the seated pelvis plant. The
           previous box-pan + slab backrest read as a crate, not furniture. */}
@@ -817,19 +882,27 @@ function HomeScene({
         </Suspense>
       )}
 
-      {/* Generic table stays unchanged for every unprofiled home case. */}
-      {!hideGenericHomeFurniture && <group position={[-1.75, 0, 1.3]} rotation={[0, 0.4, 0]}>
-        <mesh position={[0, 0.33, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
-          <boxGeometry args={[0.95, 0.05, 0.55]} />
-          <meshStandardMaterial color="#5a3d25" roughness={0.35} metalness={0.05} />
-        </mesh>
-        {([[-0.42, -0.22], [0.42, -0.22], [-0.42, 0.22], [0.42, 0.22]] as const).map(([x, z]) => (
-          <mesh key={`ct-leg-${x}-${z}`} position={[x, 0.16, z]} castShadow raycast={NO_RAYCAST}>
-            <boxGeometry args={[0.05, 0.32, 0.05]} />
-            <meshStandardMaterial color="#3f2a19" roughness={0.5} />
-          </mesh>
-        ))}
-      </group>}
+      {/* Coffee table with tea tray + remote + dropped tissue. */}
+      {!hideGenericHomeFurniture && <CoffeeTable position={[-1.55, 0, 1.15]} rotation={0.35} />}
+      {!hideGenericHomeFurniture && (
+        <MedicationClutter position={[2.2, 0, -1.4]} variant="generic" />
+      )}
+      {!hideGenericHomeFurniture && (
+        <>
+          <WalkingStick position={[-2.5, 0, 0.4]} />
+          <Slippers position={[-1.2, 0, 0.85]} />
+          <PrayerMat position={[2.5, 0.04, 0.6]} rotation={0.3} />
+          <FruitBowl position={[-1.55, 0.4, 1.15]} />
+          <PottedPlant position={[2.55, 0, -1.2]} scale={0.9} />
+          <WallArtCluster position={[-1.2, 1.7, roomBackZ + 0.08]} />
+          <WallClock position={[1.1, 1.85, roomBackZ + 0.08]} rotation={[Math.PI / 2, 0, 0]} />
+          <LivingTelevision position={[2.35, 1.15, roomBackZ + 0.1]} width={1.0} height={0.56} tint="#7aa7ff" />
+          <CeilingFan position={[0, roomHeight - 0.18, 0.2]} />
+          <Curtain position={[-2.3, 1.35, roomBackZ + 0.1]} color="#e8ddc8" />
+          <Curtain position={[-0.6, 1.35, roomBackZ + 0.1]} color="#e8ddc8" />
+          <DustMotes count={22} bounds={[2.2, 1.5, 2.0]} centre={[0, 1.1, 0]} />
+        </>
+      )}
 
       {/* Floor lamp in the far corner — pole + emissive shade, own point light */}
       <group position={[2.78, 0, -1.8]}>
@@ -1023,17 +1096,16 @@ function PublicScene({
         ))}
       </group>
 
-      {/* Potted plant — a soft silhouette to break the box, far right of lane */}
-      <group name="public-office-plant" position={[1.9, 0, 1.4]}>
-        <mesh position={[0, 0.16, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
-          <cylinderGeometry args={[0.16, 0.12, 0.32, 16]} />
-          <meshStandardMaterial color="#b99b6b" roughness={0.85} />
-        </mesh>
-        <mesh position={[0, 0.55, 0]} castShadow raycast={NO_RAYCAST}>
-          <sphereGeometry args={[0.34, 16, 12]} />
-          <meshStandardMaterial color="#3f6d4a" roughness={0.95} />
-        </mesh>
-      </group>
+      {/* Lived-in public interior: plant, street furniture, AED, counter. */}
+      <PottedPlant position={[1.9, 0, 1.4]} scale={1.05} />
+      <PublicStreetFurniture position={[-1.3, 0, 1.7]} />
+      <AedCabinet position={[-2.2, 1.35, backdropZ + 0.12]} />
+      <ServiceCounter position={[1.7, 0, -1.6]} rotation={Math.PI} width={1.5} />
+      <LivingTelevision position={[0, 2.15, backdropZ + 0.12]} width={1.3} height={0.28} tint="#dbeafe" />
+      <AirConditioner position={[2.0, 2.35, backdropZ + 0.15]} />
+      <PhotoFrame position={[-2.4, 1.7, backdropZ + 0.08]} w={0.24} h={0.3} tint="#9db8c9" />
+      <PhotoFrame position={[2.4, 1.7, backdropZ + 0.08]} w={0.2} h={0.26} tint="#b0c4d4" />
+      <DustMotes count={18} bounds={[3.0, 1.6, 2.5]} centre={[0, 1.1, 0]} color="#e8f0f6" opacity={0.22} />
 
       {/* Cornice — the office ceiling is a bare plane like every other variant
           was before this pass, so the wall-ceiling junction was a hairline with
@@ -1086,6 +1158,7 @@ function PublicScene({
 function IndustrialScene({ shadowsEnabled, bystanders }: { shadowsEnabled: boolean; bystanders?: string | null }) {
   return (
     <group>
+      <OutdoorAtmosphere enabled />
       <BystanderCrowd variant="industrial" bystanders={bystanders} />
       <OutdoorSky zenith="#9fc8e7" horizon="#e8dcc4" />
       <mesh position={[0, -0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
@@ -1153,6 +1226,15 @@ function IndustrialScene({ shadowsEnabled, bystanders }: { shadowsEnabled: boole
         </mesh>
       </group>
 
+      <HazardDrum position={[-2.85, 0, 1.45]} color="#d8a51f" />
+      <HazardDrum position={[-2.4, 0, 2.1]} color="#c2410c" />
+      <ToolCrate position={[2.3, 0, 0.4]} rotation={0.3} />
+      <HardHat position={[-1.6, 0.02, 1.1]} color="#f5c518" />
+      <HardHat position={[1.1, 0.02, 1.8]} color="#f97316" />
+      <WorkLight position={[2.0, 0, -1.2]} />
+      <SteamVent position={[0.8, 0.3, -1.5]} count={12} color="#c5cdd3" />
+      <DustMotes count={26} bounds={[3.2, 1.8, 2.8]} centre={[0, 1.0, 0]} color="#e8dcc4" opacity={0.3} />
+
       <hemisphereLight args={['#d9e5ed', '#4d4538', 0.48]} />
       <ambientLight intensity={0.52} color="#e8eef2" />
       <KeyLight color="#fff0cf" intensity={7.2} position={[2.8, 4.2, 2.2]} shadowsEnabled={shadowsEnabled} angle={0.58} />
@@ -1205,6 +1287,7 @@ function FireSmoke() {
 function FireScene({ shadowsEnabled, bystanders }: { shadowsEnabled: boolean; bystanders?: string | null }) {
   return (
     <group>
+      <OutdoorAtmosphere enabled />
       <BystanderCrowd variant="fire" bystanders={bystanders} />
       <OutdoorSky zenith="#596979" horizon="#a78b78" />
       <mesh position={[0, -0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
@@ -1250,6 +1333,12 @@ function FireScene({ shadowsEnabled, bystanders }: { shadowsEnabled: boolean; by
         </mesh>
       </group>
       <FireSmoke />
+      <FireEmbers />
+      <HazardDrum position={[2.2, 0, -1.4]} color="#9a3412" />
+      <ToolCrate position={[-2.4, 0, 1.0]} rotation={-0.4} />
+      <HardHat position={[-1.5, 0.02, 1.4]} color="#f8fafc" />
+      <WorkLight position={[1.6, 0, 1.8]} />
+      <DustMotes count={20} bounds={[3.0, 1.6, 2.4]} centre={[0, 0.9, -0.5]} color="#9ca3af" opacity={0.35} />
       <hemisphereLight args={['#7f8fa6', '#2b211f', 0.32]} />
       <ambientLight intensity={0.42} color="#b8c3cf" />
       <KeyLight color="#f8dcc4" intensity={6.1} position={[2.4, 3.4, 2.0]} shadowsEnabled={shadowsEnabled} angle={0.62} />
@@ -1267,6 +1356,7 @@ function FireScene({ shadowsEnabled, bystanders }: { shadowsEnabled: boolean; by
 function WaterScene({ shadowsEnabled, bystanders }: { shadowsEnabled: boolean; bystanders?: string | null }) {
   return (
     <group>
+      <OutdoorAtmosphere enabled />
       <BystanderCrowd variant="water" bystanders={bystanders} />
       <OutdoorSky zenith="#7bc7e3" horizon="#d9f2ed" />
       <mesh position={[0, -0.05, 0.3]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
@@ -1308,6 +1398,19 @@ function WaterScene({ shadowsEnabled, bystanders }: { shadowsEnabled: boolean; b
         <circleGeometry args={[0.72, 24]} />
         <meshStandardMaterial color="#698491" roughness={0.2} metalness={0.16} transparent opacity={0.42} />
       </mesh>
+      <BeachTowel position={[-1.6, 0.01, 1.1]} rotation={0.4} color="#38bdf8" />
+      <BeachTowel position={[1.2, 0.01, 0.6]} rotation={-0.3} color="#f97316" />
+      {/* Extra dry towels + wet deck sheen — hotel poolside drowning. */}
+      <BeachTowel position={[-0.4, 0.012, 1.55]} rotation={1.1} color="#f8fafc" />
+      <BeachTowel position={[0.7, 0.012, -0.4]} rotation={-0.8} color="#e2e8f0" />
+      <mesh position={[0.2, -0.032, 0.4]} rotation={[-Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
+        <circleGeometry args={[1.4, 28]} />
+        <meshStandardMaterial color="#8ec8d8" roughness={0.12} metalness={0.15} transparent opacity={0.35} />
+      </mesh>
+      <RescueTube position={[2.5, 0.1, 0.2]} rotation={[0, 0.2, 0.5]} />
+      <WaterBottleCluster position={[1.8, 0, 1.3]} count={3} />
+      <SteamVent position={[0.2, 0.1, -1.6]} count={10} color="#dff7ff" />
+      <DustMotes count={14} bounds={[3.0, 1.2, 2.5]} centre={[0, 0.6, 0]} color="#b9efff" opacity={0.2} />
 
       <hemisphereLight args={['#caefff', '#735f42', 0.72]} />
       <ambientLight intensity={0.62} color="#dff7ff" />
@@ -1326,6 +1429,7 @@ function WaterScene({ shadowsEnabled, bystanders }: { shadowsEnabled: boolean; b
 function HeatScene({ shadowsEnabled, showPatientSeat, bystanders }: { shadowsEnabled: boolean; showPatientSeat: boolean; bystanders?: string | null }) {
   return (
     <group>
+      <OutdoorAtmosphere enabled />
       <BystanderCrowd variant="heat" bystanders={bystanders} />
       <OutdoorSky zenith="#78b9e4" horizon="#dbe8ea" />
       <mesh position={[0, -0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_RAYCAST}>
@@ -1376,6 +1480,11 @@ function HeatScene({ shadowsEnabled, showPatientSeat, bystanders }: { shadowsEna
           </mesh>
         ))}
       </group>
+      <WaterBottleCluster position={[-2.3, 0, 1.4]} count={5} />
+      <SunHat position={[-1.4, 0.02, 0.9]} />
+      <SunHat position={[1.8, 0.02, -1.1]} color="#f5e6c8" />
+      <HeatShimmer y={0.4} z={-1.6} />
+      <DustMotes count={18} bounds={[3.5, 1.5, 3.0]} centre={[0, 0.9, 0]} color="#fff0c4" opacity={0.28} />
 
       {/* A broad, front-biased field light keeps skin and assessment targets
           legible beneath the canopy. The warm hemisphere still carries the
@@ -1399,6 +1508,7 @@ function HeatScene({ shadowsEnabled, showPatientSeat, bystanders }: { shadowsEna
 function AgriculturalScene({ shadowsEnabled, showPatientSeat: _showPatientSeat, bystanders }: { shadowsEnabled: boolean; showPatientSeat: boolean; bystanders?: string | null }) {
   return (
     <group>
+      <OutdoorAtmosphere enabled />
       <BystanderCrowd variant="agricultural" bystanders={bystanders} />
       {/* Open sky day lighting for outdoor farm */}
       <OutdoorSky zenith="#8ac2d6" horizon="#e3f4eb" />
@@ -1449,6 +1559,13 @@ function AgriculturalScene({ shadowsEnabled, showPatientSeat: _showPatientSeat, 
           <meshStandardMaterial color="#e8f4f8" roughness={0.3} metalness={0.2} />
         </mesh>
       </group>
+      <PesticideTank position={[-1.8, 0, 1.2]} />
+      <ProduceCrate position={[1.5, 0, 0.8]} rotation={0.3} fill="#84cc16" />
+      <ProduceCrate position={[1.9, 0, 1.15]} rotation={-0.2} fill="#f97316" />
+      <SunHat position={[-0.9, 0.02, 0.5]} color="#e8d9a0" />
+      <HardHat position={[0.6, 0.02, 1.6]} color="#84cc16" />
+      <HeatShimmer y={0.3} z={-1.0} />
+      <DustMotes count={22} bounds={[3.4, 1.5, 3.0]} centre={[0, 0.8, 0]} color="#e8dcc4" opacity={0.32} />
 
       {/* Hemisphere light - warm desert daylight */}
       <hemisphereLight args={['#d4e2df', '#9c7a4f', 0.68]} />
@@ -1771,6 +1888,15 @@ function WreckedSedan() {
         rotation={[1.2, 0.3, 0.4]}
         scale={1.3}
       />
+      {/* Crushed bonnet + hanging wheel arch — silhouette reads as impact. */}
+      <mesh position={[0.2, 0.55, 1.15]} rotation={[0.35, 0.1, 0.15]} castShadow raycast={NO_RAYCAST}>
+        <boxGeometry args={[1.4, 0.18, 0.55]} />
+        <meshStandardMaterial color="#5a6270" roughness={0.55} metalness={0.45} />
+      </mesh>
+      <mesh position={[-1.1, 0.35, 0.4]} rotation={[0.2, 0, 1.1]} castShadow raycast={NO_RAYCAST}>
+        <boxGeometry args={[0.5, 0.12, 0.7]} />
+        <meshStandardMaterial color="#6b7280" roughness={0.6} metalness={0.4} />
+      </mesh>
     </group>
   );
 }
@@ -1787,6 +1913,7 @@ function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile, bystande
   const hasWreck = Boolean(vehicleImpact);
   return (
     <group>
+      <OutdoorAtmosphere enabled />
       <OutdoorSky zenith="#8cb6d4" horizon="#e8d3ba" />
       {showPatientSeat && <Suspense fallback={null}><VehiclePatientSeat /></Suspense>}
       <BystanderCrowd variant="roadside" bystanders={bystanders} />
@@ -1831,6 +1958,13 @@ function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile, bystande
           <meshStandardMaterial color="#fffbe8" emissive="#fff6d0" emissiveIntensity={2.2} side={THREE.DoubleSide} />
         </mesh>
       ))}
+      {/* Street furniture + personal scatter + skid marks — a real crash site. */}
+      <StreetLamp position={[-3.2, 0, -1.8]} lit />
+      <StreetLamp position={[3.4, 0, 1.4]} lit={false} />
+      <TrafficBarrier position={[0, 0, 2.6]} rotation={0.08} />
+      <CrashScatter position={[0.3, 0, 0.6]} />
+      <SkidMarks position={[1.8, 0, -0.4]} rotation={0.25} />
+      <DustMotes count={16} bounds={[3.5, 1.4, 3.0]} centre={[0, 0.8, 0]} color="#d4d8dc" opacity={0.2} />
       {/* The wrecked car, debris, broken glass, fuel spill and downed motorcycle
           belong to a vehicle impact — a pedestrian struck by a car, a cyclist
           hit by a van. A generic roadside (moped spill, fall from a kerb) has
@@ -1928,6 +2062,24 @@ function RoadsideScene({ shadowsEnabled, showPatientSeat, sceneProfile, bystande
 // ---------------------------------------------------------------------------
 // Variant switch. 'clinic' is handled by index.tsx.
 // ---------------------------------------------------------------------------
+/**
+ * Atmospheric depth for outdoor scenes — a thin fog band near the horizon so
+ * the world has a readable falloff (game skybox behaviour) without hiding the
+ * patient. Indoor scenes stay clear so clinical colour stays accurate.
+ */
+function OutdoorAtmosphere({ enabled }: { enabled: boolean }) {
+  const { scene } = useThree();
+  useEffect(() => {
+    if (!enabled) {
+      if (scene.fog) scene.fog = null;
+      return;
+    }
+    scene.fog = new THREE.Fog('#c5d4de', 6, 18);
+    return () => { scene.fog = null; };
+  }, [enabled, scene]);
+  return null;
+}
+
 export function SceneVariantEnvironment({
   variant,
   hideOverhead,

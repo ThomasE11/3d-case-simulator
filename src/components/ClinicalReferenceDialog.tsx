@@ -128,6 +128,30 @@ export function ClinicalReferenceDialog({ trigger }: { trigger?: ReactNode } = {
                 <FileText className="h-4 w-4" />
                 <span className="hidden sm:inline">Guidelines</span>
               </TabsTrigger>
+              <TabsTrigger value="pocket" className="gap-1">
+                <ExternalLink className="h-4 w-4" />
+                <span className="hidden sm:inline">Pocket</span>
+              </TabsTrigger>
+              <TabsTrigger value="pocket" className="gap-1">
+                <ExternalLink className="h-4 w-4" />
+                <span className="hidden sm:inline">Pocket</span>
+              </TabsTrigger>
+              <TabsTrigger value="pocket" className="gap-1">
+                <ExternalLink className="h-4 w-4" />
+                <span className="hidden sm:inline">Pocket</span>
+              </TabsTrigger>
+              <TabsTrigger value="pocket" className="gap-1">
+                <ExternalLink className="h-4 w-4" />
+                <span className="hidden sm:inline">Pocket</span>
+              </TabsTrigger>
+              <TabsTrigger value="pocket" className="gap-1">
+                <ExternalLink className="h-4 w-4" />
+                <span className="hidden sm:inline">Pocket</span>
+              </TabsTrigger>
+              <TabsTrigger value="pocket" className="gap-1">
+                <ExternalLink className="h-4 w-4" />
+                <span className="hidden sm:inline">Pocket</span>
+              </TabsTrigger>
               <TabsTrigger value="ecgs" className="gap-1">
                 <Activity className="h-4 w-4" />
                 <span className="hidden sm:inline">ECG Library</span>
@@ -234,6 +258,31 @@ export function ClinicalReferenceDialog({ trigger }: { trigger?: ReactNode } = {
               </ScrollArea>
             </TabsContent>
 
+
+            {/* Pocket Paramedic — live clinical handbook (remedy-road). */}
+            <TabsContent value="pocket" className="mt-4">
+              <div className="overflow-hidden rounded-xl border border-border/50 bg-slate-950">
+                <div className="flex items-center justify-between border-b border-white/10 bg-slate-900/80 px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/80">
+                    Pocket Paramedic — clinical handbook
+                  </p>
+                  <a
+                    href="https://remedy-road.vercel.app"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] text-cyan-300 hover:text-cyan-200"
+                  >
+                    Open full app <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+                <iframe
+                  title="Pocket Paramedic"
+                  src="https://remedy-road.vercel.app"
+                  className="h-[420px] w-full border-0 bg-white"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                />
+              </div>
+            </TabsContent>
             {/* Guidelines Tab */}
             <TabsContent value="guidelines" className="mt-4">
               <ScrollArea className="h-[400px]">

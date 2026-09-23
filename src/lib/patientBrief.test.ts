@@ -28,7 +28,7 @@ describe('buildPatientBrief', () => {
 
     const brief = buildPatientBrief(asthma!);
     expect(brief).toContain('Where I am: Villa in Al Ain');
-    expect(brief).toContain('Why the ambulance was called: Son cannot breathe, using inhaler repeatedly');
+    expect(brief).toContain('What I tell people is wrong: I cannot breathe, using inhaler repeatedly');
     expect(brief).toContain('Started feeling tight chest after cleaning dusty room, used inhaler 10 times with no relief');
     // The model gets the authored case facts, never a diagnosis label or
     // monitor values it could present as if the patient knew them.

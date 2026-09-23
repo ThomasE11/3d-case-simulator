@@ -24,6 +24,7 @@ import {
   RESP001_GARMENT_GLBS,
 } from './ClothingLayer';
 import { buildHairLayer } from './HairLayer';
+import { skinHexFor, type PatientAppearance } from '@/lib/patientAppearance';
 import { paintEyesOnTexture } from './EyesLayer';
 import { buildMottledTextures, buildCyanosisLocalTwin } from './MottlingLayer';
 import { applyWoundsToTextures } from './WoundLayer';
@@ -38,6 +39,7 @@ import { getBreathPhase01, setBreathClock } from '@/lib/breathClock';
 import { computeIdleLimbMotion, createIdleLimbMotion } from '@/lib/idleLimbMotion';
 import { pupilDiscScale } from '@/lib/pupilDiscScale';
 import { patientWalkingPath, walkClipTimeScale } from '@/lib/patientWalkingPath';
+import { seatStyleForId, type SeatStyleId, type StandingStance } from '@/lib/patientSeatStyle';
 import { tripodHandBraceSweep, TRIPOD_BRACE_CALIBRATION } from '@/lib/tripodHandBrace';
 import { skinDetailProfileForPilot, type SkinDetailProfile } from './resp001SkinDetail';
 import { shouldApplyCorrectedLipArticulation, withResp001LipArticulationMorph } from './resp001LipArticulation';
@@ -220,6 +222,12 @@ interface BodyMeshProps {
   /** Anatomical side with an authored acute motor deficit. The affected arm
    * hangs with reduced tone so FAST-positive cases are visible, not text-only. */
   neurologicalWeakSide?: NeurologicalWeakSide;
+  /** Case-derived skin / hair / habitus so patients are not clones. */
+  appearance?: PatientAppearance | null;
+  /** Per-case body language so every seated patient is not the same morph. */
+  seatStyle?: SeatStyleId;
+  /** Standing hip-load / head-yaw habit for upright patients. */
+  standingStance?: StandingStance | null;
   /** Fade the surface patient when an internal anatomy reference is shown. */
   surfaceOpacity?: number;
   /** Names of finding morph targets that should be ACTIVE (revealed) — e.g.
@@ -1105,7 +1113,7 @@ function buildSurfaceSampler(root: THREE.Object3D | null, presentationRoot?: THR
  */
 const ASYMMETRIC_CHEST_RESIDUAL = 0.35;
 
-export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guidedMode = false, nextGuidedStep = null, onBlockedClick, onBodyPoint, bodyInjuries, patientGender, patientAge, braceHandsOnKnees = false, handGuardRegion = null, neurologicalWeakSide = null, surfaceOpacity = 1, activeFindingMorphs, breathRateRpm = 0, breathingEffort = 0, chestRiseUnilateral = false, breathDepthFactor = 1, onSurfaceSampler, onFaceAttachment, dressed = false, dressedActiveRegion = null, pupilLeftMm = 3.5, pupilRightMm = 3.5, skinTint = null, skinDiaphoretic = false, diaphoresis = 0, jaundice = 0, mottling = 0, unconscious = false, idleCues = null, reduceIdleMotion = false, presentation = 'upright', bayStage = 'stretcher', sss = false, posture = null, mobility = 'recumbent', mouthOpenRef = null, cyanosisLocalStrength = 0, plantOffset, seatedSupportLift }: BodyMeshProps) {
+export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guidedMode = false, nextGuidedStep = null, onBlockedClick, onBodyPoint, bodyInjuries, patientGender, patientAge, braceHandsOnKnees = false, handGuardRegion = null, neurologicalWeakSide = null, appearance = null, seatStyle = 'attentive', standingStance = null, surfaceOpacity = 1, activeFindingMorphs, breathRateRpm = 0, breathingEffort = 0, chestRiseUnilateral = false, breathDepthFactor = 1, onSurfaceSampler, onFaceAttachment, dressed = false, dressedActiveRegion = null, pupilLeftMm = 3.5, pupilRightMm = 3.5, skinTint = null, skinDiaphoretic = false, diaphoresis = 0, jaundice = 0, mottling = 0, unconscious = false, idleCues = null, reduceIdleMotion = false, presentation = 'upright', bayStage = 'stretcher', sss = false, posture = null, mobility = 'recumbent', mouthOpenRef = null, cyanosisLocalStrength = 0, plantOffset, seatedSupportLift }: BodyMeshProps) {
   // The path is recomputed per render so a `caseData.patientInfo.gender`
   // change (e.g. user picks a different case) swaps the mesh without
   // remounting the parent. useGLTF caches by URL.
@@ -1415,7 +1423,7 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
         // Hair and eyebrows are derived from this exact body surface and reuse
         // its skin weights/morphs, preventing the universal bald mannequin
         // presentation without adding an independent rig that could detach.
-        const hairLayer = buildHairLayer(bodyMesh as THREE.Mesh, patientGender, patientAge);
+        const hairLayer = buildHairLayer(bodyMesh as THREE.Mesh, patientGender, patientAge, appearance);
         if (hairLayer) (bodyMesh as THREE.Mesh).add(hairLayer);
         // Eyes — the skin texture paints the sockets bright red (a placeholder).
         // Models WITH real eyeball meshes (Stage 2: getObjectByName('eyeL'))
@@ -1634,6 +1642,10 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
     rightLeg: recoveryPoseBones.rightLeg?.quaternion.clone() ?? null,
   }), [recoveryPoseBones]);
 
+  // Per-case body language. One pose_seated morph made every chair look the
+  // same; these offsets are a person's sitting habit over that morph.
+  const seatBones = useMemo(() => seatStyleForId(seatStyle), [seatStyle]);
+
   // Whole-skeleton movement is reserved for genuinely ambulatory cases. The
   // source clips are in-place Mixamo loops, so the patient remains inside the
   // scene while stepping/pacing rather than drifting through equipment.
@@ -1833,11 +1845,12 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
         // multiplier used to turn all three eye materials into sclera white,
         // leaving the patient with blank mannequin eyes.
         if (!std.color || mat.userData.skipRecolor) continue;
-        std.color.set(skinTint ?? '#ffffff');
+        // Base skin tone from the case appearance; perfusion tint overrides live.
+        std.color.set(skinTint ?? (appearance ? skinHexFor(appearance.skinTone) : '#ffffff'));
         std.needsUpdate = true;
       }
     });
-  }, [clonedScene, skinTint]);
+  }, [clonedScene, skinTint, appearance]);
 
   // Free the GPU resources WE created on the PREVIOUS clone when a new one
   // replaces it (e.g. a male↔female model switch): the scrubs/hit-box
@@ -1895,6 +1908,26 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
       postureSpineBones.forEach((spine, index) => spine.quaternion.copy(postureSpineRest[index]));
     }
     skeletalMixer?.update(Math.min(delta, 0.05));
+    // Gait hygiene: the donor walk clip hyperextends the knee and over-swings
+    // the hip, which reads as a broken shin / backwards knee mid-stride. Clamp
+    // limb bones into a human range AFTER the mixer writes each frame.
+    if (skeletalMixer && mobility === 'pacing') {
+      for (const leg of recoveryPoseBones.leftUpLeg ? [recoveryPoseBones.leftUpLeg, recoveryPoseBones.rightUpLeg] : []) {
+        if (!leg) continue;
+        const e = new THREE.Euler().setFromQuaternion(leg.quaternion, 'XYZ');
+        // Hip flexion stays; extreme abduction/adduction is pulled in.
+        e.z = THREE.MathUtils.clamp(e.z, -0.35, 0.35);
+        e.y = THREE.MathUtils.clamp(e.y, -0.25, 0.25);
+        leg.quaternion.setFromEuler(e);
+      }
+      for (const knee of recoveryPoseBones.leftLeg ? [recoveryPoseBones.leftLeg, recoveryPoseBones.rightLeg] : []) {
+        if (!knee) continue;
+        const e = new THREE.Euler().setFromQuaternion(knee.quaternion, 'XYZ');
+        // Knee only flexes one way. Clamp so the shin never kicks backwards.
+        e.x = THREE.MathUtils.clamp(e.x, -2.0, 0.08);
+        knee.quaternion.setFromEuler(e);
+      }
+    }
     const armRelaxation = patientArmRestRadians(mobility, unconscious, patientAge);
     // Bring the clip's A-pose shoulders in to the body. Adduction is local Z
     // and mirrors per side; the flexion offset below is for static poses only.
@@ -2032,6 +2065,49 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
         applyLocalBoneAdjustment(recoveryPoseBones.leftForeArm, adj.leftForeArm);
         applyLocalBoneAdjustment(recoveryPoseBones.rightArm, adj.rightArm);
         applyLocalBoneAdjustment(recoveryPoseBones.rightForeArm, adj.rightForeArm);
+      }
+
+      // Seat / stance personality — layered last so it never fights a clinical
+      // guard or the recovery pose. Standing gets a loaded hip and head habit;
+      // seated gets the case's sitting style (slouch, open knees, twist…).
+      if (mobility === 'seated' && posture !== 'recovery' && !handGuardRegion) {
+        applyLocalBoneAdjustment(recoveryPoseBones.leftArm, seatBones.leftArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightArm, seatBones.rightArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.leftForeArm, seatBones.leftForeArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightForeArm, seatBones.rightForeArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.leftUpLeg, seatBones.leftUpLeg);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightUpLeg, seatBones.rightUpLeg);
+        applyLocalBoneAdjustment(recoveryPoseBones.leftLeg, seatBones.leftLeg);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightLeg, seatBones.rightLeg);
+        postureSpineBones.forEach((spine) => {
+          if (seatBones.spine) spine.rotateX(seatBones.spine);
+          if (seatBones.spineYaw) spine.rotateY(seatBones.spineYaw);
+        });
+      }
+      // Neonates (under ~1 month) rest in physiological flexion — elbows and
+      // knees drawn in, wrists soft. Without this they lie starfished like a
+      // small mannequin instead of a newborn.
+      if (typeof patientAge === 'number' && patientAge < 0.08) {
+        applyLocalBoneAdjustment(recoveryPoseBones.leftArm, [0.55, 0, -0.25] as const);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightArm, [0.55, 0, 0.25] as const);
+        applyLocalBoneAdjustment(recoveryPoseBones.leftForeArm, [1.1, 0.2, 0] as const);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightForeArm, [1.1, -0.2, 0] as const);
+        applyLocalBoneAdjustment(recoveryPoseBones.leftUpLeg, [0.7, 0, -0.15] as const);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightUpLeg, [0.7, 0, 0.15] as const);
+        applyLocalBoneAdjustment(recoveryPoseBones.leftLeg, [-1.1, 0, 0] as const);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightLeg, [-1.1, 0, 0] as const);
+      }
+
+      if (mobility === 'standing' && standingStance && !unconscious && !handGuardRegion) {
+        // Weight on one hip + a slow settle — a person standing still is not
+        // a shop mannequin. Breath-frequency hip sway, not a dance.
+        const sway = Math.sin(idleLimbTimeRef.current * 0.55) * 0.012;
+        applyLocalBoneAdjustment(recoveryPoseBones.leftArm, standingStance.leftArm);
+        applyLocalBoneAdjustment(recoveryPoseBones.rightArm, standingStance.rightArm);
+        postureSpineBones.forEach((spine) => {
+          spine.rotateY(standingStance.spineYaw + sway);
+          spine.rotateZ(standingStance.hipShift * 0.35);
+        });
       }
     }
     const spineLean = patientSpineLeanRadians(posture, patientAge)
