@@ -2261,10 +2261,10 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
     "bystanderDetail": "The coworkers remain clustered near the entrance and exit wounds, their movements halted by shock as they wait for instructions."
   },
   "y2-004": {
-    "arrivalNarrative": "Stepping through the workshop doorway into the warm, ventilated industrial space, I see the 35-year-old man sitting on the floor against a wall, visibly distressed and speaking in short sentences from pain. He is surrounded by four colleagues; one first-aider is actively applying wet towels to his burns while another monitors the still-powered welding equipment nearby. The air carries the sharp, acrid scent of chemical solvents mixed with the smell of singed hair from the recent flash fire.",
+    "arrivalNarrative": "Stepping through the workshop doorway into the warm, ventilated industrial space, I see the 35-year-old man sitting on a workshop chair, visibly distressed and speaking in short sentences from pain. He is surrounded by four colleagues; one first-aider has wet towels ready for his burns while another monitors the still-powered welding equipment nearby. The air carries the sharp, acrid scent of chemical solvents mixed with the smell of singed hair from the recent flash fire.",
     "sensoryCues": {
       "sounds": [
-        "crackling of wet towels on skin",
+        "rustling of damp towels nearby",
         "distant ambient workshop machinery hum"
       ],
       "smells": [
@@ -2284,7 +2284,7 @@ export const SCENE_INTRODUCTIONS: Record<string, SceneIntroduction> = {
       "extricationNeeded": false,
       "note": ""
     },
-    "bystanderDetail": "The colleagues remain close to the patient, one focused intently on dampening the burns with wet towels while others maintain a vigilant stance around the active welding zone."
+    "bystanderDetail": "The colleagues remain close to the patient, one holding damp towels ready while others maintain a vigilant stance around the active welding zone."
   },
   "y1-004": {
     "arrivalNarrative": "I step through the doorway into a small kitchen where a flatmate is present, standing by the stove which remains switched on. The floor is slick with spilled boiling water and a hot pot sits dangerously nearby. My patient stands anxiously in the centre of the room, clutching her left forearm away from her body while tears stream down her face.",

@@ -53,7 +53,7 @@ describe('scene image demographic consistency', () => {
     ['litfl-012', '/scene-assets/staff-accommodation-collapse-sharjah.png', 'male'],
     ['y1-017', '/scene-assets/office-medical-dubai.png', 'male'],
     ['trauma-009', '/scene-assets/construction-fall-male-29-dubaihills.png', 'male'],
-    ['y2-004', '/scene-assets/y2-004-workshop-flash-burn.png', 'male'],
+    ['y2-004', '/scene-assets/y2-004-workshop-flash-burn-seated.png', 'male'],
     ['y2-009', '/scene-assets/y2-009-construction-office-arrest.png', 'male'],
     ['fall-002', '/scene-assets/home-medical-male-dubai-apartment.png', 'male'],
     ['y2-005', '/scene-assets/y2-005-office-ectopic-lower-abdo.png', 'female'],

@@ -23,7 +23,7 @@ const SCENE_ASSET_GENDER_OVERRIDES: Record<string, 'male' | 'female'> = {
   '/scene-assets/y2-009-construction-office-arrest.png': 'male',
   '/scene-assets/staff-accommodation-collapse-sharjah.png': 'male',
   '/scene-assets/construction-fall-male-29-dubaihills.png': 'male',
-  '/scene-assets/y2-004-workshop-flash-burn.png': 'male',
+  '/scene-assets/y2-004-workshop-flash-burn-seated.png': 'male',
   '/scene-assets/trauma-004-park-stabbing-tamponade.png': 'male',
   '/scene-assets/y2-007-student-bedroom-overdose-female.png': 'female',
 };
@@ -113,7 +113,7 @@ export const KNOWN_SCENE_ASSETS = new Set<string>([
   '/scene-assets/y1-008-university-library-panic-female.png',
   '/scene-assets/y1-010-park-bicycle-wrist-fall.png',
   '/scene-assets/y1-020-school-football-tibial-fracture-male.png',
-  '/scene-assets/y2-004-workshop-flash-burn.png',
+  '/scene-assets/y2-004-workshop-flash-burn-seated.png',
   '/scene-assets/y2-005-office-ectopic-lower-abdo.png',
   '/scene-assets/y2-009-construction-office-arrest.png',
 ]);
@@ -224,7 +224,7 @@ export const PROMPT_SCENE_IMAGE_OVERRIDES: Record<string, string> = {
   'y1-020': '/scene-assets/y1-020-school-football-tibial-fracture-male.png',
   'y2-005': '/scene-assets/y2-005-office-ectopic-lower-abdo.png',
   'y2-009': '/scene-assets/y2-009-construction-office-arrest.png',
-  'y2-004': '/scene-assets/y2-004-workshop-flash-burn.png',
+  'y2-004': '/scene-assets/y2-004-workshop-flash-burn-seated.png',
   'litfl-012': '/scene-assets/staff-accommodation-collapse-sharjah.png',
   'multi-001': '/scene-assets/mci-highway-uae.png',
   'sepsis-001': '/scene-assets/sepsis-001-assisted-living-urosepsis.png',
@@ -556,7 +556,7 @@ const PLATE_TO_DISPATCH_VIDEO: Record<string, string> = {
   '/scene-assets/hotel-room-medical-uae.png': '/scene-assets/dispatch-hotel-room.mp4',
   '/scene-assets/industrial-workshop-male-uae.png': '/scene-assets/dispatch-industrial.mp4',
   '/scene-assets/trauma-011-industrial-hand-amputation.png': '/scene-assets/dispatch-industrial.mp4',
-  '/scene-assets/y2-004-workshop-flash-burn.png': '/scene-assets/dispatch-industrial.mp4',
+  '/scene-assets/y2-004-workshop-flash-burn-seated.png': '/scene-assets/dispatch-industrial.mp4',
   '/scene-assets/burn-001-jebel-ali-industrial-fire-burns.png': '/scene-assets/dispatch-industrial.mp4',
   '/scene-assets/kitchen-scald-burn-female-uae.png': '/scene-assets/dispatch-kitchen-scald.mp4',
   '/scene-assets/mall-foodcourt-chestpain-male-65.png': '/scene-assets/dispatch-mall-foodcourt.mp4',
@@ -611,4 +611,3 @@ export function inferSceneVideo(caseData: CaseScenario): string | null {
   if (family && hasSceneVideoAsset(family)) return family;
   return null;
 }
-

@@ -1313,17 +1313,17 @@ export const secondYearCases: CaseScenario[] = [
       culturalConsiderations: ['Workplace incident - employer present', 'Colleagues anxious']
     },
     sceneInfo: {
-      description: 'Industrial workshop, welding equipment present, patient sitting on floor against wall',
+      description: 'Industrial workshop, welding equipment present, patient sitting on a workshop chair',
       hazards: ['Hot surfaces', 'Welding equipment still powered', 'Chemical solvents nearby'],
-      bystanders: '4 colleagues present, one first-aider applying wet towels',
+      bystanders: '4 colleagues present, one first-aider with wet towels ready',
       environment: 'Indoor workshop, warm ambient temperature, well ventilated',
       environmentVariant: 'industrial',
-      sceneImagePath: '/scene-assets/y2-004-workshop-flash-burn.png',
+      sceneImagePath: '/scene-assets/y2-004-workshop-flash-burn-seated.png',
       sceneImageCaption: 'Scene — Indoor workshop, warm ambient temperature, well ventilated',
     },
     initialPresentation: {
       generalImpression: 'Adult male, alert, in significant pain, visible burns to face and anterior chest',
-      position: 'Sitting upright against wall, holding hands away from body',
+      position: 'Sitting upright on a workshop chair, holding hands away from body',
       appearance: 'Singed eyebrows and nasal hairs, erythema and blistering to face and chest, soot around nostrils',
       consciousness: 'Alert, distressed, speaking in short sentences due to pain'
     },

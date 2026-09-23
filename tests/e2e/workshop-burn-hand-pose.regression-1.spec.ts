@@ -24,6 +24,23 @@ test('workshop burn patient keeps both painful hands visibly apart', async ({ pa
   // This scene previously crossed the wrists over the sternum in an X even
   // though the authored patient protects burned hands away from the body.
   expect(Math.abs(hands.left[0] - hands.right[0])).toBeGreaterThan(0.25);
+
+  const chairColors = await page.evaluate(() => {
+    const chair = window.__r3f!.get().scene.getObjectByName('clinical-patient-seat');
+    const colors: string[] = [];
+    chair?.traverse(object => {
+      if (object.type !== 'Mesh') return;
+      const material = (object as THREE.Mesh).material;
+      (Array.isArray(material) ? material : [material]).forEach(item => {
+        if ('color' in item) colors.push((item as THREE.MeshStandardMaterial).color.getHexString());
+      });
+    });
+    return colors;
+  });
+  expect(chairColors).toContain('47545a');
+  const firstLook = await page.request.get('/scene-assets/y2-004-workshop-flash-burn-seated.png');
+  expect(firstLook.ok()).toBe(true);
+  expect(firstLook.headers()['content-type']).toContain('image/png');
 });
 
 test('workshop scene opens without a render boundary at a narrow viewport', async ({ page }) => {

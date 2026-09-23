@@ -47,11 +47,14 @@ export function KenneyPatientChair({
   kind,
   name,
   idle = true,
+  finish = 'default',
 }: {
   kind: KenneyChairKind;
   name: string;
   /** A chair under a conscious patient rocks with their weight shift. */
   idle?: boolean;
+  /** Industrial scenes use a neutral metal finish, not the office chair pink. */
+  finish?: 'default' | 'industrial';
 }) {
   const plant = kenneyChairPlant(kind);
   const { scene } = useGLTF(plant.url);
@@ -61,9 +64,19 @@ export function KenneyPatientChair({
       object.raycast = NO_RAYCAST;
       object.castShadow = true;
       object.receiveShadow = true;
+      if (finish === 'industrial' && object instanceof THREE.Mesh) {
+        const tint = (material: THREE.Material) => {
+          const copy = material.clone();
+          if (copy instanceof THREE.MeshStandardMaterial) copy.color.set('#47545a');
+          return copy;
+        };
+        object.material = Array.isArray(object.material)
+          ? object.material.map(tint)
+          : tint(object.material);
+      }
     });
     return next;
-  }, [scene]);
+  }, [scene, finish]);
   const chair = (
     <primitive name={name} object={clone} position={plant.position} scale={plant.scale} />
   );

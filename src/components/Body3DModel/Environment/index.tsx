@@ -263,10 +263,13 @@ function Stretcher() {
 /** Kenney desk chair for tripod/seated presentations in the bay, worksite,
  * fire and water scenes. Seat pan is planted at 0.53 m so the pelvis stays
  * on the pan; rolling base + backrest read as a chair, not a crate. */
-function ClinicalPatientSeat({ kind = 'desk' }: { kind?: 'cushion' | 'desk' | 'dining' }) {
+function ClinicalPatientSeat({ kind = 'desk', finish = 'default' }: {
+  kind?: 'cushion' | 'desk' | 'dining';
+  finish?: 'default' | 'industrial';
+}) {
   return (
     <Suspense fallback={null}>
-      <KenneyPatientChair kind={kind} name="clinical-patient-seat" />
+      <KenneyPatientChair kind={kind} name="clinical-patient-seat" finish={finish} />
     </Suspense>
   );
 }
@@ -882,7 +885,7 @@ export function TreatmentBayEnvironment({
       {/* Home/public/heat and road scenes author their own seating. Other
           locations still need a support under a seated patient's pelvis. */}
       {showPatientSeat && (isClinic || variant === 'industrial' || variant === 'fire' || variant === 'water') && (
-        <ClinicalPatientSeat kind={patientSeatKind ?? 'desk'} />
+        <ClinicalPatientSeat kind={patientSeatKind ?? 'desk'} finish={variant === 'industrial' ? 'industrial' : 'default'} />
       )}
       {(patientSupportSurface === 'bed' || patientSupportSurface === 'sofa')
         && !isY2007OdBedroomProfile(sceneProfile)
