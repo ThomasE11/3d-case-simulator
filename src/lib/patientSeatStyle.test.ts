@@ -35,6 +35,18 @@ describe('patientSeatStyle', () => {
     })).toBe('attentive');
   });
 
+  it('does not huddle every patient merely because they lean against a wall', () => {
+    const wallSit = deriveSeatStyle({
+      caseId: 'y2-004', mobility: 'seated', posture: 'seated',
+      position: 'Sitting upright against wall, holding hands away from body',
+    });
+    expect(wallSit).not.toBe('huddle_knees');
+    expect(deriveSeatStyle({
+      caseId: 'library', mobility: 'seated', posture: 'seated',
+      position: 'Sitting on floor against wall with knees drawn up',
+    })).toBe('huddle_knees');
+  });
+
   it('leaves tripod to its authored lean', () => {
     expect(deriveSeatStyle({
       caseId: 'anything', mobility: 'seated', posture: 'tripod',

@@ -474,7 +474,7 @@ export function patientPlantOffsetForSupport(
  * unambiguous, high-specificity presentations (choking, neck) are matched
  * before the looser torso regions.
  */
-export type HandGuardRegion = 'neck' | 'head' | 'chest' | 'abdomen' | 'choking' | null;
+export type HandGuardRegion = 'neck' | 'head' | 'chest' | 'abdomen' | 'choking' | 'burn-protect' | null;
 
 export function deriveHandGuardRegion(caseData: CaseScenario): HandGuardRegion {
   const haystack = [
@@ -482,6 +482,13 @@ export function deriveHandGuardRegion(caseData: CaseScenario): HandGuardRegion {
     caseData.initialPresentation?.appearance,
     caseData.initialPresentation?.position,
   ].filter((s): s is string => typeof s === 'string').join(' ').toLowerCase();
+
+  // A flash-burn patient may deliberately keep both painful hands clear of
+  // the torso. That is the opposite of chest guarding; don't collapse it to a
+  // generic chair pose or let a wall-sit style wrap the arms around the legs.
+  if (/holding (?:both )?hands away from (?:the |his |her |their )?body|keeping (?:both )?hands away from (?:the |his |her |their )?body/.test(haystack)) {
+    return 'burn-protect';
+  }
 
   // "Clutching throat / universal choking sign" — the two-handed front-of-neck
   // gesture. Match before the generic neck guard so "choking" never degrades.

@@ -218,7 +218,7 @@ interface BodyMeshProps {
    *  "holding back of neck", cardiac "clutching chest", choking sign). Raises
    *  the hands from the lap to the guarded region instead of the default
    *  seated rest so the render matches the authored presentation. */
-  handGuardRegion?: 'neck' | 'head' | 'chest' | 'abdomen' | 'choking' | null;
+  handGuardRegion?: 'neck' | 'head' | 'chest' | 'abdomen' | 'choking' | 'burn-protect' | null;
   /** Anatomical side with an authored acute motor deficit. The affected arm
    * hangs with reduced tone so FAST-positive cases are visible, not text-only. */
   neurologicalWeakSide?: NeurologicalWeakSide;
@@ -526,9 +526,17 @@ const NECK_GUARD_ADJUSTMENTS = {
  * than merely on an internal target bone or behind the torso.
  */
 const HAND_GUARD_ADJUSTMENTS: Record<
-  'neck' | 'head' | 'chest' | 'abdomen' | 'choking',
+  'neck' | 'head' | 'chest' | 'abdomen' | 'choking' | 'burn-protect',
   { leftArm: readonly [number, number, number]; leftForeArm: readonly [number, number, number]; rightArm: readonly [number, number, number]; rightForeArm: readonly [number, number, number] }
 > = {
+  // Forearms lifted and slightly abducted so burned skin does not contact the
+  // chest or thighs; wrists remain in ordinary range, not a crossed-arm X.
+  'burn-protect': {
+    leftArm: [-0.15, 0, -0.18] as const,
+    leftForeArm: [-0.35, 0, 0.15] as const,
+    rightArm: [-0.15, 0, 0.18] as const,
+    rightForeArm: [-0.35, 0, -0.15] as const,
+  },
   neck: NECK_GUARD_ADJUSTMENTS,
   // One hand at the temple reads as holding the head without a surrender pose.
   head: NECK_GUARD_ADJUSTMENTS,

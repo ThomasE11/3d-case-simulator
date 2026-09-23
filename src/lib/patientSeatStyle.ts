@@ -184,7 +184,7 @@ export function deriveSeatStyle(input: {
   if (/knees (?:drawn |up|tucked|to (?:the )?chest)|curl(?:ed|ing)? up|huddl|fetal|foetal/i.test(position)) {
     return 'huddle_knees';
   }
-  if (/sitting on (?:the )?floor|against (?:the )?wall|on (?:the )?floor against/i.test(position) && !/supine|lying/i.test(position)) {
+  if (/sitting on (?:the )?floor|on (?:the )?floor against/i.test(position) && !/supine|lying/i.test(position)) {
     return 'huddle_knees';
   }
 

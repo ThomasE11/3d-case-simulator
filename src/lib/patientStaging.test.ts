@@ -180,6 +180,10 @@ describe('derivePatientSeatKind', () => {
 });
 
 describe('deriveHandGuardRegion', () => {
+  it('keeps burned hands clear of the torso instead of crossing them', () => {
+    const burn = fakeCase('Sitting upright against wall, holding hands away from body');
+    expect(deriveHandGuardRegion(burn)).toBe('burn-protect');
+  });
   it('flags a patient guarding or self-splinting their own neck/c-spine', () => {
     const whiplash = {
       initialPresentation: {
@@ -368,4 +372,3 @@ describe('upright arm adduction', () => {
     expect(patientUprightArmAdductionRadians('pacing')).toBeLessThan(Math.PI / 3);
   });
 });
-
