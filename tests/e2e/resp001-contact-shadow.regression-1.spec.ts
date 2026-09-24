@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { renderedSceneFraction } from './helpers/renderedScene';
 
 test.use({ deviceScaleFactor: 2 });
-test('villa contact shadow sits above its rug without moving the patient', async ({ page }, info) => {
+test('villa contact shadow sits on the shared floor without moving the patient', async ({ page }, info) => {
   await page.addInitScript(() => {
     localStorage.setItem('paramedic-studio-voice-enabled', 'false');
     sessionStorage.setItem('capturePinQuality', '1');
@@ -24,8 +24,8 @@ test('villa contact shadow sits above its rug without moving the patient', async
     const patient = state.scene.getObjectByName('Patient')!;
     return { height: shadow.position.y, patientMatrix: patient.matrixWorld.elements.slice() };
   });
-  expect(initial.height).toBeCloseTo(.033, 5);
-  for (const [label, height] of [['original', -.01], ['corrected', .033]] as const) {
+  expect(initial.height).toBeCloseTo(-.05, 5);
+  for (const [label, height] of [['original', -.01], ['corrected', -.05]] as const) {
     await page.evaluate(y => { window.__r3f!.scene.getObjectByName('patient-contact-shadow')!.position.y = y; }, height);
     await page.waitForTimeout(700);
     await canvas.screenshot({ path: info.outputPath(`contact-${label}.png`) });
@@ -40,5 +40,6 @@ test('other scenes retain their existing floor receiver', async ({ page }) => {
   });
   await page.goto('/?devLiveCase=trauma-011');
   await expect.poll(() => renderedSceneFraction(page), { timeout: 30_000 }).toBeGreaterThan(.25);
+  await expect.poll(() => page.evaluate(() => !!window.__r3f!.scene.getObjectByName('patient-contact-shadow')), { timeout: 30_000 }).toBe(true);
   expect(await page.evaluate(() => window.__r3f!.scene.getObjectByName('patient-contact-shadow')!.position.y)).toBe(-.01);
 });

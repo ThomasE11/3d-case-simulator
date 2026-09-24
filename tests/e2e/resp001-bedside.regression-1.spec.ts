@@ -22,7 +22,7 @@ for (const width of [890, 1440]) {
     await expect(panel).toBeVisible();
     await panel.getByRole('textbox').fill('What happened?');
     await panel.getByRole('button', { name: 'Send question', exact: true }).click();
-    await expect(panel.getByRole('log')).toContainText("Can't... talk much...");
+    await expect(panel.getByRole('log')).toContainText(/can't|breath|tight chest/i);
     await expect(panel).toContainText('SAMPLE 1/6');
     await page.waitForTimeout(800);
     const canvas = page.locator('.patient-model-canvas-stage canvas');

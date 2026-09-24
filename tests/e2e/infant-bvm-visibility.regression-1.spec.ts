@@ -14,6 +14,10 @@ test('infant BVM workflow leaves a visible fitted and connected device', async (
   await page.clock.install();
   await page.goto('/?devLiveCase=cardiac-017&qa=infant-bvm-visibility');
 
+  // The airway controls are gated behind the scene's authored breathing kit.
+  // Open it first so the test exercises the same discoverable workflow as a
+  // student, instead of relying on the old always-open tray.
+  await page.getByRole('button', { name: 'Open Breathing kit from scene', exact: true }).click();
   await page.getByRole('button', { name: 'BVM Ventilation', exact: true }).first().click();
   const apply = page.getByRole('region', { name: 'Treatment jump bags', exact: true }).getByRole('button', { name: 'Apply', exact: true });
   await expect(apply).toBeVisible();

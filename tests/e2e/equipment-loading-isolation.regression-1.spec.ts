@@ -8,6 +8,10 @@ test('a slow device texture does not hide the patient or bedside controls', asyn
   await page.setViewportSize({ width: 1440, height: 720 });
   await page.goto('/?devLiveCase=resp-001&capture');
   await expect.poll(() => renderedSceneFraction(page), { timeout: 90_000 }).toBeGreaterThan(0.25);
+  // Equipment is intentionally discoverable from the scene rather than
+  // pre-opened on entry. Open the authored breathing kit before selecting the
+  // device so this regression follows the same student path as the product.
+  await page.getByRole('button', { name: 'Open Breathing kit from scene', exact: true }).click();
   await page.getByRole('button', { name: 'Select Non-rebreather', exact: true }).click();
   const procedure = page.getByRole('dialog', { name: /Apply non-rebreather mask/i });
   for (const step of [

@@ -1,6 +1,7 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import type * as THREE from 'three';
+import { getFittedFaceEquipmentSpec } from '@/components/Body3DModel/faceEquipment';
 
 test.use({ video: 'on', viewport: { width: 1440, height: 960 } });
 
@@ -148,7 +149,8 @@ async function sampleBreathing(page: Page) {
 }
 
 async function verifyFittedMask(page: Page, info: TestInfo, mode: 'nonrebreather' | 'nebulizer') {
-  const inspect = () => page.evaluate(mode => {
+  const tubeExit = getFittedFaceEquipmentSpec(mode)!.tubeExit;
+  const inspect = () => page.evaluate(({ mode, tubeExit }) => {
     const state = window.__r3f!.get();
     const group = state.scene.getObjectByName(`applied-${mode}-mask`);
     if (!group) return null;
@@ -157,8 +159,10 @@ async function verifyFittedMask(page: Page, info: TestInfo, mode: 'nonrebreather
     const exit = group.getObjectByName('pilot-mask-tube-exit');
     const face = state.scene.getObjectByName('PatientFaceAttachment');
     if (!shell || !exit || !face) return null;
-    const expectedExit = state.camera.position.clone().set(...(mode === 'nonrebreather'
-      ? [0.0847, 1.5306, 0.045] as const : [0.0684, 1.4495, 0.045] as const));
+    // The marker and the fitted mask both use the same authored clinical
+    // tube-exit spec. Transform that source point through the live face frame
+    // instead of duplicating a stale post-calibration world coordinate here.
+    const expectedExit = state.camera.position.clone().set(...tubeExit);
     face.localToWorld(expectedExit);
     shell.geometry.computeBoundingBox();
     const bounds = shell.geometry.boundingBox!;
@@ -175,7 +179,7 @@ async function verifyFittedMask(page: Page, info: TestInfo, mode: 'nonrebreather
         ? ((group.getObjectByName('nebulizer-medication-cup')?.children[0] as THREE.Mesh | undefined)?.geometry.getAttribute('position')?.count ?? 0)
         : null,
     };
-  }, mode);
+  }, { mode, tubeExit });
   await expect.poll(inspect, { timeout: 10_000 }).not.toBeNull();
   const geometry = (await inspect())!;
   expect(geometry.planes).toEqual([]);

@@ -459,6 +459,10 @@ const REQUIRED_UNASSESSED_COLOR = '#f59e0b';
 // eyeR = the PATIENT'S right eye (app x < 0, screen-left facing the camera);
 // each eye parents its iris + pupil discs so saccade rotations carry them.
 const EYE_NODE_NAMES = ['eyeL', 'eyeR', 'irisL', 'irisR', 'pupilL', 'pupilR'] as const;
+// The Blender lid panel follows the measured palpebral rim. A tiny lateral
+// overlap on the closed target seals the outer iris sample at the canthus
+// without changing the open lid contour or moving the eyeball.
+const PILOT_EYELID_SIDE_OVERLAP = 0.0015;
 
 // Posture mixer: the `posture` prop maps to a Blender-authored morph target.
 // POSTURE_MORPHS is the exclusion/crossfade set (all zeroed except the active
@@ -1448,6 +1452,23 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
           const source = pilotEyelidScene.getObjectByName('PilotEyelids') as THREE.SkinnedMesh | undefined;
           if (!source?.isSkinnedMesh) throw new Error('Pilot eyelids require a skinned attachment');
           const geometry = source.geometry.clone();
+          // The authored canthus follows the measured socket exactly, but the
+          // clinical closure check also samples the outer iris margin. Extend
+          // only the closed shape key by 1.5 mm per side so that margin is
+          // occluded under every distress morph while the open lid remains
+          // faithful to the source aperture.
+          const closedTargetIndex = source.morphTargetDictionary?.eyelids_closed;
+          const closedTarget = closedTargetIndex === undefined
+            ? undefined
+            : geometry.morphAttributes.position?.[closedTargetIndex];
+          if (closedTarget) {
+            const basis = geometry.attributes.position;
+            for (let vertex = 0; vertex < basis.count; vertex++) {
+              const side = Math.sign(basis.getX(vertex));
+              if (side) closedTarget.setX(vertex, closedTarget.getX(vertex) + side * PILOT_EYELID_SIDE_OVERLAP);
+            }
+            closedTarget.needsUpdate = true;
+          }
           const joints = geometry.getAttribute('skinIndex');
           const weights = geometry.getAttribute('skinWeight');
           const boneMap = source.skeleton.bones.map(bone => body.skeleton.bones.findIndex(target => (

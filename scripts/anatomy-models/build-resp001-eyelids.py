@@ -34,6 +34,11 @@ OUTPUT = os.path.join(ROOT, 'public/models/resp001-eyelids.glb')
 PANEL_COLUMNS = 11
 RIM_DEDUPE_EPSILON = 1e-5
 PANEL_EDGE_CLEARANCE = 0.00045  # 0.45 mm proud of the local facial rim
+# The authored palpebral rim is a physical aperture, not a perfectly planar
+# rectangle. Give the closed panel a restrained 1.5 mm lateral overlap at each
+# canthus so the outer iris sample remains covered while the open state still
+# follows the real socket rather than becoming a cartoon visor.
+PANEL_SIDE_OVERLAP = 0.0015
 CORNEAL_CLEARANCE = 0.00045     # 0.45 mm in front of the sclera front pole
 ATLAS_PIXELS = {}
 
@@ -252,8 +257,8 @@ def make_panel_rows(body, mesh, eye, boundary, uv_by_vertex, skin_image):
     upper_chart = choose_continuous_chart_patch(mesh, centre, True, rim_indices, skin_image)
     lower_chart = choose_continuous_chart_patch(mesh, centre, False, rim_indices, skin_image)
 
-    lo_x = max(min(sample['co'].x for sample in upper), min(sample['co'].x for sample in lower))
-    hi_x = min(max(sample['co'].x for sample in upper), max(sample['co'].x for sample in lower))
+    lo_x = max(min(sample['co'].x for sample in upper), min(sample['co'].x for sample in lower)) - PANEL_SIDE_OVERLAP
+    hi_x = min(max(sample['co'].x for sample in upper), max(sample['co'].x for sample in lower)) + PANEL_SIDE_OVERLAP
     if hi_x - lo_x < 0.012:
         fail(f'{eye.name}: aperture horizontal span {hi_x - lo_x:.4f}m is implausibly small')
     eye_front_y = body_local_eye_front(body, eye)

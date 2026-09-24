@@ -6058,7 +6058,49 @@ export function StudentPanel({
                         variant="ghost"
                         size="sm"
                         className="tactical-monitor-shortcut h-7 text-xs text-cyan-100"
-                        onClick={() => document.querySelector('[aria-label="Vital signs monitor"]')?.scrollIntoView({ block: 'start' })}
+                        onClick={() => {
+                          const monitor = document.querySelector('[aria-label="Vital signs monitor"]');
+                          if (!monitor) return;
+                          // The clinical shell keeps smooth scrolling enabled for
+                          // normal navigation, but this shortcut is a cockpit
+                          // control: land on the monitor immediately and keep the
+                          // device fully in-frame instead of leaving it mid-scroll.
+                          const root = document.documentElement;
+                          const previousScrollBehavior = root.style.scrollBehavior;
+                          root.style.scrollBehavior = 'auto';
+                          // Measure the document coordinate before scrolling;
+                          // scrollIntoView can stop a few pixels short when a
+                          // sticky monitor rail is still settling its height.
+                          const targetTop = monitor.getBoundingClientRect().top + window.scrollY;
+                          window.scrollTo(0, targetTop);
+                          // The monitor's waveform canvas can finish sizing on
+                          // the next frame. Re-align through the late layout
+                          // window so the shortcut remains exact even when the
+                          // surrounding treatment bay grows after first paint.
+                          let restored = false;
+                          const restoreScrollBehavior = () => {
+                            if (restored) return;
+                            restored = true;
+                            root.style.scrollBehavior = previousScrollBehavior;
+                          };
+                          const realign = (remaining: number) => {
+                            const delta = monitor.getBoundingClientRect().top;
+                            if (Math.abs(delta) > 0.5) window.scrollBy(0, delta);
+                            if (remaining > 0) requestAnimationFrame(() => realign(remaining - 1));
+                            else restoreScrollBehavior();
+                          };
+                          requestAnimationFrame(() => realign(24));
+                          // A delayed scene/monitor layout can extend beyond a
+                          // frame budget on a cold tab; give it one final
+                          // correction before restoring normal smooth scroll.
+                          window.setTimeout(() => {
+                            if (monitor.isConnected) {
+                              const delta = monitor.getBoundingClientRect().top;
+                              if (Math.abs(delta) > 0.5) window.scrollBy(0, delta);
+                            }
+                            restoreScrollBehavior();
+                          }, 600);
+                        }}
                       >
                         View bedside monitor
                       </Button>

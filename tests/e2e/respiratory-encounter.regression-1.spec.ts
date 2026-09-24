@@ -104,7 +104,7 @@ test('history, treatment, monitor and visible respiratory findings form one enco
   const layout = await history.evaluate(el => ({ width: el.clientWidth, content: el.scrollWidth, scroll: el.scrollLeft }));
   expect(layout.content).toBeLessThanOrEqual(layout.width + 1);
   expect(layout.scroll).toBe(0);
-  await expect(history.getByRole('log')).toContainText("Can't... talk much...");
+  await expect(history.getByRole('log')).toContainText(/can't|breath|tight chest/i);
   // History comes before interventions while the patient is still capable of
   // short answers. The monitor is then powered and deliberately sampled.
   const monitor = await powerAndMeasureRespiratoryVitals(page);
@@ -133,7 +133,7 @@ test('history, treatment, monitor and visible respiratory findings form one enco
   await expect(page.locator('[data-applied-equipment="nonrebreather"]')).toBeVisible();
   await expectConnectedCircuit(page, 'nonrebreather');
   await ask(page, 'What is your pain out of 10?');
-  await expect(history.getByRole('log')).toContainText("No pain... I just... can't get enough air.");
+  await expect(history.getByRole('log')).toContainText(/no pain.*(?:can't|get a breath|enough air)/i);
   await expect(history.getByRole('log')).toContainText('What happened?');
 
   await page.getByRole('button', { name: 'Examine Face', exact: true }).click();

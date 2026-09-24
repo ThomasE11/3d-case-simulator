@@ -10,6 +10,7 @@ import {
   RESP001_CALIBRATED_KIT,
   RESP001_CALIBRATED_REST,
   RESP001_CALIBRATED_ROOT_Z,
+  RESP001_SOFA_ROOT_DROP,
 } from './sceneAnchors';
 import { RESP001_SEATED_SUPPORT_LIFT, getTreatmentBayTransform } from '@/components/Body3DModel/BodyMesh';
 
@@ -26,7 +27,7 @@ describe('resp-001 scene anchors', () => {
     expect(plant.x).toBeCloseTo(RESP001_CALIBRATED_REST.x);
     expect(plant.z).toBeCloseTo(RESP001_CALIBRATED_ROOT_Z);
     expect(plant.seatedSupportLift).toBeCloseTo(
-      RESP001_SEATED_SUPPORT_LIFT + (RESP001_CALIBRATED_REST.y - 0.541),
+      RESP001_SEATED_SUPPORT_LIFT + (RESP001_CALIBRATED_REST.y - 0.541) - RESP001_SOFA_ROOT_DROP,
     );
 
     const transform = getTreatmentBayTransform('floor', 'tripod', 'seated', 1, plant.seatedSupportLift, plant);
@@ -62,7 +63,7 @@ describe('resp-001 scene anchors', () => {
     expect(anchors.rest.y).toBeCloseTo(0.91);
     const plant = plantFromRestAnchor(anchors.rest);
     expect(plant.x).toBeCloseTo(0.12);
-    expect(plant.seatedSupportLift).toBeCloseTo(RESP001_SEATED_SUPPORT_LIFT + (0.91 - 0.541));
+    expect(plant.seatedSupportLift).toBeCloseTo(RESP001_SEATED_SUPPORT_LIFT + (0.91 - 0.541) - RESP001_SOFA_ROOT_DROP);
   });
 
   it('stages ABC bags on the kit table and a first-aid marker above the cabinet', () => {

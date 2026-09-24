@@ -14,15 +14,23 @@ export type SceneAnchorSet = {
 
 /**
  * Morph calibration from the original chair-kit sit: soles hang
- * `RESP001_SEAT_FORWARD` metres in front of the rest empty, and a 0.051 m
- * support lift plants the pelvis on a 0.541 m cushion. Jutsu rev7 keeps that
- * relationship and only changes the rest empty (sofa top ≈ 0.91 m).
+ * `RESP001_SEAT_FORWARD` metres in front of the rest empty. The authored
+ * PatientRestAnchor is the *top* of the rev7 sofa cushion; the fitted seated
+ * rig's clinical root has to sit 0.20 m lower than the old chair-kit delta so
+ * its hips meet that top and its feet clear the sofa base. Keeping this drop
+ * explicit prevents the old 0.541 m chair calibration from lifting the
+ * patient into the sofa front panel.
  *
  * Do NOT derive seat-forward from the rest Z — a sofa at z=-0.52 would shove
  * the patient 1.3 m into the coffee table.
  */
 export const RESP001_NATIVE_SEAT_Y = 0.541;
-export const RESP001_SEAT_FORWARD = 0.28;
+// Rev7's sofa front is 0.21 m in world Z. The fitted seated hips sit about
+// 0.38 m behind the root, so the patient needs 0.60 m of forward plant to put
+// the torso just beyond the front panel and let the lower legs hang in the
+// open footwell instead of being occluded by the sofa base.
+export const RESP001_SEAT_FORWARD = 0.60;
+export const RESP001_SOFA_ROOT_DROP = 0.20;
 export const RESP001_CALIBRATED_REST: SceneAnchorPoint = { x: -1.1, y: 0.91, z: -0.52 };
 export const RESP001_CALIBRATED_KIT: SceneAnchorPoint = { x: 3.6, y: 0.565, z: 0.4 };
 export const RESP001_CALIBRATED_FIRST_AID: SceneAnchorPoint = { x: 4.2, y: 0.67, z: -3.2 };
@@ -117,7 +125,7 @@ export function plantFromRestAnchor(rest: SceneAnchorPoint): {
   return {
     x: rest.x,
     z: rest.z + RESP001_SEAT_FORWARD,
-    seatedSupportLift: RESP001_SEATED_SUPPORT_LIFT + (rest.y - RESP001_NATIVE_SEAT_Y),
+    seatedSupportLift: RESP001_SEATED_SUPPORT_LIFT + (rest.y - RESP001_NATIVE_SEAT_Y) - RESP001_SOFA_ROOT_DROP,
   };
 }
 

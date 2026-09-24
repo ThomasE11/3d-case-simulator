@@ -39,22 +39,24 @@ async function measurePilotOxygenGrounding(page: Page) {
   return page.evaluate(() => {
     const state = window.__r3f?.get();
     const scene = state?.scene;
-    const rug = scene?.getObjectByName('villa_woven_rug') as THREE.Mesh | undefined;
+    // Rev-7's villa dressing uses the shared floor as its contact surface;
+    // the earlier pilot rug is no longer mounted in this scene.
+    const floor = scene?.getObjectByName('resp001-villa-floor') as THREE.Mesh | undefined;
     const cylinder = scene?.getObjectByName('active-oxygen-cylinder') as THREE.Group | undefined;
     const circuit = scene?.getObjectByName('patient-anchored-circuit') as THREE.Mesh<THREE.TubeGeometry> | undefined;
     const regulator = cylinder?.children.find(child => (
       (child as THREE.Mesh).geometry?.type === 'TorusGeometry'
     ));
-    if (!state || !rug?.isMesh || !cylinder || !circuit?.isMesh || !regulator) return null;
+    if (!state || !floor?.isMesh || !cylinder || !circuit?.isMesh || !regulator) return null;
 
     scene.updateMatrixWorld(true);
     const point = state.camera.position.clone();
-    const rugPositions = rug.geometry.getAttribute('position');
-    let rugTop = -Infinity;
-    for (let vertex = 0; vertex < rugPositions.count; vertex += 1) {
-      point.fromBufferAttribute(rugPositions, vertex);
-      rug.localToWorld(point);
-      rugTop = Math.max(rugTop, point.y);
+    const floorPositions = floor.geometry.getAttribute('position');
+    let floorTop = -Infinity;
+    for (let vertex = 0; vertex < floorPositions.count; vertex += 1) {
+      point.fromBufferAttribute(floorPositions, vertex);
+      floor.localToWorld(point);
+      floorTop = Math.max(floorTop, point.y);
     }
 
     let cylinderBottom = Infinity;
@@ -77,8 +79,8 @@ async function measurePilotOxygenGrounding(page: Page) {
     scene.traverse(object => { if (object.name === 'active-oxygen-cylinder') cylinderCount += 1; });
     return {
       cylinderBottom,
-      rugTop,
-      groundGap: cylinderBottom - rugTop,
+      floorTop,
+      groundGap: cylinderBottom - floorTop,
       circuitRegulatorError: circuitEnd.distanceTo(regulatorCentre),
       cylinderCount,
       cylinderGroupY: cylinder.position.y,
@@ -101,7 +103,7 @@ async function expectGroundedPilotCylinder(page: Page, info: TestInfo, label: st
   return measurement;
 }
 
-test('resp-001 oxygen cylinder stands on the villa rug through NRB and nebuliser replacement', async ({ page }, info) => {
+test('resp-001 oxygen cylinder stands on the villa floor through NRB and nebuliser replacement', async ({ page }, info) => {
   test.setTimeout(120_000);
   await page.addInitScript(() => {
     localStorage.setItem('paramedic-studio-voice-enabled', 'false');
@@ -124,7 +126,7 @@ test('resp-001 oxygen cylinder stands on the villa rug through NRB and nebuliser
   await expect(page.locator('[data-applied-equipment="nonrebreather"]')).toBeVisible();
   await expect.poll(() => measurePilotOxygenGrounding(page), { timeout: 30_000 }).not.toBeNull();
 
-  // Hold a normal bedside oblique that includes the cylinder base and rug.
+  // Hold a normal bedside oblique that includes the cylinder base and floor.
   // The values remain within the production orbit limits; no limits are relaxed.
   await page.evaluate(() => {
     const state = window.__r3f!.get();
@@ -151,7 +153,7 @@ test('resp-001 oxygen cylinder stands on the villa rug through NRB and nebuliser
   await expect(page.locator('[data-applied-equipment="nonrebreather"]')).toHaveCount(0);
   await expect(page.locator('[data-applied-equipment="nebulizer"]')).toBeVisible();
   const nebuliser = await expectGroundedPilotCylinder(page, info, 'nebulizer');
-  expect(nebuliser.rugTop).toBeCloseTo(nrb.rugTop, 5);
+  expect(nebuliser.floorTop).toBeCloseTo(nrb.floorTop, 5);
   expect(nebuliser.cylinderBottom).toBeCloseTo(nrb.cylinderBottom, 5);
   await page.waitForTimeout(600);
   await canvas.screenshot({ path: info.outputPath('nebulizer-cylinder-grounding.png') });

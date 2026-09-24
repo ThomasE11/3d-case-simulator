@@ -8,7 +8,9 @@ import { expect, test } from '@playwright/test';
  */
 const SEATED_CASES: Array<[string, string]> = [
   ['y2-003', 'scene-patient-support-sofa-seated'], // stroke, sitting on sofa
-  ['y2-007', 'scene-patient-support-bed-seated'], // overdose, sitting on edge of bed
+  // y2-007 uses its authored bedroom GLB; the old procedural bed variant is
+  // intentionally absent so the seated patient sits on IntBed01's edge.
+  ['y2-007', 'archetype-y2-007-od-bedroom'],
 ];
 
 for (const [caseId, variantName] of SEATED_CASES) {
@@ -25,10 +27,15 @@ for (const [caseId, variantName] of SEATED_CASES) {
       const recumbent = state.scene.getObjectByName(
         name.includes('sofa') ? 'scene-patient-support-sofa' : 'scene-patient-support-bed',
       );
-      return { seatedPresent: !!seated, recumbentPresent: !!recumbent };
+      return {
+        seatedPresent: !!seated,
+        recumbentPresent: !!recumbent,
+        bedPresent: name.includes('archetype-y2-007') ? !!state.scene.getObjectByName('IntBed01') : undefined,
+      };
     }, variantName);
     expect(result.seatedPresent).toBe(true);
     expect(result.recumbentPresent).toBe(false);
+    if (caseId === 'y2-007') expect(result.bedPresent).toBe(true);
   });
 }
 

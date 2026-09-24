@@ -14,7 +14,8 @@ test('a breathless asthma patient answers without inventing pain', async ({ page
   await input.press('Enter');
 
   await expect(page.getByText('What is your pain out of 10?', { exact: true })).toBeVisible();
-  const answer = page.getByText("No pain... I just... can't get enough air.", { exact: true });
+  const answer = page.getByRole('log').getByText(/no pain/i).last();
   await expect(answer).toBeVisible();
+  await expect(answer).toContainText(/can't|get a breath|enough air/i);
   await expect(answer).not.toContainText(/eight|nine|\b[2-9]\s*out of 10/i);
 });

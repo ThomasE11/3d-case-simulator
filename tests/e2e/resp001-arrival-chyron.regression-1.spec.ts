@@ -42,15 +42,18 @@ test('entering the resp-001 scene announces arrival via a self-clearing chyron',
   expect(errors).toEqual([]);
 });
 
-test('no arrival chyron is shown for a scene-less clinic case', async ({ page }) => {
+test('a generated public-scene narrative still drives the arrival chyron', async ({ page }) => {
   test.setTimeout(120_000);
   await page.addInitScript(() => {
     localStorage.setItem('paramedic-studio-voice-enabled', 'false');
   });
-  // cardiac-016 is a clinic/domestic arrest case; it has no sceneImageCaption,
-  // so the chyron must never mount even though the live phase is entered.
+  // cardiac-016 has no authored image caption, but it does have a generated
+  // food-court arrival narrative. The narrative is the canonical scene copy,
+  // so the chyron must use it rather than silently disappearing.
   await page.goto('/?devLiveCase=cardiac-016');
   await expect.poll(() => renderedSceneFraction(page), { timeout: 30_000 }).toBeGreaterThan(.25);
-  await page.waitForTimeout(1_000);
-  await expect(page.getByTestId('scene-arrival-chyron')).toHaveCount(0);
+  const chyron = page.getByTestId('scene-arrival-chyron');
+  await expect(chyron).toBeVisible({ timeout: 5_000 });
+  await expect(chyron).toContainText('ON SCENE');
+  await expect(chyron).toContainText('food court');
 });

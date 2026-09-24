@@ -503,7 +503,11 @@ const RESP001_CONTACT_POSITIONS: Record<string, [number, number, number]> = {
   'llq-detail': [0.075, 1.095, 0.245],
   'umbilicus-detail': [0, 1.15, 0.255],
 };
-const RESP001_VILLA_RUG_TOP_Y = 0.032;
+// Rev-7 keeps the shared room floor as the contact surface; the older 32 mm
+// rug used by the pilot scene is no longer present in the dressing. Keep
+// cylinders, cables and shadows on that same floor plane so equipment cannot
+// visibly hover above the home scene.
+const RESP001_VILLA_FLOOR_Y = -0.05;
 const RESP001_EXAM_LANDMARKS = EXAM_LANDMARKS.map(marker => ({
   ...marker, position: RESP001_CONTACT_POSITIONS[marker.id] ?? marker.position,
 }));
@@ -2514,18 +2518,20 @@ function TreatmentEquipmentOverlay({
         fittedAnchor(0.084, 1.67, -0.08),
         fittedAnchor(0.068, 1.66, 0.03),
       ]
-    // The pilot's occiput is at z=-0.187 in its clinical head frame.
-    // Wrap the elastic behind it and around the ears, not through the skull.
+    // The pilot's occiput is at z=-0.187 in its resting clinical head frame.
+    // The severe-asthma gasp morph expands the posterior scalp by roughly
+    // 12–15 mm. Keep the elastic outside that moving envelope while leaving
+    // the ear/cheek run close enough to read as a fitted harness.
     : pilotHarnessAnchors ? [
         pilotHarnessAnchors[0],
         fittedAnchor(-0.077, 1.657, -0.045),
-        fittedAnchor(-0.092, 1.665, -0.10),
-        fittedAnchor(-0.071, 1.665, -0.143),
-        fittedAnchor(-0.042, 1.665, -0.177),
-        fittedAnchor(0, 1.665, -0.192),
-        fittedAnchor(0.042, 1.665, -0.177),
-        fittedAnchor(0.071, 1.665, -0.143),
-        fittedAnchor(0.092, 1.665, -0.10),
+        fittedAnchor(-0.092, 1.665, -0.115),
+        fittedAnchor(-0.071, 1.665, -0.158),
+        fittedAnchor(-0.042, 1.665, -0.192),
+        fittedAnchor(0, 1.665, -0.207),
+        fittedAnchor(0.042, 1.665, -0.192),
+        fittedAnchor(0.071, 1.665, -0.158),
+        fittedAnchor(0.092, 1.665, -0.115),
         fittedAnchor(0.077, 1.657, -0.045),
         pilotHarnessAnchors[1],
       ] : [
@@ -2592,6 +2598,12 @@ function TreatmentEquipmentOverlay({
           >
             <span
               className="sr-only"
+              role="img"
+              data-airway-connection={fittedFaceSpec.mode === 'bvm' ? 'face' : undefined}
+              data-oxygen-connected="true"
+              aria-label={fittedFaceSpec.mode === 'bvm'
+                ? 'Bag-valve-mask held with a two-handed face seal'
+                : `${equipment.oxygen.label} fitted over the nose and mouth`}
             >
               {fittedFaceSpec.mode === 'bvm'
                 ? 'Bag-valve-mask held with a two-handed face seal'
@@ -5448,6 +5460,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
   const [playingSound, setPlayingSound] = useState<string | null>(null);
   const [soundProgress, setSoundProgress] = useState(0);
   const soundTimerRef = useRef<number | null>(null);
+  const soundStartFrameRef = useRef<number | null>(null);
   const [pilotListeningStep, setPilotListeningStep] = useState(0);
   const pilotListeningCancel = useRef<(() => void) | null>(null);
   const cancelPilotListening = useCallback(() => {
@@ -5456,6 +5469,8 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
     pilotListeningCancel.current = null;
     if (soundTimerRef.current !== null) cancelAnimationFrame(soundTimerRef.current);
     soundTimerRef.current = null;
+    if (soundStartFrameRef.current !== null) cancelAnimationFrame(soundStartFrameRef.current);
+    soundStartFrameRef.current = null;
     stopAllSounds();
     setPlayingSound(null);
     setSoundProgress(0);
@@ -5743,8 +5758,8 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
   }, [patientSounds, breathRateRpm, isInArrest, patientUnconscious, caseData]);
 
   const ambientPatientPosition = useMemo(() => caseData.id === 'resp-001'
-    ? treatmentBayClinicalToWorld([0, 1.31, 0], bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift)
-    : undefined, [caseData.id, bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift]);
+    ? treatmentBayClinicalToWorld([0, 1.31, 0], bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift, villaPlant ?? undefined)
+    : undefined, [caseData.id, bayStage, patientPosture, patientMobility, patientScale, seatedSupportLift, villaPlant]);
 
   // Condition-responsive idle motion cues (wince/shiver/gasp/tremor/seizure/
   // agitation/chest-clutch) — pure derivation, consumed by IdleAnimations
@@ -5972,6 +5987,9 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
   // Phase 2E: Consolidated close handler
   const handleCloseRegion = useCallback(() => {
     cancelPilotListening();
+    // The penlight is part of the focused eye exam. Clear it with the region
+    // so Escape/full-body never leaves a hidden tool mounted in the scene.
+    setPupilLightSide(null);
     setActiveRegion(null);
     setShowLimbDropdown(false);
     setRegionExposed(false);
@@ -6308,12 +6326,20 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
       if (pilotSteps.length && patientSounds) {
         pilotListeningCancel.current = startAuscultationSequence(pilotSteps, (step, index) => {
           setPilotListeningStep(index);
-          // A delayed/backgrounded step cannot let the overall bar finish
-          // ahead of the actual listening tour. Each step owns its segment.
-          startSoundProgress(actionId, step.durationMs, index / pilotSteps.length, (index + 1) / pilotSteps.length, false);
-          if (step.sound === 'heart') playHeartSound(patientSounds.heartSound, step.durationMs);
-          else playBreathSound(step.sound === 'right' ? patientSounds.rightLung : step.sound === 'left' ? patientSounds.leftLung
-            : getZoneBreathSound(patientSounds, step.sound), step.durationMs);
+          // Commit the contact tool before starting audio. React publishes the
+          // new anatomical site on the next frame; starting both in the same
+          // synchronous callback made the first heart point sound before the
+          // stethoscope visibly landed on the chest.
+          soundStartFrameRef.current = requestAnimationFrame(() => {
+            soundStartFrameRef.current = null;
+            if (!pilotListeningCancel.current) return;
+            // A delayed/backgrounded step cannot let the overall bar finish
+            // ahead of the actual listening tour. Each step owns its segment.
+            startSoundProgress(actionId, step.durationMs, index / pilotSteps.length, (index + 1) / pilotSteps.length, false);
+            if (step.sound === 'heart') playHeartSound(patientSounds.heartSound, step.durationMs);
+            else playBreathSound(step.sound === 'right' ? patientSounds.rightLung : step.sound === 'left' ? patientSounds.leftLung
+              : getZoneBreathSound(patientSounds, step.sound), step.durationMs);
+          });
         }, () => {
           pilotListeningCancel.current = null;
           stopAllSounds();
@@ -7056,7 +7082,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
               <TreatmentBayImmersionLayer
                 seatedSupportLift={seatedSupportLift}
                 plantOffset={plantOffset}
-                equipmentGroundY={caseData.id === 'resp-001' ? RESP001_VILLA_RUG_TOP_Y : undefined}
+                equipmentGroundY={caseData.id === 'resp-001' ? RESP001_VILLA_FLOOR_Y : undefined}
                 faceAttachment={faceAttachment}
                 showWallMonitor={caseData.id !== 'resp-001'}
                 appliedTreatmentIds={appliedTreatmentIds}
@@ -7202,9 +7228,7 @@ export function Body3DModel({ onRegionClick, assessedRegions, caseData, patientS
               {quality.contactShadows && (
                 <ContactShadows
                   name="patient-contact-shadow"
-                  // The authored villa rug is 32 mm thick. A floor-level
-                  // receiver is hidden beneath it, making contact look absent.
-                  position={[0, caseData.id === 'resp-001' ? 0.033 : -0.01, 0]}
+                  position={[0, caseData.id === 'resp-001' ? RESP001_VILLA_FLOOR_Y : -0.01, 0]}
                   opacity={0.32} scale={3.4} blur={3.4} far={3}
                 />
               )}
