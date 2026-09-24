@@ -127,10 +127,16 @@ export function resp001LipArticulationDelta(
   band: LipSeam = REF_BAND,
 ): readonly [x: number, y: number, z: number] {
   const scale = band.yHalf / REF_BAND.yHalf;
-  const lateral = 1 - smoothstep(REF_X_FULL * scale, REF_X_OUTER * scale, Math.abs(x));
-  const vertical = smoothstep(REF_SUPPORT_Y_MIN * scale, REF_FULL_MIN * scale, y)
-    * (1 - smoothstep(REF_FULL_MAX * scale, REF_Y_MAX * scale, y));
-  const anterior = smoothstep(REF_Z_MIN * scale, REF_Z_FULL * scale, z);
+  // Scale the reference thresholds around the measured seam centre, not around
+  // world zero. The pediatric meshes live at y≈0.54–1.40; multiplying the
+  // adult absolute thresholds by the crown ratio pushed those mouths outside
+  // the band and silently disabled lip movement.
+  const yAt = (referenceY: number) => band.yCenter + (referenceY - REF_Y_CENTER) * scale;
+  const xFull = band.xMax * (REF_X_FULL / REF_X_OUTER);
+  const lateral = 1 - smoothstep(xFull, band.xMax, Math.abs(x));
+  const vertical = smoothstep(yAt(REF_SUPPORT_Y_MIN), yAt(REF_FULL_MIN), y)
+    * (1 - smoothstep(yAt(REF_FULL_MAX), yAt(REF_Y_MAX), y));
+  const anterior = smoothstep(band.zMin, band.zMin + (REF_Z_FULL - REF_Z_MIN) * scale, z);
   const coverage = lateral * vertical * anterior;
   if (coverage <= 0) return [0, 0, 0];
 
@@ -142,7 +148,7 @@ export function resp001LipArticulationDelta(
     ? 1
     : seamSide < 0
       ? 0
-      : smoothstep(REF_SPLIT_LOW * scale, REF_SPLIT_HIGH * scale, y);
+      : smoothstep(yAt(REF_SPLIT_LOW), yAt(REF_SPLIT_HIGH), y);
   const yDelta = (-0.0042 + upper * 0.0058) * coverage;
   const zDelta = (-0.0008 + upper * 0.0013) * coverage;
   return [0, yDelta, zDelta];
