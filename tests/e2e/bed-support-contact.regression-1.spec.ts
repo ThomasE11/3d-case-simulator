@@ -34,21 +34,26 @@ test('supine patient back contacts the bed (no float)', async ({ page }, info) =
         backMinY = Math.min(backMinY, point.y);
       }
 
-      // Bed support plane = highest bed surface excluding the headboard
-      // (headboard local position.y ≈ .73, far above the sheet at .503).
+      // The support plane is the sheet, not the decorative pillow/blanket.
+      // The sheet is explicitly named by the environment so this measurement
+      // stays stable as the bed gains realistic bedding details.
       const bed = state.scene.getObjectByName('scene-patient-support-bed') as THREE.Group;
       let supportTop = -Infinity;
       bed.traverse(o => {
         if (!(o as THREE.Mesh).isMesh) return;
         const mesh = o as THREE.Mesh;
-        if (mesh.position.y > .6) return; // headboard
+        if (mesh.name !== 'patient-support-sheet') return;
         const geo = mesh.geometry;
         if (!geo.boundingBox) geo.computeBoundingBox();
         const max = geo.boundingBox!.max.clone();
         mesh.localToWorld(max);
         supportTop = Math.max(supportTop, max.y);
       });
-      return { backMinY, supportTop };
+      return {
+        backMinY,
+        supportTop,
+        bodyPosition: body.position.toArray(),
+      };
     });
 
   const contact = await measure();
@@ -56,7 +61,7 @@ test('supine patient back contacts the bed (no float)', async ({ page }, info) =
     body: JSON.stringify(contact),
     contentType: 'application/json',
   });
-  console.log('Bed contact', contact);
+  console.log('Bed contact', JSON.stringify(contact));
 
   const gap = contact.backMinY - contact.supportTop;
   // No float: the back may sink a few mm into the sheet/mattress but must not

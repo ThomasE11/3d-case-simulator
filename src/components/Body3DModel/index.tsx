@@ -4357,7 +4357,11 @@ function getTreatmentBayCameraFocus(
     // Frame the whole walking lane, not just the starting pose. The patient
     // approaches the camera on each pass; torso-centred seated framing cuts
     // off the head at that end of the route.
-    const target: [number, number, number] = [0.24 + plantX, 0.72 * patientScale, 0.55];
+    // Keep the full stride inside the viewport. The walk is grounded at the
+    // room floor, so a torso-high target leaves the feet clipped by the lower
+    // care ribbon at the near end of the lane; a slightly lower centre keeps
+    // both soles and the head visible while preserving the overview context.
+    const target: [number, number, number] = [0.24 + plantX, 0.58 * patientScale, 0.55];
     return {
       pos: [target[0], target[1] + 0.3 * cameraScale, target[2] + 3.95 * cameraScale] as [number, number, number],
       target,

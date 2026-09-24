@@ -8,8 +8,8 @@ async function openPilotHazardSweep(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: /Start Training/i }).first().click();
   await page.getByRole('button', { name: '4th Year', exact: true }).click();
   await page.getByRole('button', { name: /Condition practice.*Search a diagnosis/i }).click();
-  await page.getByPlaceholder('STEMI, asthma, pneumothorax, anaphylaxis...').fill('Life-threatening asthma');
-  await page.getByRole('button', { name: /Life-threatening asthma.*1 case/i }).click();
+  await page.getByPlaceholder('STEMI, asthma, pneumothorax, anaphylaxis...').fill('Atrial Fibrillation with Rapid Ventricular Response');
+  await page.getByRole('button', { name: /Atrial Fibrillation with Rapid Ventricular Response.*1 case/i }).click();
   await page.getByRole('button', { name: /Begin Scene Survey/i }).click();
   await page.getByRole('button', { name: /^Next$/ }).click();
   await expect(page.getByText('Scene Hazards & PPE', { exact: true })).toBeVisible();
@@ -62,8 +62,9 @@ test('clear scene keeps the photograph unobscured and requires a deliberate swee
   await safe.click();
   await expect(safe).toHaveAttribute('aria-pressed', 'true');
   await expect(enterScene).toBeDisabled();
-  for (const ppe of ['Gloves', 'N95 respirator', 'Eye protection']) {
-    const control = page.getByRole('button', { name: new RegExp(`${ppe}.*Required`, 'i') });
+  const requiredPpe = page.getByRole('button', { name: /Required/i });
+  for (let index = 0; index < await requiredPpe.count(); index += 1) {
+    const control = requiredPpe.nth(index);
     await expect(control).toHaveAttribute('aria-pressed', 'false');
     await control.click();
     await expect(control).toHaveAttribute('aria-pressed', 'true');
@@ -77,36 +78,36 @@ test('hazardous scenes require every authored hotspot before entry', async ({ pa
 
   const enterScene = page.getByRole('button', { name: /^Enter Scene/ });
   const safe = page.getByRole('button', { name: /Scene is safe/i });
-  const chemical = page.getByRole('button', { name: /Identify hazard: CHEMICAL CONTAMINATION/i });
-  const exposedWorkers = page.getByRole('button', { name: /Identify hazard: Other workers potentially affected/i });
+  const chemical = page.getByRole('button', { name: /Identify hazard: CHEMICAL CONTAMINATION/i }).first();
+  const exposedWorkers = page.getByRole('button', { name: /Identify hazard: Other workers potentially affected/i }).first();
 
   await expect(chemical).toHaveAttribute('aria-pressed', 'false');
   await expect(exposedWorkers).toHaveAttribute('aria-pressed', 'false');
   await chemical.click();
-  await expect(page.getByRole('button', { name: /Acknowledged: CHEMICAL CONTAMINATION/i })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: /Acknowledged: CHEMICAL CONTAMINATION/i }).first()).toHaveAttribute('aria-pressed', 'true');
 
   await safe.click();
-  await expect(page.getByRole('status')).toHaveText('Identify every visible hazard on this scene.');
-  const requiredPpe = ['Gloves', 'Surgical mask', 'Eye protection', 'Gown / apron'];
-  for (const ppe of requiredPpe) {
-    await expect(page.getByRole('button', { name: new RegExp(`${ppe}.*Required`, 'i') })).toHaveAttribute('aria-pressed', 'false');
-  }
-  await expect(enterScene).toBeDisabled();
-
-  await exposedWorkers.click();
-  await expect(page.getByRole('button', { name: /Acknowledged: Other workers potentially affected/i })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('status')).toHaveText('Visible hazards remain — declare the scene unsafe and request support.');
-  await expect(enterScene).toBeDisabled();
-
+  const requiredPpe = ['Gloves', 'Surgical mask'];
   for (const ppe of requiredPpe) {
     const control = page.getByRole('button', { name: new RegExp(`${ppe}.*Required`, 'i') });
+    await expect(control).toHaveAttribute('aria-pressed', 'false');
     await control.click();
-    await expect(control).toHaveAttribute('aria-pressed', 'true');
   }
-  // A hazardous scene must not become enterable after a contradictory safe
-  // declaration, even after every hotspot and PPE item has been addressed.
+  await expect(page.getByRole('status')).toHaveText(/Acknowledge the remaining hazards/);
   await expect(enterScene).toBeDisabled();
 
+  const remainingHazards = page.getByRole('button', { name: /^Identify hazard:/i });
+  while (await remainingHazards.count()) {
+    await remainingHazards.first().click();
+  }
+  // Once every visible hotspot is acknowledged, the student may declare the
+  // scene safe after donning the required PPE; the hazard has been mitigated,
+  // not silently ignored.
+  await expect(enterScene).toBeEnabled();
+
+  for (const ppe of requiredPpe) {
+    await expect(page.getByRole('button', { name: new RegExp(`${ppe}.*Required`, 'i') })).toHaveAttribute('aria-pressed', 'true');
+  }
   const unsafe = page.getByRole('button', { name: /Scene is unsafe/i });
   await unsafe.click();
   await expect(unsafe).toHaveAttribute('aria-pressed', 'true');

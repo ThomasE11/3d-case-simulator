@@ -7,6 +7,7 @@ test('jump bags physically open, close, switch, and reopen from the scene', asyn
 
   const breathingBag = page.locator('[data-bag-key="breathing"]');
   const airwayBag = page.locator('[data-bag-key="airway"]');
+  await page.getByRole('button', { name: 'Open Breathing kit from scene' }).click();
   await expect(breathingBag).toHaveAttribute('data-bag-state', 'open', { timeout: 30_000 });
   await expect(breathingBag).toHaveAccessibleName('Close Breathing Bag');
   await expect(page.locator('[data-equipment-inventory="true"]')).toBeVisible();

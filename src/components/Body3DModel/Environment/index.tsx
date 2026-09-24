@@ -376,7 +376,7 @@ function ScenePatientSupport({ kind, seated = false }: { kind: 'bed' | 'sofa'; s
         <boxGeometry args={[1.38, 0.28, 2.34]} />
         <meshStandardMaterial color="#7c5f45" roughness={0.72} />
       </mesh>
-      <mesh position={[0, 0.455, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
+      <mesh name="patient-support-mattress" position={[0, 0.455, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
         <boxGeometry args={[1.30, 0.09, 2.26]} />
         <meshStandardMaterial map={fabric.map} normalMap={fabric.normalMap} normalScale={[0.5, 0.5]} roughness={0.96} />
       </mesh>
@@ -396,7 +396,7 @@ function ScenePatientSupport({ kind, seated = false }: { kind: 'bed' | 'sofa'; s
         <boxGeometry args={[1.24, 0.03, 0.14]} />
         <meshStandardMaterial color="#ebe6d8" roughness={0.97} />
       </mesh>
-      <mesh position={[0, 0.503, 0]} receiveShadow raycast={NO_RAYCAST}>
+      <mesh name="patient-support-sheet" position={[0, 0.503, 0]} receiveShadow raycast={NO_RAYCAST}>
         <boxGeometry args={[1.22, 0.012, 2.18]} />
         <meshStandardMaterial color="#e8eef2" roughness={0.94} />
       </mesh>

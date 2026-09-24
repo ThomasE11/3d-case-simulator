@@ -23,7 +23,7 @@ test('full case flow: landing → treatment → debrief', async ({ page }) => {
   await start.click();
 
   // ── Case selection (mission board) ──
-  await expect(page.getByText(/Training mission board/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose the next patient encounter' })).toBeVisible();
   // Choose a repeatable respiratory encounter, not an arbitrary smart case:
   // blindly applying the first airway item can correctly trigger a warning.
   await page.getByRole('button', { name: '4th Year', exact: true }).click();
@@ -38,8 +38,17 @@ test('full case flow: landing → treatment → debrief', async ({ page }) => {
 
   // ── Scene survey: approach → hazards → enter ──
   await page.getByRole('button', { name: /^Next$/ }).click();
-  await page.getByRole('button', { name: /None identified/i }).click();
+  const authoredHazards = page.getByRole('button', { name: /^Identify hazard:/i });
+  for (let index = 0; index < await authoredHazards.count(); index += 1) {
+    await authoredHazards.nth(index).click();
+  }
+  const noHazards = page.getByRole('button', { name: /No obvious hazards after visual sweep/i });
+  if (await noHazards.count()) await noHazards.click();
   await page.getByRole('button', { name: /Scene is safe/i }).click();
+  for (const ppe of ['Gloves', 'N95 respirator']) {
+    const control = page.getByRole('button', { name: new RegExp(`${ppe}.*Required`, 'i') });
+    if (await control.count() && await control.getAttribute('aria-pressed') !== 'true') await control.click();
+  }
   await page.getByRole('button', { name: /Enter Scene/i }).click();
 
   // ── Treatment bay: 3D canvas + monitor ──
@@ -49,6 +58,7 @@ test('full case flow: landing → treatment → debrief', async ({ page }) => {
   ).toBeVisible();
 
   // ── Apply oxygen through the real hands-on procedure ──
+  await page.getByRole('button', { name: 'Open Breathing kit from scene' }).click();
   await page.getByRole('button', { name: 'Select Non-rebreather', exact: true }).click();
   const oxygen = page.getByRole('dialog', { name: /Apply non-rebreather mask/i });
   for (const step of ['Connect oxygen tubing', 'Pre-inflate reservoir', 'Seat the mask', 'Set prescribed flow', 'Confirm response']) {

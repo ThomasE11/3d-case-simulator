@@ -43,7 +43,7 @@ test('keyboard navigation reaches case selection', async ({ page }) => {
   const start = page.getByRole('button', { name: /Start Training/i }).first();
   await start.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText(/Training mission board/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose the next patient encounter' })).toBeVisible();
 
   // Tab moves focus between interactive controls on the mission board.
   await page.keyboard.press('Tab');

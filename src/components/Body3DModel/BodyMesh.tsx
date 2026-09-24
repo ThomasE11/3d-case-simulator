@@ -98,11 +98,11 @@ export type BayPatientStage = 'stretcher' | 'floor';
 // stage origins place the active posture against those support planes.
 //
 // The supine "body thickness" is the rig-origin-to-posterior depth measured on
-// the skinned mesh in the treatment bay (root Y 0.98 → back min-Y ≈ 0.724,
-// i.e. ≈ 0.256 m). The pre-normalisation constant of 0.4775 m assumed the back
-// sat twice that far below the origin, leaving every recumbent patient to
-// hover ~0.22 m above the bed, stretcher or floor.
-const SUPINE_POSTERIOR_DEPTH = 0.256;
+// the normalised treatment-bay mesh (the live male rig's posterior is 0.348 m
+// below the root after the authored mesh scale is applied). Keeping the stage
+// origin derived from that measurement makes the back sit on the sheet instead
+// of sinking into the bed or hovering above it.
+const SUPINE_POSTERIOR_DEPTH = 0.348;
 const BAY_STAGE_Y: Record<BayPatientStage, number> = {
   stretcher: 0.5025 + SUPINE_POSTERIOR_DEPTH,
   floor: -0.05 + SUPINE_POSTERIOR_DEPTH,
@@ -2153,6 +2153,30 @@ export function BodyMesh({ assessedRegions, onRegionClick, requiredRegions, guid
         treatmentBayTransform.rotation[1] + pace.yaw,
         treatmentBayTransform.rotation[2],
       );
+
+      // Mixamo's walk clip carries a small donor-root lift that is useful in
+      // a preview but leaves both soles floating in the treatment bay.  Solve
+      // the final world-space foot contact after the clip and our joint clamps
+      // have run.  This keeps every stride on the authored floor without
+      // changing the patient's height, path or camera framing.
+      const walkingBody = clonedScene.getObjectByName('Patient') as THREE.SkinnedMesh | null;
+      if (walkingBody?.isSkinnedMesh) {
+        walkingBody.skeleton.update();
+        root.updateMatrixWorld(true);
+        walkingBody.updateWorldMatrix(true, false);
+        const positions = walkingBody.geometry.getAttribute('position');
+        const sample = new THREE.Vector3();
+        let minY = Infinity;
+        for (let i = 0; i < positions.count; i += 8) {
+          walkingBody.getVertexPosition(i, sample);
+          sample.applyMatrix4(walkingBody.matrixWorld);
+          minY = Math.min(minY, sample.y);
+        }
+        if (Number.isFinite(minY)) {
+          root.position.y += THREE.MathUtils.clamp(-0.05 - minY, -1, 1);
+          root.updateMatrixWorld(true);
+        }
+      }
     }
     if ((requiredRegions && requiredRegions.size > 0) || (guidedMode && nextGuidedStep)) {
       pulseRef.current += delta;

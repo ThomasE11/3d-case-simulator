@@ -7,6 +7,9 @@ test('COPD starts with a 28% Venturi pathway and teaches its fixed-performance s
   await page.goto('/?devLiveCase=resp-003');
 
   const breathingBag = page.locator('[data-bag-key="breathing"]');
+  // Gear is intentionally closed on entry: spot the scene kit, then open it
+  // before selecting the device, just as a student would at the bedside.
+  await page.getByRole('button', { name: 'Open Breathing kit from scene' }).click();
   await expect(breathingBag).toHaveAttribute('data-bag-state', 'open', { timeout: 30_000 });
   await expect(page.locator('[data-equipment-inventory="true"]')).toContainText('Venturi Mask 28%');
 
