@@ -47,6 +47,14 @@ describe('patientSeatStyle', () => {
     })).toBe('huddle_knees');
   });
 
+  it('keeps a semi-recumbent ground patient supported rather than curled into a huddle', () => {
+    const style = deriveSeatStyle({
+      caseId: 'resp-010', mobility: 'seated', posture: 'seated',
+      position: 'Semi-recumbent on ground, propped against wall',
+    });
+    expect(style).not.toBe('huddle_knees');
+  });
+
   it('leaves tripod to its authored lean', () => {
     expect(deriveSeatStyle({
       caseId: 'anything', mobility: 'seated', posture: 'tripod',

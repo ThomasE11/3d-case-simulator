@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   deriveExpectedDevices,
   deviceFamiliesForTreatmentId,
+  fallbackDeviceAnchor,
   treatmentAttachesDevice,
 } from './deviceAttachment';
 
@@ -40,5 +41,15 @@ describe('deviceAttachment', () => {
     expect(deviceFamiliesForTreatmentId('fluids_500ml')).toContain('iv');
     expect(deviceFamiliesForTreatmentId('opa_insert')).toContain('airway');
     expect(deviceFamiliesForTreatmentId('ventilated_chest_seal')).toContain('bleed');
+  });
+
+  it('provides a complete patient-facing fallback anchor for every device family', () => {
+    for (const family of ['oxygen', 'iv', 'defib', 'bleed', 'airway', 'immobil', 'warming', 'glucose'] as const) {
+      const anchor = fallbackDeviceAnchor(family);
+      expect(anchor.region).toBeTruthy();
+      expect(anchor.treatmentIdFragments.length).toBeGreaterThan(0);
+      expect(anchor.reassess.length).toBeGreaterThan(0);
+      expect(anchor.fitRule).toBeTruthy();
+    }
   });
 });

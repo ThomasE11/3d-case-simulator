@@ -36,9 +36,10 @@ const {
   deriveScenePatientStage,
   derivePatientSupportSurface,
   patientPlantOffsetForSupport,
+  deriveHandGuardRegion,
 } = jiti('./src/lib/patientStaging.ts');
 const { deriveSeatStyle } = jiti('./src/lib/patientSeatStyle.ts');
-const { deriveExpectedDevices, deviceFamiliesForTreatmentId, DEVICE_FAMILIES: FAM_SPECS } = jiti('./src/lib/deviceAttachment.ts');
+const { deriveExpectedDevices, fallbackDeviceAnchor, deviceFamiliesForTreatmentId, DEVICE_FAMILIES: FAM_SPECS } = jiti('./src/lib/deviceAttachment.ts');
 
 const DEVICE_ALIAS_IDS = {
   oxygen: ['oxygen_mask', 'oxygen_nonrebreather', 'nasal_cannula', 'nebulizer', 'bvm', 'cpap'],
@@ -122,7 +123,8 @@ for (const c of allCases) {
       visual.woundOverlays.length +
       (visual.eyeEffects.kind !== 'normal' ? 1 : 0) +
       (visual.facialDroop > 0 ? 1 : 0) +
-      (visual.breathingEffort > 0 ? 1 : 0);
+      (visual.breathingEffort > 0 ? 1 : 0) +
+      (deriveHandGuardRegion(c) ? 1 : 0);
     if (signs === 0 && scenarios.length > 0) {
       findings.push({ severity: 'WARN', rule: 'no-visible-sign', detail: 'scenario matched but first-look patient shows no sign' });
     }
@@ -174,7 +176,7 @@ for (const c of allCases) {
     const applyable = DEVICE_ALIAS_IDS[fam]?.length > 0;
     const anchored = scenarioAnchors.some(a =>
       (a.treatmentIdFragments ?? []).some(f => famMatches(f, fam)),
-    );
+    ) || fallbackDeviceAnchor(fam).treatmentIdFragments.some(f => famMatches(f, fam));
     if (!applyable) {
       findings.push({
         severity: 'ERROR',

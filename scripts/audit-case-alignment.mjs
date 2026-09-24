@@ -86,8 +86,11 @@ for (const c of allCases) {
     ageYears: c.patientInfo?.age,
     position,
   });
+  // A supported semi-recumbent patient may be on the ground and propped
+  // against a wall without being curled into a knee-huddle. Only explicit
+  // sitting/floor or knees-drawn language asks for the huddle morph.
   const wantsKneesUp = /knees (?:drawn |up|tucked|to chest)/i.test(position)
-    || (/sitting on (?:the )?floor|against (?:the )?wall/i.test(position) && !/supine|lying/i.test(position));
+    || (/sitting on (?:the )?floor/i.test(position) && !/supine|lying|semi[- ]recumbent/i.test(position));
   if (wantsKneesUp && style !== 'huddle_knees') {
     findings.push({ severity: 'ERROR', rule: 'pose-ignores-dispatch', detail: `position "${position}" but seat style is ${style}` });
   }
