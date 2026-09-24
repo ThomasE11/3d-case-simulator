@@ -97,29 +97,32 @@ async function measure(path) {
     components.push(comp);
   }
 
-  // The mouth seam is the widest anterior boundary component in the face
-  // region. Report its extents and the body crown so callers can calibrate a
-  // per-mesh articulation band.
-  let seam = null;
+  // The mouth seam is the lowest forward-facing boundary loop in the face
+  // region. The old "widest component" rule selected a cheek/head boundary
+  // (and missed the narrow infant loop entirely). A mouth loop has a high
+  // anterior Z floor relative to its own Z ceiling; eye loops sit higher on
+  // the face, so the lowest qualifying component is the vermilion seam.
+  const candidates = [];
   for (const comp of components) {
     const ys = comp.map(i => P[i*3+1]);
     const xs = comp.map(i => P[i*3]);
     const zs = comp.map(i => P[i*3+2]);
     const spanX = Math.max(...xs) - Math.min(...xs);
-    if (spanX < 0.030) continue;
     const yCenter = (Math.min(...ys) + Math.max(...ys)) / 2;
     const yHalf = (Math.max(...ys) - Math.min(...ys)) / 2;
-    if (!seam || spanX > seam.spanX) {
-      seam = {
-        crown: maxY,
-        yCenter,
-        yHalf,
-        xMax: Math.max(...xs),
-        zMin: Math.min(...zs),
-        spanX,
-      };
-    }
+    const zMin = Math.min(...zs);
+    const zMax = Math.max(...zs);
+    if (zMin < zMax * 0.70) continue;
+    candidates.push({
+      crown: maxY,
+      yCenter,
+      yHalf,
+      xMax: Math.max(...xs),
+      zMin,
+      spanX,
+    });
   }
+  const seam = candidates.sort((a, b) => a.yCenter - b.yCenter)[0] ?? null;
 
   if (process.env.LIP_SEAM_JSON) {
     console.log(JSON.stringify({ path, crown: maxY, seam }));

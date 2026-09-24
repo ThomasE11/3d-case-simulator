@@ -30,6 +30,7 @@
 export interface LipSeamSample {
   crown: number;
   yCenter: number;
+  yHalf: number;
   xMax: number;
   zMin: number;
   /** Human-readable label for diagnostics / test messages. */
@@ -37,17 +38,17 @@ export interface LipSeamSample {
 }
 
 export const LIP_SEAM_SAMPLES: readonly LipSeamSample[] = [
-  { crown: 0.6554, yCenter: 0.5454, xMax: 0.0129, zMin: 0.0716, label: 'infant-female' },
-  { crown: 0.6601, yCenter: 0.5454, xMax: 0.0129, zMin: 0.0716, label: 'infant-male' },
-  { crown: 0.9173, yCenter: 0.7883, xMax: 0.0148, zMin: 0.0866, label: 'toddler-female' },
-  { crown: 0.9600, yCenter: 0.8244, xMax: 0.0152, zMin: 0.0990, label: 'toddler-male' },
-  { crown: 1.2450, yCenter: 1.0970, xMax: 0.0171, zMin: 0.1071, label: 'child-female' },
-  { crown: 1.3353, yCenter: 1.1731, xMax: 0.0181, zMin: 0.1329, label: 'child-male' },
-  { crown: 1.5088, yCenter: 1.3474, xMax: 0.0204, zMin: 0.1263, label: 'adolescent-female' },
-  { crown: 1.5637, yCenter: 1.3996, xMax: 0.0214, zMin: 0.1342, label: 'adult-female' },
-  { crown: 1.6355, yCenter: 1.4592, xMax: 0.0220, zMin: 0.1435, label: 'adolescent-male' },
-  { crown: 1.6679, yCenter: 1.4804, xMax: 0.0250, zMin: 0.1441, label: 'legacy patient.glb' },
-  { crown: 1.7261, yCenter: 1.5452, xMax: 0.0232, zMin: 0.1449, label: 'adult-male' },
+  { crown: 0.6554, yCenter: 0.5414, yHalf: 0.00136, xMax: 0.0129, zMin: 0.0651, label: 'infant-female' },
+  { crown: 0.6601, yCenter: 0.5454, yHalf: 0.00137, xMax: 0.0129, zMin: 0.0665, label: 'infant-male' },
+  { crown: 0.9173, yCenter: 0.7883, yHalf: 0.00143, xMax: 0.0147, zMin: 0.0813, label: 'toddler-female' },
+  { crown: 0.9600, yCenter: 0.8243, yHalf: 0.00135, xMax: 0.0152, zMin: 0.0938, label: 'toddler-male' },
+  { crown: 1.2450, yCenter: 1.0969, yHalf: 0.00182, xMax: 0.0171, zMin: 0.1011, label: 'child-female' },
+  { crown: 1.3353, yCenter: 1.1731, yHalf: 0.00159, xMax: 0.0181, zMin: 0.1274, label: 'child-male' },
+  { crown: 1.5088, yCenter: 1.3473, yHalf: 0.00207, xMax: 0.0204, zMin: 0.1207, label: 'adolescent-female' },
+  { crown: 1.5637, yCenter: 1.3995, yHalf: 0.00215, xMax: 0.0214, zMin: 0.1287, label: 'adult-female' },
+  { crown: 1.6355, yCenter: 1.4592, yHalf: 0.00175, xMax: 0.0220, zMin: 0.1374, label: 'adolescent-male' },
+  { crown: 1.6679, yCenter: 1.4804, yHalf: 0.00185, xMax: 0.0250, zMin: 0.1380, label: 'legacy patient.glb' },
+  { crown: 1.7261, yCenter: 1.5451, yHalf: 0.00184, xMax: 0.0232, zMin: 0.1387, label: 'adult-male' },
 ];
 
 /** Crown height of the adult male mesh — the reference the old band was set on. */
@@ -88,8 +89,9 @@ function lipYHalf(crown: number): number {
  *
  * The seam centre Y scales the reference (adult male) centre by crown ratio,
  * so the adult male row reproduces the old hardcoded band exactly (centre
- * 1.54725) and every other mesh tracks its own measured mouth. The band
- * extents scale the reference (adult male) extents by crown ratio. Clamped to
+ * 1.54725) and every other mesh tracks its own measured mouth. The lateral
+ * and anterior limits scale with crown, then widen when necessary to cover
+ * the measured row; small meshes do not scale perfectly linearly. Clamped to
  * the table ends.
  */
 export function lipSeamForCrown(crown: number): LipSeam {
@@ -102,10 +104,20 @@ export function lipSeamForCrown(crown: number): LipSeam {
   let i = 1;
   while (i < samples.length && crown > samples[i].crown) i++;
   const scale = crown / ADULT_MALE_CROWN;
+  const lower = samples[Math.max(0, i - 1)];
+  const upper = samples[Math.min(samples.length - 1, i)];
+  const t = upper.crown === lower.crown ? 0 : (crown - lower.crown) / (upper.crown - lower.crown);
+  const measuredYCenter = lower.yCenter + (upper.yCenter - lower.yCenter) * t;
+  const measuredYHalf = lower.yHalf + (upper.yHalf - lower.yHalf) * t;
+  const measuredXMax = lower.xMax + (upper.xMax - lower.xMax) * t;
+  const measuredZMin = lower.zMin + (upper.zMin - lower.zMin) * t;
+  // Preserve the legacy adult centre while retaining the measured mouth
+  // position for every smaller mesh.
+  const adultCentreCorrection = REF_Y_CENTER - last.yCenter;
   return {
-    yCenter: REF_Y_CENTER * scale,
-    yHalf: lipYHalf(crown),
-    xMax: REF_X_MAX * scale,
-    zMin: REF_Z_MIN * scale,
+    yCenter: measuredYCenter + adultCentreCorrection * scale,
+    yHalf: Math.max(lipYHalf(crown), measuredYHalf + Math.abs((measuredYCenter + adultCentreCorrection * scale) - measuredYCenter)),
+    xMax: Math.max(REF_X_MAX * scale, measuredXMax),
+    zMin: Math.min(REF_Z_MIN * scale, measuredZMin),
   };
 }
